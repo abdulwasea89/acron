@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "sqlmodel": {
+      "source": "salmanferozkhan/cloud-and-fast-api",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/sqlmodel/SKILL.md",
+      "computedHash": "a5079049f071be7fadffc1c03c5c95fc62ec295c0253a56cc01c981ad2dbc154"
+    }
+  }
+}

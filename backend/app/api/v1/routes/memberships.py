@@ -1,0 +1,127 @@
+"""Member signup & membership API routes (Sections 8, 9).
+
+The signup sequence is intentionally multi-step (mirrors the mobile flow):
+  start -> request-email -> verify-email -> set-password -> plans -> pay -> profile.
+Payment requires an Idempotency-Key header (Security Rule #2).
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, Header, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_client_ip, get_session, get_tenant
+from app.core.tenancy import IDEMPOTENCY_HEADER, TenantContext
+from app.schemas.auth import LoginResponse
+from app.schemas.common import Message
+from app.schemas.memberships import (
+    MemberOut,
+    ProfileComplete,
+    PublicPlanOut,
+    SignupEmail,
+    SignupPay,
+    SignupSetPassword,
+    SignupSetPasswordOut,
+    SignupStart,
+    SignupStartOut,
+    SignupVerify,
+)
+from app.services import memberships_service as members
+from app.services.memberships_service import _org_by_code
+
+router = APIRouter()
+
+
+@router.post("/signup/start", response_model=SignupStartOut)
+async def signup_start(
+    data: SignupStart, request: Request, session: AsyncSession = Depends(get_session)
+):
+    org = await members.start_signup(
+        session, org_code=data.org_code, captcha_token=data.captcha_token, ip=get_client_ip(request)
+    )
+    return SignupStartOut(
+        organization_id=org.id,
+        organization_name=org.name,
+        enrollment_mode=org.enrollment_mode.value,
+        accepting_signups=not org.signup_frozen,
+    )
+
+
+@router.post("/signup/request-email", response_model=Message)
+async def signup_request_email(
+    data: SignupEmail, request: Request, session: AsyncSession = Depends(get_session)
+):
+    await members.request_email_verification(
+        session, org_code=data.org_code, email=data.email,
+        captcha_token=data.captcha_token, ip=get_client_ip(request),
+    )
+    return Message(message="Verification code sent.")
+
+
+@router.post("/signup/verify-email", response_model=Message)
+async def signup_verify_email(data: SignupVerify, session: AsyncSession = Depends(get_session)):
+    await members.verify_signup_email(
+        session, org_code=data.org_code, email=data.email, code=data.code
+    )
+    return Message(message="Email verified.")
+
+
+@router.post("/signup/set-password", response_model=SignupSetPasswordOut)
+async def signup_set_password(
+    data: SignupSetPassword, session: AsyncSession = Depends(get_session)
+):
+    member = await members.set_password(
+        session, org_code=data.org_code, email=data.email, password=data.password
+    )
+    return SignupSetPasswordOut(
+        member_id=member.id,
+        organization_id=member.organization_id,
+        member_status=member.member_status.value,
+    )
+
+
+@router.get("/signup/plans", response_model=list[PublicPlanOut])
+async def signup_plans(org_code: str, session: AsyncSession = Depends(get_session)):
+    org = await _org_by_code(session, org_code)
+    plans = await members.public_plans(session, org=org)
+    return [
+        PublicPlanOut(
+            id=p.id, name=p.name, public_description=p.public_description,
+            price=p.price, currency=p.currency, billing_type=p.billing_type.value,
+            featured=p.featured,
+        )
+        for p in plans
+    ]
+
+
+@router.post("/signup/pay", response_model=LoginResponse)
+async def signup_pay(
+    data: SignupPay,
+    request: Request,
+    idempotency_key: str = Header(default="", alias=IDEMPOTENCY_HEADER),
+    session: AsyncSession = Depends(get_session),
+):
+    return await members.pay_and_activate(
+        session, org_code=data.org_code, email=data.email, plan_id=data.plan_id,
+        idempotency_key=idempotency_key, ip=get_client_ip(request),
+    )
+
+
+@router.post("/me/profile", response_model=MemberOut)
+async def complete_profile(
+    data: ProfileComplete,
+    ctx: TenantContext = Depends(get_tenant),
+    session: AsyncSession = Depends(get_session),
+):
+    member = await members.complete_profile(
+        session, org_id=ctx.org_id, user_id=ctx.user_id, full_name=data.full_name,
+        photo_url=data.photo_url, phone=data.phone, emergency_contact=data.emergency_contact,
+    )
+    from app.models.user import User
+
+    user = await session.get(User, ctx.user_id)
+    return MemberOut(
+        member_id=member.id, user_id=ctx.user_id, email=user.email if user else "",
+        full_name=user.full_name if user else None, role=member.role.value,
+        member_status=member.member_status.value, profile_complete=member.profile_complete,
+    )
