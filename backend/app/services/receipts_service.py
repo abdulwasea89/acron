@@ -16,7 +16,7 @@ from sqlmodel import select
 
 from app.core.constants import MemberStatus, ReceiptStatus
 from app.core.security import now_utc
-from app.integrations.email import send_email
+from app.integrations.email import send_email_safe as send_email
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.payment import Payment

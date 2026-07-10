@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_session, require_capability
+from app.api.deps import get_session, require_capability, require_writable_org
 from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
 from app.schemas.payroll import (
@@ -41,7 +41,7 @@ async def _run_out(session: AsyncSession, run) -> PayrollRunOut:
     )
 
 
-@router.post("/runs", response_model=PayrollRunOut, status_code=201)
+@router.post("/runs", response_model=PayrollRunOut, status_code=201, dependencies=[Depends(require_writable_org)])
 async def create_run(
     data: PayrollRunCreate,
     ctx: TenantContext = Depends(require_capability(Capability.RUN_PAYROLL)),
@@ -60,7 +60,7 @@ async def list_runs(
     return [await _run_out(session, r) for r in runs]
 
 
-@router.patch("/runs/{run_id}/entries/{entry_id}", response_model=PayrollEntryOut)
+@router.patch("/runs/{run_id}/entries/{entry_id}", response_model=PayrollEntryOut, dependencies=[Depends(require_writable_org)])
 async def adjust_entry(
     run_id: str,
     entry_id: str,
@@ -73,7 +73,7 @@ async def adjust_entry(
     return _entry_out(entry)
 
 
-@router.post("/runs/{run_id}/lock", response_model=PayrollRunOut)
+@router.post("/runs/{run_id}/lock", response_model=PayrollRunOut, dependencies=[Depends(require_writable_org)])
 async def lock_run(
     run_id: str,
     ctx: TenantContext = Depends(require_capability(Capability.RUN_PAYROLL)),
@@ -83,7 +83,7 @@ async def lock_run(
     return await _run_out(session, run)
 
 
-@router.post("/runs/{run_id}/finalize", response_model=PayrollRunOut)
+@router.post("/runs/{run_id}/finalize", response_model=PayrollRunOut, dependencies=[Depends(require_writable_org)])
 async def finalize_run(
     run_id: str,
     ctx: TenantContext = Depends(require_capability(Capability.RUN_PAYROLL)),
@@ -93,7 +93,7 @@ async def finalize_run(
     return await _run_out(session, run)
 
 
-@router.post("/runs/{run_id}/pay", response_model=PayrollRunOut)
+@router.post("/runs/{run_id}/pay", response_model=PayrollRunOut, dependencies=[Depends(require_writable_org)])
 async def pay_run(
     run_id: str,
     ctx: TenantContext = Depends(require_capability(Capability.RUN_PAYROLL)),
@@ -104,7 +104,7 @@ async def pay_run(
 
 
 # ----------------------------------------------------------------- advances
-@router.post("/advances", response_model=AdvanceOut, status_code=201)
+@router.post("/advances", response_model=AdvanceOut, status_code=201, dependencies=[Depends(require_writable_org)])
 async def request_advance(
     data: AdvanceRequest,
     ctx: TenantContext = Depends(require_capability(Capability.CHECK_IN_SHIFT)),
@@ -128,7 +128,7 @@ async def list_advances(
     ]
 
 
-@router.post("/advances/{advance_id}/decide", response_model=AdvanceOut)
+@router.post("/advances/{advance_id}/decide", response_model=AdvanceOut, dependencies=[Depends(require_writable_org)])
 async def decide_advance(
     advance_id: str,
     data: AdvanceDecision,

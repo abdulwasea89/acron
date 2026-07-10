@@ -11,7 +11,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.core.constants import Role
+from app.core.constants import Role, SaasStatus
 from app.core.permissions import Capability, role_has
 from app.core.security import ACCESS, safe_decode
 from app.core.tenancy import ORG_HEADER, TenantContext
@@ -27,6 +27,7 @@ __all__ = [
     "get_tenant",
     "require_capability",
     "require_role",
+    "require_writable_org",
     "get_client_ip",
 ]
 
@@ -148,4 +149,29 @@ async def get_org(
     org = await session.get(Organization, ctx.org_id)
     if org is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+    return org
+
+
+# States in which the org is read-only or fully locked for SaaS-billing reasons
+# (Section 3.5): no plan edits, no new signups, no payroll runs.
+_NON_WRITABLE_SAAS = {SaasStatus.READ_ONLY, SaasStatus.SUSPENDED, SaasStatus.CANCELLED, SaasStatus.ARCHIVED}
+
+
+async def require_writable_org(
+    org: Organization = Depends(get_org),
+) -> Organization:
+    """Block admin writes when the org's SaaS subscription is delinquent.
+
+    On failed SaaS payment the org enters read-only at grace-end and is fully
+    suspended later (Section 3.5). In those states the platform must reject
+    mutating admin operations (plan edits, payroll runs, cash logging, staff
+    changes) while still allowing reads.
+    """
+
+    if org.saas_status in _NON_WRITABLE_SAAS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your gym's subscription is past due; the account is read-only. "
+                   "Update billing to restore write access.",
+        )
     return org

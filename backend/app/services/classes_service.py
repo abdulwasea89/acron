@@ -47,6 +47,9 @@ async def create_session(
     await session.flush()
     await record_audit(session, action="class.created", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="class_session", entity_id=cs.id)
+    from app.realtime import events
+
+    await events.class_changed(org_id, class_session_id=cs.id, action="created")
     return cs
 
 

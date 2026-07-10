@@ -15,7 +15,7 @@ from sqlmodel import select
 
 from app.core.constants import PaymentMethod, PaymentStatus
 from app.core.security import now_utc
-from app.integrations.email import send_email
+from app.integrations.email import send_email_safe as send_email
 from app.integrations.stripe_connect import connect_stripe
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization

@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_org, get_session, require_capability
+from app.api.deps import get_org, get_session, require_capability, require_writable_org
 from app.core.constants import PlanStatus
 from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
@@ -34,7 +34,7 @@ async def list_plans(
     return [_to_out(p) for p in await plans.list_plans(session, org_id=ctx.org_id)]
 
 
-@router.post("", response_model=PlanOut, status_code=201)
+@router.post("", response_model=PlanOut, status_code=201, dependencies=[Depends(require_writable_org)])
 async def create_plan(
     data: PlanCreate,
     ctx: TenantContext = Depends(require_capability(Capability.CREATE_EDIT_PLANS)),
@@ -45,7 +45,7 @@ async def create_plan(
     return _to_out(plan)
 
 
-@router.patch("/{plan_id}", response_model=PlanOut)
+@router.patch("/{plan_id}", response_model=PlanOut, dependencies=[Depends(require_writable_org)])
 async def update_plan(
     plan_id: str,
     data: PlanUpdate,
@@ -56,7 +56,7 @@ async def update_plan(
     return _to_out(plan)
 
 
-@router.post("/{plan_id}/publish", response_model=PlanOut)
+@router.post("/{plan_id}/publish", response_model=PlanOut, dependencies=[Depends(require_writable_org)])
 async def publish_plan(
     plan_id: str,
     ctx: TenantContext = Depends(require_capability(Capability.CREATE_EDIT_PLANS)),
@@ -67,7 +67,7 @@ async def publish_plan(
     return _to_out(plan)
 
 
-@router.post("/{plan_id}/pause", response_model=PlanOut)
+@router.post("/{plan_id}/pause", response_model=PlanOut, dependencies=[Depends(require_writable_org)])
 async def pause_plan(
     plan_id: str,
     ctx: TenantContext = Depends(require_capability(Capability.CREATE_EDIT_PLANS)),
@@ -77,7 +77,7 @@ async def pause_plan(
     return _to_out(plan)
 
 
-@router.post("/{plan_id}/resume", response_model=PlanOut)
+@router.post("/{plan_id}/resume", response_model=PlanOut, dependencies=[Depends(require_writable_org)])
 async def resume_plan(
     plan_id: str,
     ctx: TenantContext = Depends(require_capability(Capability.CREATE_EDIT_PLANS)),
@@ -87,7 +87,7 @@ async def resume_plan(
     return _to_out(plan)
 
 
-@router.post("/{plan_id}/duplicate", response_model=PlanOut, status_code=201)
+@router.post("/{plan_id}/duplicate", response_model=PlanOut, status_code=201, dependencies=[Depends(require_writable_org)])
 async def duplicate_plan(
     plan_id: str,
     ctx: TenantContext = Depends(require_capability(Capability.CREATE_EDIT_PLANS)),
@@ -97,7 +97,7 @@ async def duplicate_plan(
     return _to_out(plan)
 
 
-@router.post("/{plan_id}/archive", response_model=PlanOut)
+@router.post("/{plan_id}/archive", response_model=PlanOut, dependencies=[Depends(require_writable_org)])
 async def archive_plan(
     plan_id: str,
     data: ArchiveRequest,

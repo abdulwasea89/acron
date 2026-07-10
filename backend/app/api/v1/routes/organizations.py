@@ -14,6 +14,7 @@ from app.schemas.organizations import (
     ConnectOnboardingOut,
     EnrollmentModeUpdate,
     GymStatusUpdate,
+    OrgCodeRotateOut,
     OrganizationOut,
     RegisterGymRequest,
     RegisterGymResponse,
@@ -106,3 +107,15 @@ async def set_gym_status(
 ):
     await orgs.update_gym_status(session, org, data.gym_status)
     return Message(message="Gym status updated.")
+
+
+@router.post("/me/rotate-code", response_model=OrgCodeRotateOut)
+async def rotate_org_code(
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_SETTINGS)),
+    org: Organization = Depends(get_org),
+    session: AsyncSession = Depends(get_session),
+):
+    """Rotate the org code (web-only, owner). Revokes member sessions (Section 7.5)."""
+
+    new_code = await orgs.rotate_org_code(session, org, actor_id=ctx.user_id)
+    return OrgCodeRotateOut(org_code=new_code)

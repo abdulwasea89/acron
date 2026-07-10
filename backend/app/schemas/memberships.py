@@ -47,6 +47,15 @@ class SignupSetPasswordOut(BaseModel):
     member_status: str
 
 
+class RedeemInvite(BaseModel):
+    """Invited member claims their invite: code + a new password (Section 8.4)."""
+
+    org_code: str
+    email: EmailStr
+    code: str
+    password: str
+
+
 class PublicPlanOut(BaseModel):
     id: str
     name: str

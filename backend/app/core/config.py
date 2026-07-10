@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     # Defaults to a local async SQLite file so the app runs with no services.
     # In production set DATABASE_URL to a postgresql+asyncpg URL.
     # database_url: str = "sqlite+aiosqlite:///./gym_platform.db"
-    database_url: str | None = os.getenv("DATABASE_URL")
+    database_url: str = os.getenv("DATABASE_URL") or "sqlite+aiosqlite:///./gym_platform.db"
     db_echo: bool = False
 
     # ------------------------------------------------------------------ redis

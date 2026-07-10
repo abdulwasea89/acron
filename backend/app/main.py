@@ -18,7 +18,7 @@ from app.db.session import engine, init_db
 
 
 
-@asynccontextmanager
+@asynccontextmanager    
 async def lifespan(app: FastAPI):
     # Create tables for local/dev SQLite so the app is runnable immediately.
     if settings.is_sqlite:

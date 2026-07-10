@@ -69,11 +69,19 @@ def reset_process_globals():
     (and stale verification emails) leak between tests and cause false failures.
     """
 
+    from app.core.config import settings
     from app.core.rate_limit import rate_limiter
     from app.integrations import email as email_mod
     from app.integrations import push as push_mod
+
+    # Force email stub mode so tests never hit the real Resend API (the dev .env
+    # may carry a live key). Stub mode captures every email in `outbox`, which
+    # the helpers read for verification codes.
+    saved_key = settings.resend_api_key
+    settings.resend_api_key = None
 
     rate_limiter._memory._events.clear()
     email_mod.outbox.clear()
     push_mod.outbox.clear()
     yield
+    settings.resend_api_key = saved_key

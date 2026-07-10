@@ -31,7 +31,7 @@ from app.core.security import (
     password_complexity_errors,
     verify_password,
 )
-from app.integrations.email import send_email
+from app.integrations.email import send_email, send_email_safe
 from app.integrations.hibp import password_is_pwned
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
@@ -123,7 +123,7 @@ async def resend_email_code(session: AsyncSession, email: str) -> None:
         )
     except verif.VerificationError as exc:
         raise HTTPException(status_code=429, detail=str(exc))
-    await send_email(email, "Verify your email", f"Your verification code is {code}")
+    await send_email_safe(email, "Verify your email", f"Your verification code is {code}")
 
 
 # ----------------------------------------------------------------- lockout
@@ -136,8 +136,8 @@ async def _register_failure(session: AsyncSession, user: User) -> None:
     if user.failed_login_count >= settings.max_login_attempts:
         user.locked_until = now_utc() + timedelta(minutes=settings.login_lockout_minutes)
         user.failed_login_count = 0
-        await send_email(user.email, "Account locked",
-                         "Your account was locked after too many failed login attempts.")
+        await send_email_safe(user.email, "Account locked",
+                              "Your account was locked after too many failed login attempts.")
     session.add(user)
 
 
@@ -236,6 +236,7 @@ async def login(
     org_code: str | None = None,
     organization_id: str | None = None,
     remember: bool = False,
+    mfa_code: str | None = None,
     ip: str | None = None,
     user_agent: str | None = None,
 ) -> LoginResponse:
@@ -278,9 +279,17 @@ async def login(
     if target.banned or target.member_status == MemberStatus.BANNED:
         raise HTTPException(status_code=403, detail="Access denied.")
 
+    # MFA challenge (Section 5.5): if enabled and no/invalid code, return a
+    # tokenless response telling the client to collect a TOTP code and retry.
     if user.mfa_enabled:
-        # MFA challenge would be issued here; out of scope for v1 stub.
-        pass
+        from app.services import mfa_service
+
+        if not mfa_service.check_code(user, mfa_code):
+            await _register_success(session, user)  # password was correct
+            return LoginResponse(
+                access_token="", refresh_token="", requires_mfa=True,
+                organization_id=target.organization_id, role=target.role.value,
+            )
 
     await _register_success(session, user)
     access, refresh = await create_session(
@@ -295,7 +304,8 @@ async def login(
         organization_id=target.organization_id,
         role=target.role.value,
         member_status=target.member_status.value,
-        requires_mfa=user.mfa_enabled,
+        # MFA challenge already satisfied here (we issued tokens) -> False.
+        requires_mfa=False,
     )
 
 
@@ -343,7 +353,7 @@ async def request_password_reset(session: AsyncSession, email: str) -> None:
         session, email=email, purpose=VerificationPurpose.PASSWORD_RESET, user_id=user.id,
         expire_minutes=settings.password_reset_expire_minutes,
     )
-    await send_email(email, "Reset your password", f"Use this token to reset: {token}")
+    await send_email_safe(email, "Reset your password", f"Use this token to reset: {token}")
 
 
 async def confirm_password_reset(

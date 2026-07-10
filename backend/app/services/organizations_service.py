@@ -24,11 +24,12 @@ from app.core.constants import (
     TIER_PRICE_USD,
 )
 from app.core.security import now_utc
-from app.integrations.email import send_email
+from app.integrations.email import send_email_safe as send_email
 from app.integrations.stripe_client import platform_stripe
 from app.integrations.stripe_connect import connect_stripe
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
+from app.models.session import AuthSession
 from app.models.user import User
 from app.schemas.organizations import RegisterGymRequest, SetupChecklist
 from app.services import auth_service
@@ -161,6 +162,53 @@ async def mark_connect_active(session: AsyncSession, org: Organization) -> None:
                        entity_type="organization", entity_id=org.id)
 
 
+async def rotate_org_code(session: AsyncSession, org: Organization, *, actor_id: str) -> str:
+    """Generate a fresh org code and revoke member sessions (Section 7.5).
+
+    A leaked/abused org code is rotated by the owner. The old code stops working
+    immediately; existing member sessions (which were established against the old
+    code) are revoked so they must re-authenticate with the new code. Owner/staff
+    sessions are left intact so the admin isn't locked out mid-action.
+    """
+
+    old_code = org.org_code
+    org.org_code = await _unique_org_code(session, org.name)
+    org.signup_frozen = False  # a fresh code clears any abuse freeze
+    session.add(org)
+
+    # Revoke sessions for plain members of this org (Section 5.9 + 7.5).
+    member_user_ids = (
+        await session.execute(
+            select(OrganizationMember.user_id).where(
+                OrganizationMember.organization_id == org.id,
+                OrganizationMember.role == Role.MEMBER,
+            )
+        )
+    ).scalars()
+    revoked = 0
+    for uid in member_user_ids:
+        sessions = (
+            await session.execute(
+                select(AuthSession).where(
+                    AuthSession.user_id == uid,
+                    AuthSession.organization_id == org.id,
+                    AuthSession.revoked == False,  # noqa: E712
+                )
+            )
+        ).scalars()
+        for s in sessions:
+            s.revoked = True
+            s.revoked_at = now_utc()
+            session.add(s)
+            revoked += 1
+
+    await record_audit(session, action="org.code_rotated", organization_id=org.id, actor_user_id=actor_id,
+                       entity_type="organization", entity_id=org.id,
+                       old_values={"org_code": old_code}, new_values={"org_code": org.org_code},
+                       metadata={"sessions_revoked": revoked})
+    return org.org_code
+
+
 async def update_enrollment_mode(session: AsyncSession, org: Organization, mode) -> None:
     org.enrollment_mode = mode
     org.checklist_enrollment_configured = True
@@ -170,3 +218,7 @@ async def update_enrollment_mode(session: AsyncSession, org: Organization, mode)
 async def update_gym_status(session: AsyncSession, org: Organization, gym_status) -> None:
     org.gym_status = gym_status
     session.add(org)
+    # Real-time sync: owner toggles status on web -> reflects on mobile (Section 16).
+    from app.realtime import events
+
+    await events.gym_status_changed(org.id, gym_status=gym_status.value)

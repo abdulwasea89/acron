@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_session, require_capability
+from app.api.deps import get_session, require_capability, require_writable_org
 from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
 from app.schemas.cash import (
@@ -19,7 +19,7 @@ from app.services import cash_service as cash
 router = APIRouter()
 
 
-@router.post("/log", response_model=CashPaymentOut, status_code=201)
+@router.post("/log", response_model=CashPaymentOut, status_code=201, dependencies=[Depends(require_writable_org)])
 async def log_cash_payment(
     data: CashPaymentLog,
     ctx: TenantContext = Depends(require_capability(Capability.LOG_CASH_PAYMENT)),
@@ -35,7 +35,7 @@ async def log_cash_payment(
     )
 
 
-@router.post("/reconcile", response_model=ReconciliationOut, status_code=201)
+@router.post("/reconcile", response_model=ReconciliationOut, status_code=201, dependencies=[Depends(require_writable_org)])
 async def reconcile(
     data: ReconciliationRequest,
     ctx: TenantContext = Depends(require_capability(Capability.LOG_CASH_PAYMENT)),

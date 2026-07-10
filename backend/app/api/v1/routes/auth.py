@@ -5,13 +5,19 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_client_ip, get_current_user, get_session
+from app.api.deps import get_client_ip, get_current_user, get_session, get_tenant
+from app.core.tenancy import TenantContext
 from app.models.user import User
+from sqlmodel import select
 from app.schemas.auth import (
     EmailVerifyRequest,
     LoginRequest,
     LoginResponse,
     MemberLoginRequest,
+    MfaConfirm,
+    MfaDisable,
+    MfaEnrollResponse,
+    MfaStatus,
     OwnerRegisterStart,
     PasswordResetConfirm,
     PasswordResetRequest,
@@ -20,9 +26,31 @@ from app.schemas.auth import (
     SessionInfo,
 )
 from app.schemas.common import Message
-from app.services import auth_service
+from app.services import auth_service, mfa_service
 
 router = APIRouter()
+
+
+@router.get("/me")
+async def get_me(ctx: TenantContext = Depends(get_tenant), session: AsyncSession = Depends(get_session)):
+    """Return the current user's identity and role within the active org."""
+    from app.models.membership import OrganizationMember
+
+    member = (
+        await session.execute(
+            select(OrganizationMember).where(
+                OrganizationMember.user_id == ctx.user_id,
+                OrganizationMember.organization_id == ctx.org_id,
+            )
+        )
+    ).scalar_one_or_none()
+    return {
+        "user_id": ctx.user_id,
+        "org_id": ctx.org_id,
+        "role": ctx.role.value,
+        "member_id": member.id if member else None,
+        "member_status": member.member_status.value if member else None,
+    }
 
 
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)
@@ -54,6 +82,7 @@ async def login(data: LoginRequest, request: Request, session: AsyncSession = De
         org_code=data.org_code,
         organization_id=data.organization_id,
         remember=data.remember,
+        mfa_code=data.mfa_code,
         ip=get_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
@@ -71,6 +100,7 @@ async def member_login(
         password=data.password,
         org_code=data.org_code,
         remember=data.remember,
+        mfa_code=data.mfa_code,
         ip=get_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
@@ -125,3 +155,41 @@ async def revoke_session(
 ):
     await auth_service.revoke_session(session, user_id=user.id, session_id=session_id)
     return Message(message="Session revoked.")
+
+
+# --------------------------------------------------------------------- MFA
+@router.get("/mfa", response_model=MfaStatus)
+async def mfa_status(user: User = Depends(get_current_user)):
+    return MfaStatus(mfa_enabled=user.mfa_enabled)
+
+
+@router.post("/mfa/enroll", response_model=MfaEnrollResponse)
+async def mfa_enroll(
+    user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+):
+    """Begin TOTP enrollment — returns the secret + otpauth URI for a QR code."""
+
+    from app.core.config import settings
+
+    result = await mfa_service.begin_enrollment(session, user=user, issuer=settings.app_name)
+    return MfaEnrollResponse(**result)
+
+
+@router.post("/mfa/confirm", response_model=Message)
+async def mfa_confirm(
+    data: MfaConfirm,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await mfa_service.confirm_enrollment(session, user=user, code=data.code)
+    return Message(message="MFA enabled.")
+
+
+@router.post("/mfa/disable", response_model=Message)
+async def mfa_disable(
+    data: MfaDisable,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await mfa_service.disable(session, user=user, password=data.password)
+    return Message(message="MFA disabled.")

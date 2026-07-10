@@ -37,3 +37,6 @@ class MemberInviteOut(BaseModel):
     email: str
     invite_code: str
     member_status: str
+    # True when the email was actually delivered by a provider. False in stub
+    # mode (no provider) — the UI then shows `invite_code` for manual sharing.
+    email_delivered: bool = False

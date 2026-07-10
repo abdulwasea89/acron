@@ -33,6 +33,7 @@ class LoginRequest(BaseModel):
     org_code: str | None = None
     organization_id: str | None = None
     remember: bool = False
+    mfa_code: str | None = None
 
 
 class MemberLoginRequest(BaseModel):
@@ -42,6 +43,25 @@ class MemberLoginRequest(BaseModel):
     email: EmailStr
     password: str
     remember: bool = False
+    mfa_code: str | None = None
+
+
+class MfaConfirm(BaseModel):
+    code: str = Field(min_length=6, max_length=6)
+
+
+class MfaDisable(BaseModel):
+    password: str
+
+
+class MfaEnrollResponse(BaseModel):
+    secret: str
+    otpauth_uri: str
+    current_code: str
+
+
+class MfaStatus(BaseModel):
+    mfa_enabled: bool
 
 
 class RefreshRequest(BaseModel):

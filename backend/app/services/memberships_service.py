@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -36,7 +37,7 @@ from app.core.constants import (
 )
 from app.core.rate_limit import rate_limiter
 from app.core.security import hash_password, now_utc
-from app.integrations.email import send_email
+from app.integrations.email import send_email_safe as send_email
 from app.integrations.push import send_push
 from app.integrations.stripe_connect import connect_stripe
 from app.models.membership import OrganizationMember
@@ -81,6 +82,29 @@ async def _member_for(session: AsyncSession, org_id: str, user_id: str) -> Organ
             )
         )
     ).scalar_one_or_none()
+
+
+async def _active_member_count(session: AsyncSession, org_id: str) -> int:
+    """Count members that occupy a SaaS-tier seat (Section 3.1 member cap).
+
+    Mirrors the billing service's definition: active, grace, and frozen members
+    all consume a seat; pending/expired/cancelled/banned do not.
+    """
+
+    return int(
+        (
+            await session.execute(
+                select(func.count()).select_from(OrganizationMember).where(
+                    OrganizationMember.organization_id == org_id,
+                    OrganizationMember.role == "member",
+                    OrganizationMember.member_status.in_(
+                        [MemberStatus.ACTIVE, MemberStatus.GRACE, MemberStatus.FROZEN]
+                    ),
+                )
+            )
+        ).scalar_one()
+        or 0
+    )
 
 
 async def _enforce_signup_rate_limits(
@@ -214,6 +238,50 @@ async def set_password(
     return member
 
 
+async def redeem_invite(
+    session: AsyncSession, *, org_code: str, email: str, code: str, password: str
+) -> OrganizationMember:
+    """Invited member claims their invite (Section 8.4).
+
+    Consumes the single-use MEMBER_INVITE token, verifies the email, sets the
+    password, and moves the member from pending_activation to pending_payment so
+    they can pick a plan and pay. This is the counterpart to
+    ``members_service.invite_member`` / ``resend_invite`` — without it, invite
+    codes are issued but never redeemable."""
+
+    org = await _org_by_code(session, org_code)
+    await auth_service.validate_password_or_raise(password)
+
+    try:
+        await verif.verify_and_consume(
+            session, email=email, secret=code,
+            purpose=VerificationPurpose.MEMBER_INVITE, organization_id=org.id,
+        )
+    except verif.VerificationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    user = (
+        await session.execute(select(User).where(User.email == email.lower()))
+    ).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Invited account not found.")
+    user.hashed_password = hash_password(password)
+    user.email_verified = True
+    session.add(user)
+
+    member = await _member_for(session, org.id, user.id)
+    if member is None:
+        raise HTTPException(status_code=404, detail="Invite is not linked to this gym.")
+    # Only a not-yet-claimed invite advances to payment; an already-active member
+    # redeeming again is a no-op guard.
+    if member.member_status == MemberStatus.PENDING_ACTIVATION:
+        member.member_status = MemberStatus.PENDING_PAYMENT
+        session.add(member)
+    await record_audit(session, action="member.invite_redeemed", organization_id=org.id,
+                       actor_user_id=user.id, entity_type="member", entity_id=member.id)
+    return member
+
+
 # ------------------------------------------------------- step 5: list plans
 async def public_plans(session: AsyncSession, *, org: Organization) -> list[MembershipPlan]:
     from app.services.plans_service import list_public_plans
@@ -304,6 +372,17 @@ async def pay_and_activate(
     plan = await session.get(MembershipPlan, plan_id)
     if plan is None or plan.organization_id != org.id:
         raise HTTPException(status_code=404, detail="Plan not found.")
+
+    # Enforce the SaaS-tier member cap (Section 3.1). A member who already holds
+    # a seat (renewal / re-activation) does not count against the cap again.
+    if org.member_cap is not None and member.member_status not in {
+        MemberStatus.ACTIVE, MemberStatus.GRACE, MemberStatus.FROZEN
+    }:
+        if await _active_member_count(session, org.id) >= org.member_cap:
+            raise HTTPException(
+                status_code=402,
+                detail="This gym has reached its member capacity. Please contact the gym.",
+            )
 
     # Claim idempotency (Section 13.3). Replays return the cached result.
     endpoint = "POST /memberships/pay"

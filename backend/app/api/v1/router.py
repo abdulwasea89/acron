@@ -22,6 +22,8 @@ from app.api.v1.routes import (
     receipts,
     saas_billing,
     staff,
+    webhooks,
+    ws,
 )
 
 api_router = APIRouter()
@@ -38,3 +40,5 @@ api_router.include_router(classes.router, prefix="/classes", tags=["classes"])
 api_router.include_router(staff.router, prefix="/staff", tags=["staff"])
 api_router.include_router(payroll.router, prefix="/payroll", tags=["payroll"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
+api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
+api_router.include_router(ws.router, tags=["realtime"])

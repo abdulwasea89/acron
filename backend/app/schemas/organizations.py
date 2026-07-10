@@ -77,3 +77,13 @@ class GymStatusUpdate(BaseModel):
 class ConnectOnboardingOut(BaseModel):
     account_id: str
     onboarding_url: str
+
+
+class OrgCodeRotateOut(BaseModel):
+    org_code: str
+
+
+class BulkImportResult(BaseModel):
+    created: int
+    skipped: int
+    errors: list[dict]

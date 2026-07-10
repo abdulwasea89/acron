@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session, require_capability
@@ -16,6 +16,7 @@ from app.schemas.members import (
     MemberInviteOut,
     MemberStatusChange,
 )
+from app.schemas.organizations import BulkImportResult
 from app.services import members_service as members
 
 router = APIRouter()
@@ -79,6 +80,20 @@ async def change_status(
     return _item(member, user)
 
 
+def _invite_out(member, email: str, code: str) -> MemberInviteOut:
+    """Only expose the raw invite code when email delivery is off (stub mode);
+    with a real provider the code goes out by email and must stay secret."""
+
+    from app.core.config import settings
+
+    delivered = bool(settings.resend_api_key)
+    return MemberInviteOut(
+        member_id=member.id, email=email, member_status=member.member_status.value,
+        email_delivered=delivered,
+        invite_code="" if delivered else code,
+    )
+
+
 @router.post("/invite", response_model=MemberInviteOut, status_code=201)
 async def invite_member(
     data: MemberInvite,
@@ -87,5 +102,34 @@ async def invite_member(
 ):
     member, code = await members.invite_member(session, org_id=ctx.org_id, email=data.email,
                                                 actor_id=ctx.user_id)
-    return MemberInviteOut(member_id=member.id, email=data.email, invite_code=code,
-                           member_status=member.member_status.value)
+    return _invite_out(member, data.email, code)
+
+
+@router.post("/{member_id}/resend-invite", response_model=MemberInviteOut)
+async def resend_invite(
+    member_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.INVITE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    from app.models.user import User
+
+    member, code = await members.resend_invite(session, org_id=ctx.org_id, member_id=member_id,
+                                               actor_id=ctx.user_id)
+    user = await session.get(User, member.user_id)
+    return _invite_out(member, user.email, code)
+
+
+@router.post("/import", response_model=BulkImportResult, status_code=201)
+async def bulk_import(
+    file: UploadFile = File(...),
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    """Bulk-import members from a CSV (web-only, Section 9.9, 16)."""
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
+    result = await members.bulk_import_csv(session, org_id=ctx.org_id, csv_bytes=content,
+                                           actor_id=ctx.user_id)
+    return BulkImportResult(**result)

@@ -20,6 +20,7 @@ from app.schemas.memberships import (
     PublicPlanOut,
     SignupEmail,
     SignupPay,
+    RedeemInvite,
     SignupSetPassword,
     SignupSetPasswordOut,
     SignupStart,

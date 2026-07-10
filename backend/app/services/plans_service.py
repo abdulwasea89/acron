@@ -91,6 +91,9 @@ async def publish_plan(
         session.add(org)
     await record_audit(session, action="plan.published", organization_id=org.id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=plan.id)
+    from app.realtime import events
+
+    await events.plan_changed(org.id, plan_id=plan.id, action="published")
     return plan
 
 

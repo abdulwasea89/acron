@@ -25,7 +25,7 @@ from app.core.constants import (
     SubscriptionStatus,
 )
 from app.core.security import now_utc
-from app.integrations.email import send_email
+from app.integrations.email import send_email_safe as send_email
 from app.integrations.push import send_push
 from app.models.cash import CashReconciliation
 from app.models.membership import OrganizationMember
