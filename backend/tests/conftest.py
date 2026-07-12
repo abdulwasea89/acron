@@ -74,14 +74,17 @@ def reset_process_globals():
     from app.integrations import email as email_mod
     from app.integrations import push as push_mod
 
-    # Force email stub mode so tests never hit the real Resend API (the dev .env
-    # may carry a live key). Stub mode captures every email in `outbox`, which
-    # the helpers read for verification codes.
+    # Force email stub mode so tests never hit a real provider (the dev .env may
+    # carry a live Resend key or SMTP creds). Stub mode captures every email in
+    # `outbox`, which the helpers read for verification codes.
     saved_key = settings.resend_api_key
+    saved_smtp_host = settings.smtp_host
     settings.resend_api_key = None
+    settings.smtp_host = ""
 
     rate_limiter._memory._events.clear()
     email_mod.outbox.clear()
     push_mod.outbox.clear()
     yield
     settings.resend_api_key = saved_key
+    settings.smtp_host = saved_smtp_host

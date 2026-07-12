@@ -1,8 +1,15 @@
-"""Transactional email with a dev-stub fallback.
+"""Transactional email with SMTP / Resend providers and a dev-stub fallback.
 
-When no provider is configured (no Resend key / SMTP URL), emails are captured
-in an in-memory outbox and logged. Tests and local flows can read the outbox to
-assert what would have been sent (e.g. verification codes).
+Delivery precedence:
+  1. SMTP (settings.smtp_active) — Gmail/any SMTP; delivers to ANY recipient with
+     no verified sending domain, so it's the go-to for real dev delivery.
+  2. Resend (settings.resend_api_key) — but the shared onboarding@resend.dev
+     sender only reaches the account owner until a domain is verified.
+  3. Stub — no provider: capture in the in-memory outbox + log. Tests/local flows
+     read the outbox for verification codes.
+
+``send_email`` raises ``EmailDeliveryError`` when a configured provider rejects a
+message; ``send_email_safe`` swallows that for side-effect notifications.
 """
 
 from __future__ import annotations
@@ -37,6 +44,30 @@ def _send_sync(params: resend.Emails.SendParams) -> dict:
     return resend.Emails.send(params)
 
 
+def _send_smtp_sync(to: str, subject: str, body: str) -> None:
+    """Send one email over SMTP (e.g. Gmail). Blocking — run in a thread.
+
+    Delivers real mail to ANY recipient without a verified sending domain, which
+    is why it's the preferred path for local/dev with a Gmail App Password.
+    """
+
+    import smtplib
+    from email.message import EmailMessage
+
+    msg = EmailMessage()
+    msg["From"] = settings.smtp_sender
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.set_content(body)
+    msg.add_alternative(f"<p>{body}</p>", subtype="html")
+
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
+        if settings.smtp_use_tls:
+            server.starttls()
+        server.login(settings.smtp_user, settings.smtp_password)
+        server.send_message(msg)
+
+
 class EmailDeliveryError(Exception):
     """Raised when a configured provider rejects/fails to deliver an email.
 
@@ -58,6 +89,17 @@ async def send_email(
 
     record = SentEmail(to=to, subject=subject, body=body, attachments=attachments or [])
     outbox.append(record)
+
+    # SMTP first: it delivers to any recipient without a verified domain (Gmail
+    # App Password), unlike Resend's shared test sender.
+    if settings.smtp_active:
+        try:
+            await asyncio.to_thread(_send_smtp_sync, to, subject, body)
+            logger.info("Email sent via SMTP to=%s subject=%s", to, subject)
+            return True
+        except Exception as exc:
+            logger.warning("SMTP send failed: to=%s error=%s", to, exc)
+            raise EmailDeliveryError(str(exc)) from exc
 
     if settings.resend_api_key:
         try:

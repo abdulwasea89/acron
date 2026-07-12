@@ -113,3 +113,65 @@ export interface InvoiceOut {
 export interface ApiError {
   detail: string | { msg: string }[];
 }
+
+// ---------------------------------------------------------------- payroll
+export interface PayrollEntry {
+  id: string;
+  staff_member_id: string;
+  fixed: number;
+  hourly_amount: number;
+  hours_worked: number;
+  class_amount: number;
+  classes_taught: number;
+  commission_amount: number;
+  bonus: number;
+  deductions: number;
+  advance_repayment: number;
+  net: number;
+  payout_method: string;
+  pay_stub_url: string | null;
+  notes: string | null;
+}
+
+export interface PayrollRun {
+  id: string;
+  period_start: string;
+  period_end: string;
+  status: string;
+  total_gross: number;
+  total_deductions: number;
+  total_net: number;
+  entries: PayrollEntry[];
+}
+
+// --------------------------------------------------------------- receipts
+export interface ReceiptReviewItem {
+  id: string;
+  member_id: string;
+  plan_id: string | null;
+  status: string;
+  confidence_score: number | null;
+  extracted_amount: number | null;
+  extracted_date: string | null;
+  extracted_payer: string | null;
+  extracted_payee: string | null;
+  is_duplicate: boolean;
+  flags: string[];
+  original_image_url: string | null;
+}
+
+// --------------------------------------------------------------- payments
+export interface PaymentOut {
+  id: string;
+  member_id: string | null;
+  plan_id: string | null;
+  kind: string;
+  method: string;
+  status: string;
+  amount: number;
+  tax_amount: number;
+  currency: string;
+  refunded_amount: number;
+  paid_at: string | null;
+  created_at: string;
+}

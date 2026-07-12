@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     # ------------------------------------------------------ email / push / ai
     email_from: str = "no-reply@example.com"
     smtp_url: str = ""
+    # SMTP (e.g. Gmail): sends real mail to any recipient without a verified
+    # sending domain. Set these to enable; takes precedence over Resend.
+    smtp_host: str = os.getenv("SMTP_HOST", "")
+    smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user: str = os.getenv("SMTP_USER", "")
+    smtp_password: str = os.getenv("SMTP_PASSWORD", "")
+    smtp_from: str = os.getenv("SMTP_FROM", "")
+    smtp_use_tls: bool = os.getenv("SMTP_USE_TLS", "1") != "0"
     resend_api_key: str | None = os.getenv("RESEND_API_KEY")
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
     ocr_provider_api_key: str = ""
@@ -97,6 +105,21 @@ class Settings(BaseSettings):
     def stripe_live(self) -> bool:
         """True when a real Stripe key is configured (else stub mode)."""
         return bool(self.stripe_secret_key) and self.stripe_secret_key != "sk_test_xxx"
+
+    @property
+    def smtp_active(self) -> bool:
+        """True when SMTP creds are configured (real delivery to any recipient)."""
+        return bool(self.smtp_host and self.smtp_user and self.smtp_password)
+
+    @property
+    def smtp_sender(self) -> str:
+        """From address for SMTP: explicit smtp_from, else the SMTP username."""
+        return self.smtp_from or self.smtp_user
+
+    @property
+    def email_active(self) -> bool:
+        """True when any real email provider (SMTP or Resend) is configured."""
+        return self.smtp_active or bool(self.resend_api_key)
 
 
 @lru_cache

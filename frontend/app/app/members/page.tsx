@@ -75,6 +75,20 @@ export default function MembersPage() {
   const [query, setQuery] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
+  // When email delivery is off, the backend returns the raw code to share by
+  // hand. Hold it here so we can render a proper copyable panel (not inline).
+  const [inviteShare, setInviteShare] = useState<{ email: string; code: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function copyCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard blocked (e.g. non-HTTPS) — the code is still visible to copy.
+    }
+  }
 
   async function load() {
     setError("");
@@ -90,19 +104,26 @@ export default function MembersPage() {
     load();
   }, []);
 
+  function handleInviteResult(res: InviteResult, email: string, sentVerb: string) {
+    if (res.email_delivered) {
+      setInviteMsg(`Invite ${sentVerb} to ${email}.`);
+      setInviteShare(null);
+    } else {
+      setInviteMsg("");
+      setInviteShare({ email, code: res.invite_code });
+    }
+  }
+
   async function act(id: string, action: string, endpoint?: string) {
     setError("");
     setInviteMsg("");
+    setInviteShare(null);
     try {
       if (endpoint === "approval") {
         await api.post(`/members/${id}/approval`, { approve: action === "approve" });
       } else if (action === "resend_invite") {
         const res = await api.post<InviteResult>(`/members/${id}/resend-invite`);
-        setInviteMsg(
-          res.email_delivered
-            ? "Invite email re-sent."
-            : `Email delivery is off. Share this invite code manually: ${res.invite_code}`,
-        );
+        handleInviteResult(res, res.email, "re-sent");
       } else {
         await api.post(`/members/${id}/status`, { action });
       }
@@ -116,13 +137,10 @@ export default function MembersPage() {
     e.preventDefault();
     setError("");
     setInviteMsg("");
+    setInviteShare(null);
     try {
       const res = await api.post<InviteResult>("/members/invite", { email: inviteEmail });
-      setInviteMsg(
-        res.email_delivered
-          ? `Invite sent to ${inviteEmail}.`
-          : `Email delivery is off. Share this invite code with ${inviteEmail} manually: ${res.invite_code}`,
-      );
+      handleInviteResult(res, inviteEmail, "sent");
       setInviteEmail("");
       load();
     } catch (e) {
@@ -143,6 +161,35 @@ export default function MembersPage() {
       {inviteMsg && (
         <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--success-bg)] px-4 py-3 text-sm text-[var(--success)]">
           {inviteMsg}
+        </div>
+      )}
+      {inviteShare && (
+        <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium">Invite code for {inviteShare.email}</div>
+              <div className="mt-0.5 text-xs text-[var(--muted)]">
+                Email delivery is off — share this single-use code with them. They redeem it at
+                the member app with your org code.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setInviteShare(null)}
+              className="text-[var(--muted)] hover:text-[var(--foreground)]"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-sm">
+              {inviteShare.code}
+            </code>
+            <Button variant="secondary" onClick={() => copyCode(inviteShare.code)}>
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </div>
         </div>
       )}
 

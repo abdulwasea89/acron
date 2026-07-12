@@ -86,7 +86,7 @@ def _invite_out(member, email: str, code: str) -> MemberInviteOut:
 
     from app.core.config import settings
 
-    delivered = bool(settings.resend_api_key)
+    delivered = settings.email_active
     return MemberInviteOut(
         member_id=member.id, email=email, member_status=member.member_status.value,
         email_delivered=delivered,

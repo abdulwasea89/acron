@@ -81,6 +81,22 @@ async def signup_set_password(
     )
 
 
+@router.post("/invite/redeem", response_model=SignupSetPasswordOut)
+async def redeem_invite(data: RedeemInvite, session: AsyncSession = Depends(get_session)):
+    """Invited member claims their invite code + sets a password (Section 8.4).
+
+    After this they proceed to /signup/plans -> /signup/pay like any member."""
+
+    member = await members.redeem_invite(
+        session, org_code=data.org_code, email=data.email, code=data.code, password=data.password
+    )
+    return SignupSetPasswordOut(
+        member_id=member.id,
+        organization_id=member.organization_id,
+        member_status=member.member_status.value,
+    )
+
+
 @router.get("/signup/plans", response_model=list[PublicPlanOut])
 async def signup_plans(org_code: str, session: AsyncSession = Depends(get_session)):
     org = await _org_by_code(session, org_code)

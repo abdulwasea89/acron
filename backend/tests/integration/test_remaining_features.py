@@ -12,6 +12,17 @@ from app.core import totp
 from app.core.security import now_utc
 from tests.helpers import latest_code_for
 
+
+def _invite_code_for(email: str) -> str:
+    """Extract the invite token from the most recent invite email in the outbox."""
+
+    from app.integrations.email import outbox
+
+    for mail in reversed(outbox):
+        if mail.to in (email.lower(), email) and "Use this code to join:" in mail.body:
+            return mail.body.split("Use this code to join:", 1)[1].strip()
+    raise AssertionError(f"No invite email found for {email}")
+
 PASSWORD = "Sup3rStr0ng!Pass"
 MEMBER_PWD = "M3mberStr0ng!Pwd"
 
@@ -39,6 +50,42 @@ async def _provision_gym(client, *, owner_email="owner@g.com", gym="Iron Pulse B
     plan_id = r.json()["id"]
     await client.post(f"/api/v1/plans/{plan_id}/publish", headers=headers)
     return headers, org_id, org_code, plan_id
+
+
+# --------------------------------------------------------------- invites
+@pytest.mark.asyncio
+async def test_member_invite_redeem_and_login(client):
+    """Full invite loop: admin invites -> member redeems the code -> can log in
+    and reach pending_payment. Regression: invite codes used to be issued but had
+    no redeem endpoint, so an invited member could never actually join."""
+
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+
+    # Admin invites a new member (stub email -> code returned + in outbox).
+    r = await client.post("/api/v1/members/invite", headers=headers,
+                          json={"email": "invitee@g.com"})
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["email_delivered"] is False  # stub mode in tests
+    code = body["invite_code"] or _invite_code_for("invitee@g.com")
+    assert code
+
+    # Member redeems the invite: sets a password, advances to pending_payment.
+    r = await client.post("/api/v1/memberships/invite/redeem", json={
+        "org_code": org_code, "email": "invitee@g.com", "code": code, "password": MEMBER_PWD})
+    assert r.status_code == 200, r.text
+    assert r.json()["member_status"] == "pending_payment"
+
+    # The invited member can now log in with the password they just set.
+    r = await client.post("/api/v1/auth/member-login", json={
+        "org_code": org_code, "email": "invitee@g.com", "password": MEMBER_PWD})
+    assert r.status_code == 200, r.text
+    assert r.json()["access_token"]
+
+    # A second redeem with the same (now consumed) code is rejected.
+    r = await client.post("/api/v1/memberships/invite/redeem", json={
+        "org_code": org_code, "email": "invitee@g.com", "code": code, "password": MEMBER_PWD})
+    assert r.status_code == 400, r.text
 
 
 # ------------------------------------------------------------------ MFA
