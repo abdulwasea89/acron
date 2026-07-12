@@ -13,6 +13,8 @@ from app.schemas.auth import (
     EmailVerifyRequest,
     LoginRequest,
     LoginResponse,
+    MagicLinkRequest,
+    MagicLinkVerify,
     MemberLoginRequest,
     MfaConfirm,
     MfaDisable,
@@ -99,6 +101,32 @@ async def member_login(
         email=data.email,
         password=data.password,
         org_code=data.org_code,
+        remember=data.remember,
+        mfa_code=data.mfa_code,
+        ip=get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+@router.post("/magic-link/request", response_model=Message)
+async def magic_link_request(data: MagicLinkRequest, session: AsyncSession = Depends(get_session)):
+    """Mobile login Method B (Section 5.4) — email an admin a single-use link."""
+
+    await auth_service.request_magic_link(session, org_code=data.org_code, email=data.email)
+    return Message(message="If the email is an admin of that gym, a sign-in link was sent.")
+
+
+@router.post("/magic-link/verify", response_model=LoginResponse)
+async def magic_link_verify(
+    data: MagicLinkVerify, request: Request, session: AsyncSession = Depends(get_session)
+):
+    """Consume the magic-link token and issue an org-scoped session (Section 5.4)."""
+
+    return await auth_service.verify_magic_link(
+        session,
+        org_code=data.org_code,
+        email=data.email,
+        token=data.token,
         remember=data.remember,
         mfa_code=data.mfa_code,
         ip=get_client_ip(request),

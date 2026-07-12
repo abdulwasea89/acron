@@ -88,6 +88,67 @@ async def test_member_invite_redeem_and_login(client):
     assert r.status_code == 400, r.text
 
 
+# ------------------------------------------------------------- magic link
+def _magic_token_for(email: str) -> str:
+    """Extract the magic-link token from the most recent sign-in email."""
+
+    from app.integrations.email import outbox
+
+    for mail in reversed(outbox):
+        if mail.to in (email.lower(), email) and "Token: " in mail.body:
+            return mail.body.split("Token: ", 1)[1].strip()
+    raise AssertionError(f"No magic-link email found for {email}")
+
+
+@pytest.mark.asyncio
+async def test_magic_link_login(client):
+    """Mobile login Method B (Section 5.4): owner requests a magic link by
+    org code + email, then exchanges the emailed token for an org-scoped session."""
+
+    _, org_id, org_code, _ = await _provision_gym(client, owner_email="owner@g.com")
+
+    # Request a link — response is vague and does not carry the token.
+    r = await client.post("/api/v1/auth/magic-link/request", json={
+        "org_code": org_code, "email": "owner@g.com"})
+    assert r.status_code == 200, r.text
+    assert "token" not in r.json()
+
+    token = _magic_token_for("owner@g.com")
+    assert token
+
+    # Exchange the token for a session.
+    r = await client.post("/api/v1/auth/magic-link/verify", json={
+        "org_code": org_code, "email": "owner@g.com", "token": token})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["access_token"]
+    assert body["organization_id"] == org_id
+    assert body["role"] == "owner"
+
+    # The token is single-use: a second verify fails.
+    r = await client.post("/api/v1/auth/magic-link/verify", json={
+        "org_code": org_code, "email": "owner@g.com", "token": token})
+    assert r.status_code == 400, r.text
+
+
+@pytest.mark.asyncio
+async def test_magic_link_request_is_silent_for_unknown_email(client):
+    """Requesting a link for an email that isn't an admin of the org must be
+    silent (no email issued, still a 200) so membership is never revealed."""
+
+    _, _, org_code, _ = await _provision_gym(client, owner_email="owner2@g.com")
+
+    r = await client.post("/api/v1/auth/magic-link/request", json={
+        "org_code": org_code, "email": "stranger@g.com"})
+    assert r.status_code == 200, r.text
+
+    from app.integrations.email import outbox
+
+    assert not any(
+        m.to == "stranger@g.com" and "Token: " in m.body for m in outbox
+    )
+
+
 # ------------------------------------------------------------------ MFA
 @pytest.mark.asyncio
 async def test_mfa_enroll_confirm_and_login_challenge(client):

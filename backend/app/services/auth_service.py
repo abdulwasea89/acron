@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.config import settings
-from app.core.constants import MemberStatus, Role, VerificationPurpose
+from app.core.constants import ADMIN_ROLES, MemberStatus, Role, VerificationPurpose
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -341,6 +341,118 @@ async def refresh_tokens(
     session.add(auth_session)
     return LoginResponse(
         access_token=access, refresh_token=refresh_token, organization_id=org_id, role=role.value
+    )
+
+
+# --------------------------------------------------------------- magic link
+async def request_magic_link(
+    session: AsyncSession, *, org_code: str, email: str
+) -> None:
+    """Mobile login Method B (Section 5.4): email an admin a single-use link.
+
+    Silent on every miss (unknown org, non-member, non-admin, unverified) so the
+    endpoint never reveals whether the email is an admin of the org.
+    """
+
+    org = (
+        await session.execute(
+            select(Organization).where(Organization.org_code == org_code.upper())
+        )
+    ).scalar_one_or_none()
+    if org is None:
+        return
+
+    user = await _get_user_by_email(session, email)
+    if user is None or not user.email_verified:
+        return
+
+    membership = (
+        await session.execute(
+            select(OrganizationMember).where(
+                OrganizationMember.user_id == user.id,
+                OrganizationMember.organization_id == org.id,
+            )
+        )
+    ).scalar_one_or_none()
+    # Magic link is an admin-only convenience (Section 5.4 "an admin of that org").
+    if membership is None or membership.role not in ADMIN_ROLES:
+        return
+
+    try:
+        token = await verif.issue_link_token(
+            session, email=user.email, purpose=VerificationPurpose.MAGIC_LINK,
+            organization_id=org.id, user_id=user.id,
+            expire_minutes=settings.magic_link_expire_minutes,
+        )
+    except verif.VerificationError:
+        return  # rate-limited — stay silent
+    await send_email_safe(
+        user.email, "Your sign-in link",
+        f"Tap to sign in to {org.name}. Single-use, expires in "
+        f"{settings.magic_link_expire_minutes} minutes. Token: {token}",
+    )
+
+
+async def verify_magic_link(
+    session: AsyncSession,
+    *,
+    org_code: str,
+    email: str,
+    token: str,
+    remember: bool = False,
+    mfa_code: str | None = None,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> LoginResponse:
+    """Consume a magic-link token and issue an org-scoped session (Section 5.4)."""
+
+    org = (
+        await session.execute(
+            select(Organization).where(Organization.org_code == org_code.upper())
+        )
+    ).scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=401, detail=_VAGUE)
+
+    try:
+        await verif.verify_and_consume(
+            session, email=email, secret=token,
+            purpose=VerificationPurpose.MAGIC_LINK, organization_id=org.id,
+        )
+    except verif.VerificationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    user = await _get_user_by_email(session, email)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=401, detail=_VAGUE)
+
+    _, target = await _resolve_membership(
+        session, user=user, org_code=None, organization_id=org.id
+    )
+    if target.banned or target.member_status == MemberStatus.BANNED:
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    # MFA still applies after a magic link (Section 5.5: triggered after magic link).
+    if user.mfa_enabled:
+        from app.services import mfa_service
+
+        if not mfa_service.check_code(user, mfa_code):
+            return LoginResponse(
+                access_token="", refresh_token="", requires_mfa=True,
+                organization_id=target.organization_id, role=target.role.value,
+            )
+
+    await _register_success(session, user)
+    access, refresh = await create_session(
+        session, user=user, org_id=target.organization_id, role=target.role,
+        remember=remember, ip=ip, user_agent=user_agent,
+    )
+    await record_audit(session, action="auth.magic_link_login", actor_user_id=user.id,
+                       organization_id=target.organization_id, ip_address=ip)
+    return LoginResponse(
+        access_token=access, refresh_token=refresh,
+        organization_id=target.organization_id, role=target.role.value,
+        member_status=target.member_status.value, requires_mfa=False,
     )
 
 

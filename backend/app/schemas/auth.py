@@ -46,6 +46,27 @@ class MemberLoginRequest(BaseModel):
     mfa_code: str | None = None
 
 
+class MagicLinkRequest(BaseModel):
+    """Mobile login Method B — org code + email (Section 5.4).
+
+    The email must belong to an admin of the named org; a single-use link is
+    then emailed. Response is deliberately vague (never leaks membership).
+    """
+
+    org_code: str
+    email: EmailStr
+
+
+class MagicLinkVerify(BaseModel):
+    """Consume the emailed magic-link token and issue a session (Section 5.4)."""
+
+    org_code: str
+    email: EmailStr
+    token: str
+    remember: bool = False
+    mfa_code: str | None = None
+
+
 class MfaConfirm(BaseModel):
     code: str = Field(min_length=6, max_length=6)
 
