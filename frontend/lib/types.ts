@@ -160,6 +160,26 @@ export interface ReceiptReviewItem {
   original_image_url: string | null;
 }
 
+// -------------------------------------------------------------------- cash
+export interface CashPaymentOut {
+  payment_id: string;
+  member_id: string;
+  amount: number;
+  method: string;
+  member_status: string;
+  receipt_pdf_url: string | null;
+}
+
+export interface ReconciliationOut {
+  id: string;
+  business_date: string;
+  system_total: number;
+  counted_total: number;
+  discrepancy: number;
+  performed_by: string;
+  alert_triggered: boolean;
+}
+
 // --------------------------------------------------------------- payments
 export interface PaymentOut {
   id: string;
