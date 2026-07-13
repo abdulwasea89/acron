@@ -109,6 +109,9 @@ export default function LoginPage() {
             <Link href="/register" className="text-[var(--primary)] hover:underline">
               Register a gym
             </Link>
+            <Link href="/magic-link" className="text-[var(--primary)] hover:underline">
+              Sign in with a link
+            </Link>
           </div>
         </form>
       </div>
