@@ -90,7 +90,7 @@ export default function PlansPage() {
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {plans.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={p.id} className="hover:bg-[var(--background)] transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="font-medium text-[var(--foreground)]">{p.name}</div>
                       {p.featured && (

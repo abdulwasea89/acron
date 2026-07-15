@@ -38,7 +38,7 @@ export default function CashPage() {
 function WorkflowStep({ number, title, hint }: { number: string; title: string; hint: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-xs font-bold text-white">{number}</span>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-xs font-bold text-white">{number}</span>
       <div>
         <p className="text-sm font-semibold text-[var(--foreground)]">{title}</p>
         <p className="text-xs text-[var(--foreground-muted)]">{hint}</p>

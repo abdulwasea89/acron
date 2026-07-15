@@ -561,6 +561,13 @@ body {
   }
 }
 
+/* Heading font matching auth shell */
+.font-heading {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: -0.06em;
+  font-weight: 400;
+}
+
 /* App layout */
 .container-app {
   width: 100%;

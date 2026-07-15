@@ -171,7 +171,7 @@ export default function MembersPage() {
         </div>
       )}
       {inviteShare && (
-        <div className="mb-4 animate-slide-down rounded-[var(--radius-lg)] border border-[var(--border)] bg-white shadow-xs p-5">
+        <div className="mb-4 animate-slide-down rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-[var(--foreground)]">Invite code for {inviteShare.email}</div>

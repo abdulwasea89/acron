@@ -69,7 +69,7 @@ export function OrgSwitcher({ currentOrgName, currentOrgCode, currentOrgId }: Or
         onClick={toggle}
         className="flex w-full items-center gap-3 rounded-lg px-1 py-1 text-left transition-colors hover:bg-gray-50"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-950">
           <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -101,7 +101,7 @@ export function OrgSwitcher({ currentOrgName, currentOrgCode, currentOrgId }: Or
                     onClick={() => switchOrg(org.organization_id)}
                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] transition-colors ${
                       isCurrent
-                        ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                        ? "bg-neutral-100 text-neutral-950 font-semibold"
                         : "text-[var(--foreground)] hover:bg-gray-50"
                     }`}
                   >
@@ -115,7 +115,7 @@ export function OrgSwitcher({ currentOrgName, currentOrgCode, currentOrgId }: Or
                       </div>
                     </div>
                     {isCurrent && (
-                      <svg className="h-4 w-4 shrink-0 text-[var(--primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="h-4 w-4 shrink-0 text-neutral-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m5 13 4 4L19 7" />
                       </svg>
                     )}
@@ -129,7 +129,7 @@ export function OrgSwitcher({ currentOrgName, currentOrgCode, currentOrgId }: Or
                     setOpen(false);
                     router.push("/app/create-gym");
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-medium text-[var(--primary)] transition-colors hover:bg-[var(--primary-light)]"
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-medium text-neutral-950 transition-colors hover:bg-neutral-100"
                 >
                   <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 5v14M5 12h14" />

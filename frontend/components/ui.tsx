@@ -31,7 +31,7 @@ export function Button({
 }: ButtonProps) {
   const variants: Record<string, string> = {
     primary:
-      "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] shadow-sm active:brightness-95",
+      "bg-neutral-950 text-white hover:bg-neutral-800 shadow-sm active:brightness-95",
     secondary:
       "bg-white text-[var(--foreground)] border border-[var(--border)] hover:bg-gray-50 hover:border-gray-300 shadow-xs",
     danger:
@@ -42,16 +42,16 @@ export function Button({
       "bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] shadow-sm",
   };
   const sizes: Record<string, string> = {
-    sm: "h-8 px-3 text-xs gap-1.5 rounded-lg",
-    md: "h-11 px-4 text-sm gap-2 rounded-lg",
-    lg: "h-12 px-6 text-sm gap-2 rounded-lg",
+    sm: "h-8 px-3 text-xs gap-1.5 rounded-[10px]",
+    md: "h-11 px-4 text-sm gap-2 rounded-[10px]",
+    lg: "h-12 px-6 text-sm gap-2 rounded-[10px]",
   };
   return (
     <button
       className={cx(
         "inline-flex cursor-pointer items-center justify-center font-semibold",
         "transition duration-150",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2",
         "disabled:opacity-40 disabled:cursor-not-allowed select-none",
         sizes[size],
         variants[variant],
@@ -93,14 +93,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         id={id}
         className={cx(
-          "h-11 w-full rounded-xl border bg-white px-3.5 text-base sm:text-sm text-[var(--foreground)]",
+          "h-11 w-full rounded-xl border bg-[#f6f7f9] px-3.5 text-base sm:text-sm text-[var(--foreground)]",
           "transition duration-150",
           "placeholder:text-gray-400",
           error
             ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-100"
-            : "border-[var(--border)] focus:border-[var(--primary)] focus:ring-2 focus:ring-indigo-50",
+            : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10",
           "focus:outline-none",
-          "disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-50",
+          "disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-100",
           className,
         )}
         {...rest}
@@ -132,11 +132,11 @@ export function Select({ label, error, className, children, ...rest }: SelectPro
       <div className="relative">
         <select
           className={cx(
-            "h-11 w-full appearance-none rounded-xl border bg-white px-3.5 pr-10 text-base sm:text-sm text-[var(--foreground)]",
+            "h-11 w-full appearance-none rounded-xl border bg-[#f6f7f9] px-3.5 pr-10 text-base sm:text-sm text-[var(--foreground)]",
             "transition duration-150",
             error
               ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-100"
-              : "border-[var(--border)] focus:border-[var(--primary)] focus:ring-2 focus:ring-indigo-50",
+              : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10",
             "focus:outline-none",
             className,
           )}
@@ -169,12 +169,12 @@ export function Textarea({ label, error, className, ...rest }: TextareaProps) {
       )}
       <textarea
         className={cx(
-          "w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-[var(--foreground)]",
-          "transition-all duration-150",
-          error
-            ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-100"
-            : "border-[var(--border)] focus:border-[var(--primary)] focus:ring-2 focus:ring-indigo-50",
-          "placeholder:text-gray-400 focus:outline-none",
+            "w-full rounded-xl border bg-[#f6f7f9] px-3.5 py-2.5 text-base sm:text-sm text-[var(--foreground)]",
+            "transition-all duration-150",
+            error
+              ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-100"
+              : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10",
+            "placeholder:text-gray-400 focus:outline-none",
           className,
         )}
         {...rest}
@@ -270,7 +270,7 @@ export function Alert({ tone = "danger", children, onDismiss }: { tone?: "danger
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16">
-      <div className="h-8 w-8 rounded-full border-[3px] border-gray-200 border-t-[var(--primary)] animate-spin" />
+      <div className="h-8 w-8 rounded-full border-[3px] border-gray-200 border-t-neutral-950 animate-spin" />
       {label && <p className="text-sm text-[var(--muted)]">{label}</p>}
     </div>
   );
@@ -312,7 +312,7 @@ export function Avatar({ name, size = "md", className }: { name: string; size?: 
   return (
     <div
       className={cx(
-        "inline-flex items-center justify-center rounded-full bg-indigo-100 font-semibold text-[var(--primary)]",
+        "inline-flex items-center justify-center rounded-full bg-neutral-100 font-semibold text-neutral-950",
         sizes[size],
         className,
       )}
@@ -358,7 +358,7 @@ export function StatCard({
           )}
         </div>
         {icon && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-[var(--primary)]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-950">
             {icon}
           </div>
         )}
