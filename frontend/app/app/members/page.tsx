@@ -238,7 +238,7 @@ export default function MembersPage() {
           title="Member directory"
           subtitle={members ? `${members.length} member${members.length === 1 ? "" : "s"}` : undefined}
           action={
-            <div className="w-64">
+            <div className="w-full sm:w-64">
               <Input
                 placeholder="Search name or email..."
                 value={query}

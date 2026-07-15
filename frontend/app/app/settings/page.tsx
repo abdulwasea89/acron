@@ -99,7 +99,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader title="Enrollment mode" subtitle="Controls how new members can join" />
             <div className="flex flex-wrap items-end gap-3 p-6">
-              <div className="min-w-[280px]">
+              <div className="min-w-0 sm:min-w-[280px]">
                 <Select value={enrollment} onChange={(e) => setEnrollment(e.target.value)}>
                   <option value="open">Open — anyone with the code can join & pay</option>
                   <option value="approved">Approved — admin approves before payment</option>

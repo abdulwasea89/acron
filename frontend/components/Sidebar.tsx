@@ -107,7 +107,7 @@ function MobileNavigation({ orgName }: { orgName: string }) {
           Menu
           <svg className="h-4 w-4 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
         </summary>
-        <nav aria-label="Mobile navigation" className="absolute right-0 top-[calc(100%+0.5rem)] z-30 grid w-64 gap-1 rounded-xl border border-[var(--border)] bg-white p-2 shadow-lg">
+        <nav aria-label="Mobile navigation" className="absolute right-0 top-[calc(100%+0.5rem)] z-30 grid w-64 max-w-[calc(100vw-2rem)] gap-1 rounded-xl border border-[var(--border)] bg-white p-2 shadow-lg">
           {NAV.map((item) => {
             const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
             return (

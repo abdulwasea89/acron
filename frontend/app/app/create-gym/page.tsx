@@ -120,7 +120,7 @@ export default function CreateGymPage() {
           <label className="mb-1.5 block text-[13px] font-medium text-[var(--foreground)]">
             SaaS Plan
           </label>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {TIERS.map((t) => (
               <button
                 key={t.value}
