@@ -188,6 +188,11 @@ async def create_session(
         remember_device=remember,
     )
     session.add(auth_session)
+
+    # Persist last-used org so next login goes here (B — last-used org).
+    user.last_org_id = org_id
+    session.add(user)
+
     return access, refresh
 
 
@@ -266,7 +271,6 @@ async def login(
     if not memberships:
         raise HTTPException(status_code=401, detail=_VAGUE)
 
-    # If org not specified and user has multiple, return the org picker list.
     target: OrganizationMember | None = None
     if organization_id or org_code:
         _, target = await _resolve_membership(
@@ -275,15 +279,14 @@ async def login(
     elif len(memberships) == 1:
         target = memberships[0]
     else:
-        await _register_success(session, user)
-        orgs = []
-        for m in memberships:
-            o = await session.get(Organization, m.organization_id)
-            if o:
-                orgs.append({"organization_id": o.id, "name": o.name, "role": m.role.value})
-        return LoginResponse(
-            access_token="", refresh_token="", organizations=orgs,
-        )
+        # B — last-used org auto-login (Section: Last-Used Org).
+        if user.last_org_id:
+            target = next(
+                (m for m in memberships if m.organization_id == user.last_org_id),
+                None,
+            )
+        if target is None:
+            target = max(memberships, key=lambda m: m.joined_at or now_utc())
 
     if target.banned or target.member_status == MemberStatus.BANNED:
         raise HTTPException(status_code=403, detail="Access denied.")
@@ -524,6 +527,40 @@ async def revoke_all_sessions(session: AsyncSession, *, user_id: str) -> None:
         session.add(s)
 
 
+# --------------------------------------------------------- org code recovery
+async def recover_org_codes(session: AsyncSession, email: str) -> None:
+    """C — Email the user a list of all their gyms and org codes (Section: Email Recovery).
+
+    Silent on unknown email to avoid revealing account existence.
+    """
+
+    user = await _get_user_by_email(session, email)
+    if user is None:
+        return
+
+    memberships = await _org_memberships(session, user.id)
+    if not memberships:
+        return
+
+    lines = []
+    for m in memberships:
+        o = await session.get(Organization, m.organization_id)
+        if o:
+            lines.append(f"  {o.name}  →  {o.org_code}")
+
+    if not lines:
+        return
+
+    body = (
+        "Here are your gyms on Gym Ops:\n\n"
+        + "\n".join(lines)
+        + "\n\n"
+        + "Use any code on the login page to go straight to that gym.\n"
+        + "Or just leave the code blank — we'll take you to your last gym."
+    )
+    await send_email_safe(email, "Your gym codes", body)
+
+
 # --------------------------------------------------------- multi-org switching
 async def list_user_organizations(
     session: AsyncSession, user: User
@@ -568,6 +605,9 @@ async def switch_organization(
     ).scalar_one_or_none()
     if membership is None or membership.banned or membership.member_status == MemberStatus.BANNED:
         raise HTTPException(status_code=403, detail="You don't have access to that organization.")
+
+    user.last_org_id = target_org_id
+    session.add(user)
 
     access, refresh = await create_session(
         session, user=user, org_id=target_org_id, role=membership.role,

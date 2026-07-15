@@ -192,6 +192,12 @@ class SwitchOrgRequest(BaseModel):
     organization_id: str
 
 
+class RecoverCodesRequest(BaseModel):
+    """Request an email listing all gyms and their org codes."""
+
+    email: EmailStr
+
+
 class SessionInfo(BaseModel):
     id: str
     device_type: str | None = None

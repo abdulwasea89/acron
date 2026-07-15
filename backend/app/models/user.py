@@ -43,4 +43,7 @@ class User(UUIDModel, TimestampModel, table=True):
     locked_until: datetime | None = None
     last_login_at: datetime | None = None
 
+    # Last org the user logged into (B — last-used org auto-login).
+    last_org_id: str | None = None
+
     is_active: bool = True

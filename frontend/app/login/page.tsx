@@ -122,15 +122,21 @@ function LoginForm() {
                 value={orgCode}
                 onChange={(e) => { setOrgCode(e.target.value.toUpperCase()); setFieldErrors((p) => ({ ...p, orgCode: "" })); }}
                 placeholder="IRON-PULS-3K9"
-                hint="Optional if you manage one gym"
+                hint="Leave blank to go to your last gym"
                 autoComplete="organization"
                 error={fieldErrors.orgCode}
               />
 
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-between gap-4">
                 <Link
-                  href="/magic-link"
-                  className="text-sm font-medium text-[var(--primary)] hover:underline"
+                  href="/recover-codes"
+                  className="text-sm font-medium text-[var(--muted)] hover:text-[var(--primary)] transition-colors"
+                >
+                  Don&apos;t remember your gym code?
+                </Link>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm font-medium text-[var(--primary)] hover:underline shrink-0"
                 >
                   Forgot password?
                 </Link>

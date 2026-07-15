@@ -19,12 +19,6 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (AUTH_PAGES.includes(pathname) && hasSession) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/app";
-    return NextResponse.redirect(url);
-  }
-
   return NextResponse.next();
 }
 

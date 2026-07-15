@@ -112,6 +112,11 @@ export default function MagicLinkPage() {
               autoComplete="organization"
               error={fieldErrors.orgCode}
             />
+            <div className="-mt-3 text-right">
+              <Link href="/recover-codes" className="text-xs text-[var(--muted)] hover:text-[var(--primary)] underline underline-offset-2">
+                Don&apos;t remember your gym code?
+              </Link>
+            </div>
 
             <Input
               ref={emailRef}

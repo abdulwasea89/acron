@@ -23,13 +23,15 @@ from app.schemas.auth import (
     OwnerRegisterStart,
     PasswordResetConfirm,
     PasswordResetRequest,
+    RecoverCodesRequest,
     RefreshRequest,
     ResendCodeRequest,
     SessionInfo,
     SwitchOrgRequest,
 )
-from app.schemas.common import Message
+
 from app.services import auth_service, mfa_service
+from app.schemas.common import Message
 
 router = APIRouter()
 
@@ -79,6 +81,13 @@ async def switch_org(
         user_agent=request.headers.get("user-agent"),
     )
     return LoginResponse(access_token=access, refresh_token=refresh)
+
+
+@router.post("/recover-codes", response_model=Message)
+async def recover_codes(data: RecoverCodesRequest, session: AsyncSession = Depends(get_session)):
+    """C — Email the user a list of all their gyms and org codes."""
+    await auth_service.recover_org_codes(session, data.email)
+    return Message(message="If the account exists, your gym codes were sent.")
 
 
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)
