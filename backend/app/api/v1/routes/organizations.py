@@ -5,13 +5,15 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_client_ip, get_org, get_session, require_capability
+from app.api.deps import get_client_ip, get_current_user, get_org, get_session, require_capability
+from app.models.user import User
 from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
 from app.models.organization import Organization
 from app.schemas.common import Message
 from app.schemas.organizations import (
     ConnectOnboardingOut,
+    CreateOrganizationRequest,
     EnrollmentModeUpdate,
     GymStatusUpdate,
     OrgCodeRotateOut,
@@ -51,6 +53,21 @@ async def register_gym(
     return RegisterGymResponse(organization=_to_out(org), access_token=access, refresh_token=refresh)
 
 
+@router.post("/create", response_model=RegisterGymResponse)
+async def create_organization(
+    data: CreateOrganizationRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Existing authenticated user creates another gym."""
+
+    org, access, refresh = await orgs.create_organization_for_user(
+        session, user, data, ip=get_client_ip(request)
+    )
+    return RegisterGymResponse(organization=_to_out(org), access_token=access, refresh_token=refresh)
+
+
 @router.get("/me", response_model=OrganizationOut)
 async def get_my_org(org: Organization = Depends(get_org)):
     return _to_out(org)
@@ -68,8 +85,6 @@ async def connect_stripe(
     org: Organization = Depends(get_org),
     session: AsyncSession = Depends(get_session),
 ):
-    from app.models.user import User
-
     user = await session.get(User, ctx.user_id)
     link = await orgs.start_connect_onboarding(session, org, user.email)
     return ConnectOnboardingOut(account_id=link.account_id, onboarding_url=link.onboarding_url)

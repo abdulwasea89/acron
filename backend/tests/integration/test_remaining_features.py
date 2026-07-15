@@ -10,7 +10,7 @@ import pytest
 
 from app.core import totp
 from app.core.security import now_utc
-from tests.helpers import latest_code_for
+from tests.helpers import OWNER_PROFILE, latest_code_for
 
 
 def _invite_code_for(email: str) -> str:
@@ -30,7 +30,7 @@ MEMBER_PWD = "M3mberStr0ng!Pwd"
 async def _provision_gym(client, *, owner_email="owner@g.com", gym="Iron Pulse Boxing", tier="pro"):
     await client.post("/api/v1/auth/register", json={
         "full_name": "Alex", "email": owner_email,
-        "password": PASSWORD, "confirm_password": PASSWORD})
+        "password": PASSWORD, "confirm_password": PASSWORD, **OWNER_PROFILE})
     code = latest_code_for(owner_email)
     await client.post("/api/v1/auth/verify-email", json={"email": owner_email, "code": code})
     r = await client.post("/api/v1/organizations/register", json={
@@ -190,7 +190,8 @@ async def test_org_code_rotation_changes_code(client):
 
     # Old code no longer resolves a login (vague 401).
     await client.post("/api/v1/auth/register", json={
-        "full_name": "M", "email": "m@g.com", "password": MEMBER_PWD, "confirm_password": MEMBER_PWD})
+        "full_name": "Max Owner", "email": "m@g.com", "password": MEMBER_PWD, "confirm_password": MEMBER_PWD,
+        **OWNER_PROFILE})
     # Owner can still fetch org with existing token (owner session not revoked).
     r = await client.get("/api/v1/organizations/me", headers=headers)
     assert r.status_code == 200

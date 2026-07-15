@@ -1,26 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AuthShell } from "@/components/AuthShell";
 import { Alert, Button, Input } from "@/components/ui";
+import { loginSchema } from "@/lib/validation/auth";
+import { collectErrors } from "@/lib/validation/shared";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/app";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [orgCode, setOrgCode] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [needsMfa, setNeedsMfa] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const emailRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, []);
+
+  function validate(): boolean {
+    const { success, errors } = collectErrors(loginSchema, { email, password, orgCode });
+    setFieldErrors(errors);
+    return success;
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!validate()) return;
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -34,7 +52,7 @@ export default function LoginPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Login failed");
+      if (!res.ok) throw new Error(data.detail || "Invalid credentials");
       if (data.requires_mfa) {
         setNeedsMfa(true);
         setError("");
@@ -50,71 +68,125 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <h1 className="text-xl font-semibold">Welcome back</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">Sign in to your gym admin portal</p>
-        </div>
-
-        <form
-          onSubmit={onSubmit}
-          className="space-y-4 rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm"
-        >
-          {error && <Alert>{error}</Alert>}
-
-          <Input
-            label="Email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="owner@yourgym.com"
-          />
-          <Input
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••••••"
-          />
-          <Input
-            label="Org code (optional)"
-            value={orgCode}
-            onChange={(e) => setOrgCode(e.target.value.toUpperCase())}
-            placeholder="IRON-PULS-3K9"
-            hint="Leave blank if you own a single gym."
-          />
-
-          {needsMfa && (
-            <Input
-              label="Authenticator code"
-              inputMode="numeric"
-              maxLength={6}
-              required
-              value={mfaCode}
-              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="123456"
-            />
-          )}
-
-          <Button type="submit" loading={loading} className="w-full">
-            {needsMfa ? "Verify & sign in" : "Sign in"}
-          </Button>
-
-          <div className="flex items-center justify-between text-sm">
-            <Link href="/register" className="text-[var(--primary)] hover:underline">
-              Register a gym
-            </Link>
-            <Link href="/magic-link" className="text-[var(--primary)] hover:underline">
-              Sign in with a link
-            </Link>
+    <AuthShell
+      eyebrow="Gym management, simplified"
+      title={needsMfa ? "One more quick check" : "Welcome back"}
+      description={needsMfa ? "Enter the code from your authenticator app to continue securely." : "Sign in to pick up where your gym left off."}
+      footer={<>New to Gym Ops? <Link href="/register" className="auth-link">Create your gym</Link></>}
+    >
+      <div className="auth-form-card">
+        {error && (
+          <div className="mb-5">
+            <Alert onDismiss={() => setError("")}>{error}</Alert>
           </div>
+        )}
+
+        <form onSubmit={onSubmit} className="space-y-5">
+          {!needsMfa ? (
+            <>
+              <Input
+                ref={emailRef}
+                label="Work email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: "" })); }}
+                placeholder="you@yourgym.com"
+                error={fieldErrors.email}
+              />
+
+              <div className="password-field">
+                <Input
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: "" })); }}
+                  placeholder="Enter your password"
+                  error={fieldErrors.password}
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              <Input
+                label="Gym code"
+                value={orgCode}
+                onChange={(e) => { setOrgCode(e.target.value.toUpperCase()); setFieldErrors((p) => ({ ...p, orgCode: "" })); }}
+                placeholder="IRON-PULS-3K9"
+                hint="Optional if you manage one gym"
+                autoComplete="organization"
+                error={fieldErrors.orgCode}
+              />
+
+              <div className="flex items-center justify-end">
+                <Link
+                  href="/magic-link"
+                  className="text-sm font-medium text-[var(--primary)] hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
+              <Button type="submit" loading={loading} className="w-full">
+                Sign in
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="rounded-xl bg-[var(--primary-light)] px-4 py-3.5 text-sm leading-relaxed text-[var(--primary)]">
+                Open your authenticator app and enter the 6-digit code for Gym Ops.
+              </div>
+
+              <Input
+                label="Authenticator code"
+                inputMode="numeric"
+                maxLength={6}
+                required
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                autoComplete="one-time-code"
+              />
+
+              <Button type="submit" loading={loading} className="w-full">
+                Verify & sign in
+              </Button>
+            </>
+          )}
         </form>
+
+        {!needsMfa && (
+          <div className="auth-divider-wrap">
+            <div className="auth-divider">or</div>
+            <div className="text-center">
+              <Link href="/magic-link" className="text-sm font-medium text-[var(--primary)] hover:underline">
+                Send a secure sign-in link instead
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--primary)]" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

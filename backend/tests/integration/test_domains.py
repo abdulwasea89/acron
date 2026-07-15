@@ -11,7 +11,7 @@ import uuid
 
 import pytest
 
-from tests.helpers import latest_code_for
+from tests.helpers import OWNER_PROFILE, latest_code_for
 
 PASSWORD = "Sup3rStr0ng!Pass"
 MEMBER_PWD = "M3mberStr0ng!Pwd"
@@ -25,7 +25,7 @@ async def _provision_gym(client, *, owner_email="owner@g.com", gym="Iron Pulse B
 
     await client.post("/api/v1/auth/register", json={
         "full_name": "Alex", "email": owner_email,
-        "password": PASSWORD, "confirm_password": PASSWORD})
+        "password": PASSWORD, "confirm_password": PASSWORD, **OWNER_PROFILE})
     code = latest_code_for(owner_email)
     await client.post("/api/v1/auth/verify-email", json={"email": owner_email, "code": code})
     r = await client.post("/api/v1/organizations/register", json={

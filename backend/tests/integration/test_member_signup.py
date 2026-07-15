@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 
-from tests.helpers import latest_code_for
+from tests.helpers import OWNER_PROFILE, latest_code_for
 
 PASSWORD = "Sup3rStr0ng!Pass"
 MEMBER_PWD = "M3mberStr0ng!Pwd"
@@ -17,7 +17,7 @@ async def _provision_gym_with_plan(client) -> tuple[str, str, dict]:
 
     await client.post("/api/v1/auth/register", json={
         "full_name": "Alex", "email": "owner@g.com",
-        "password": PASSWORD, "confirm_password": PASSWORD})
+        "password": PASSWORD, "confirm_password": PASSWORD, **OWNER_PROFILE})
     code = latest_code_for("owner@g.com")
     await client.post("/api/v1/auth/verify-email", json={"email": "owner@g.com", "code": code})
     r = await client.post("/api/v1/organizations/register", json={
@@ -119,7 +119,8 @@ async def test_idempotency_key_required_for_payment(client):
 async def test_signup_blocked_when_no_published_plan(client):
     # Provision gym but DON'T publish a plan.
     await client.post("/api/v1/auth/register", json={
-        "full_name": "B", "email": "b@g.com", "password": PASSWORD, "confirm_password": PASSWORD})
+        "full_name": "Bob Owner", "email": "b@g.com", "password": PASSWORD, "confirm_password": PASSWORD,
+        **OWNER_PROFILE})
     code = latest_code_for("b@g.com")
     await client.post("/api/v1/auth/verify-email", json={"email": "b@g.com", "code": code})
     r = await client.post("/api/v1/organizations/register", json={

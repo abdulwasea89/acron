@@ -26,6 +26,7 @@ from app.schemas.auth import (
     RefreshRequest,
     ResendCodeRequest,
     SessionInfo,
+    SwitchOrgRequest,
 )
 from app.schemas.common import Message
 from app.services import auth_service, mfa_service
@@ -53,6 +54,31 @@ async def get_me(ctx: TenantContext = Depends(get_tenant), session: AsyncSession
         "member_id": member.id if member else None,
         "member_status": member.member_status.value if member else None,
     }
+
+
+@router.get("/my-organizations")
+async def get_my_organizations(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """List all organizations the current user belongs to (org switcher)."""
+    return await auth_service.list_user_organizations(session, user)
+
+
+@router.post("/switch-org", response_model=LoginResponse)
+async def switch_org(
+    data: SwitchOrgRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Switch to a different organization and get new tokens."""
+    access, refresh = await auth_service.switch_organization(
+        session, user, data.organization_id,
+        ip=get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return LoginResponse(access_token=access, refresh_token=refresh)
 
 
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)

@@ -31,7 +31,11 @@ from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.session import AuthSession
 from app.models.user import User
-from app.schemas.organizations import RegisterGymRequest, SetupChecklist
+from app.schemas.organizations import (
+    CreateOrganizationRequest,
+    RegisterGymRequest,
+    SetupChecklist,
+)
 from app.services import auth_service
 from app.services.audit_service import record_audit
 from app.utils.org_code import generate_org_code
@@ -119,6 +123,83 @@ async def register_gym(
     )
     await send_email(
         user.email, "Welcome to your gym",
+        f"Your gym '{org.name}' is live. Org code: {org.org_code}. Log in to finish setup.",
+    )
+
+    access, refresh = await auth_service.create_session(
+        session, user=user, org_id=org.id, role=Role.OWNER, ip=ip
+    )
+    return org, access, refresh
+
+
+async def create_organization_for_user(
+    session: AsyncSession,
+    user: User,
+    data: RegisterGymRequest | CreateOrganizationRequest,
+    *,
+    ip: str | None = None,
+) -> tuple[Organization, str, str]:
+    """Provision a new org linked to an existing, verified user. Returns (org, access, refresh)."""
+
+    if not user.email_verified:
+        raise HTTPException(status_code=403, detail="Verify your email before registering a gym.")
+
+    customer_id = await platform_stripe.create_customer(user.email, user.full_name)
+    tier = data.tier
+    if tier is not SaasTier.ENTERPRISE:
+        price = TIER_PRICE_USD[tier] or 0
+        pi = await platform_stripe.charge_first_month(
+            customer_id=customer_id,
+            amount_cents=price * 100,
+            currency="usd",
+            idempotency_key=f"saas-create-{user.id}-{tier.value}-{now_utc().timestamp()}",
+        )
+        if pi.status != "succeeded":
+            raise HTTPException(status_code=402, detail="SaaS payment failed. Please retry.")
+    subscription_id = await platform_stripe.create_subscription(
+        customer_id=customer_id, tier=tier.value
+    )
+
+    d = data.details
+    org = Organization(
+        name=d.name,
+        org_code=await _unique_org_code(session, d.name),
+        country=d.country,
+        timezone=d.timezone,
+        default_currency=d.default_currency,
+        address=d.address,
+        logo_url=d.logo_url,
+        accent_color=d.accent_color,
+        working_hours=d.working_hours,
+        saas_tier=tier,
+        saas_status=SaasStatus.ACTIVE,
+        member_cap=TIER_MEMBER_CAP[tier],
+        stripe_customer_id=customer_id,
+        stripe_subscription_id=subscription_id,
+        saas_current_period_end=now_utc() + timedelta(days=30),
+        mfa_required=(tier is SaasTier.ENTERPRISE),
+    )
+    session.add(org)
+    await session.flush()
+
+    owner_member = OrganizationMember(
+        organization_id=org.id,
+        user_id=user.id,
+        role=Role.OWNER,
+        member_status=MemberStatus.ACTIVE,
+        joined_at=now_utc(),
+        profile_complete=True,
+    )
+    session.add(owner_member)
+    await session.flush()
+
+    await record_audit(
+        session, action="org.provisioned", actor_user_id=user.id,
+        organization_id=org.id, entity_type="organization", entity_id=org.id,
+        new_values={"tier": tier.value, "org_code": org.org_code}, ip_address=ip,
+    )
+    await send_email(
+        user.email, "Welcome to your new gym",
         f"Your gym '{org.name}' is live. Org code: {org.org_code}. Log in to finish setup.",
     )
 

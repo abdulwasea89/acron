@@ -25,6 +25,14 @@ STAFF_ROLES = {Role.OWNER, Role.MANAGER, Role.TRAINER, Role.FRONT_DESK}
 ADMIN_ROLES = {Role.OWNER, Role.MANAGER}
 
 
+class Gender(str, Enum):
+    """Owner-provided gender at registration (Section 4.2)."""
+
+    MALE = "male"
+    FEMALE = "female"
+    OTHER = "other"
+
+
 class SaasTier(str, Enum):
     """Platform subscription tier the gym owner pays for (Section 3.1)."""
 

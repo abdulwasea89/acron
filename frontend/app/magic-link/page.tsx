@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AuthShell } from "@/components/AuthShell";
 import { Alert, Button, Input } from "@/components/ui";
+import { magicRequestSchema, magicVerifySchema } from "@/lib/validation/auth";
+import { collectErrors } from "@/lib/validation/shared";
 
-// Magic-link sign-in (Section 5.4). Admin-only: request a single-use link by
-// org code + email, then paste the emailed token to sign in. MFA still applies.
 export default function MagicLinkPage() {
   const router = useRouter();
 
@@ -19,11 +20,21 @@ export default function MagicLinkPage() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const emailRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, [step]);
 
   async function requestLink(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setNotice("");
+    const check = collectErrors(magicRequestSchema, { orgCode, email });
+    setFieldErrors(check.errors);
+    if (!check.success) return;
     setLoading(true);
     try {
       const res = await fetch("/api/auth/magic-link/request", {
@@ -33,8 +44,7 @@ export default function MagicLinkPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Request failed");
-      // Response is deliberately vague — never reveals whether the email is an admin.
-      setNotice("If that email is an admin of this gym, a sign-in link was sent. Paste the token below.");
+      setNotice("If the details match an account, a sign-in link was sent.");
       setStep("verify");
     } catch (err) {
       setError((err as Error).message);
@@ -46,6 +56,9 @@ export default function MagicLinkPage() {
   async function verify(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    const check = collectErrors(magicVerifySchema, { token });
+    setFieldErrors(check.errors);
+    if (!check.success) return;
     setLoading(true);
     try {
       const res = await fetch("/api/auth/magic-link/verify", {
@@ -75,63 +88,61 @@ export default function MagicLinkPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <h1 className="text-xl font-semibold">Sign in with a link</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            {step === "request"
-              ? "For gym owners & managers — no password needed"
-              : "Enter the token from your email"}
-          </p>
-        </div>
+    <AuthShell
+      eyebrow="Passwordless"
+      title={needsMfa ? "One more quick check" : step === "request" ? "Sign in with a link" : "Check your inbox"}
+      description={needsMfa ? "Enter the code from your authenticator app to continue." : step === "request" ? "Enter your details and we'll email you a single-use sign-in link." : "Paste the token from the email to sign in securely."}
+      footer={<>Back to <Link href="/login" className="auth-link">sign in with password</Link></>}
+    >
+      <div className="auth-form-card">
+        {error && (
+          <div className="mb-5">
+            <Alert onDismiss={() => setError("")}>{error}</Alert>
+          </div>
+        )}
 
         {step === "request" ? (
-          <form
-            onSubmit={requestLink}
-            className="space-y-4 rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm"
-          >
-            {error && <Alert>{error}</Alert>}
+          <form onSubmit={requestLink} className="space-y-4">
             <Input
-              label="Org code"
+              label="Gym code"
               required
               value={orgCode}
-              onChange={(e) => setOrgCode(e.target.value.toUpperCase())}
+              onChange={(e) => { setOrgCode(e.target.value.toUpperCase()); setFieldErrors((p) => ({ ...p, orgCode: "" })); }}
               placeholder="IRON-PULS-3K9"
+              autoComplete="organization"
+              error={fieldErrors.orgCode}
             />
+
             <Input
-              label="Email"
+              ref={emailRef}
+              label="Work email"
               type="email"
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: "" })); }}
               placeholder="owner@yourgym.com"
+              error={fieldErrors.email}
             />
+
             <Button type="submit" loading={loading} className="w-full">
-              Email me a link
+              Email sign-in link
             </Button>
-            <div className="text-center text-sm">
-              <Link href="/login" className="text-[var(--primary)] hover:underline">
-                Use a password instead
-              </Link>
-            </div>
           </form>
         ) : (
-          <form
-            onSubmit={verify}
-            className="space-y-4 rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm"
-          >
-            {notice && <Alert tone="success">{notice}</Alert>}
-            {error && <Alert>{error}</Alert>}
+          <form onSubmit={verify} className="space-y-5">
+            {notice && <Alert tone="info">{notice}</Alert>}
+
             <Input
               label="Sign-in token"
               required
               value={token}
-              onChange={(e) => setToken(e.target.value)}
+              onChange={(e) => { setToken(e.target.value); setFieldErrors((p) => ({ ...p, token: "" })); }}
               placeholder="Paste the token from your email"
-              hint="Single-use, expires in 15 minutes."
+              hint="Single-use, expires in 15 minutes"
+              error={fieldErrors.token}
             />
+
             {needsMfa && (
               <Input
                 label="Authenticator code"
@@ -140,32 +151,27 @@ export default function MagicLinkPage() {
                 required
                 value={mfaCode}
                 onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="123456"
+                placeholder="000000"
+                autoComplete="one-time-code"
               />
             )}
+
             <Button type="submit" loading={loading} className="w-full">
               {needsMfa ? "Verify & sign in" : "Sign in"}
             </Button>
-            <div className="flex items-center justify-between text-sm">
+
+            <div className="text-center">
               <button
                 type="button"
-                onClick={() => {
-                  setStep("request");
-                  setToken("");
-                  setNeedsMfa(false);
-                  setError("");
-                }}
-                className="text-[var(--muted)] hover:underline"
+                onClick={() => { setStep("request"); setToken(""); setNeedsMfa(false); setError(""); setNotice(""); setFieldErrors({}); }}
+                className="text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
               >
                 ← Start over
               </button>
-              <Link href="/login" className="text-[var(--primary)] hover:underline">
-                Use a password
-              </Link>
             </div>
           </form>
         )}
       </div>
-    </div>
+    </AuthShell>
   );
 }

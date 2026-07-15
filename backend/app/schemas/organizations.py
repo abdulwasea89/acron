@@ -87,3 +87,17 @@ class BulkImportResult(BaseModel):
     created: int
     skipped: int
     errors: list[dict]
+
+
+class CreateOrganizationRequest(BaseModel):
+    """Existing authenticated user creates another gym."""
+
+    details: GymDetails
+    tier: SaasTier
+    payment_token: str = "tok_stub"
+
+
+class SwitchOrgRequest(BaseModel):
+    """Switch to a different organization the user belongs to."""
+
+    organization_id: str

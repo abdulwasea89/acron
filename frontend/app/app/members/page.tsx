@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { statusTone, titleCase } from "@/lib/format";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -16,7 +16,6 @@ interface InviteResult {
   email_delivered: boolean;
 }
 
-// Which status actions apply given the member's current status.
 function actionsFor(status: string): { action: string; label: string; variant: "secondary" | "danger"; endpoint?: string }[] {
   switch (status) {
     case "active":
@@ -60,9 +59,9 @@ function roleBadge(role: string) {
     case "manager":
       return <Badge tone="success">Manager</Badge>;
     case "trainer":
-      return <Badge tone="warning">Trainer</Badge>;
+      return <Badge tone="info">Trainer</Badge>;
     case "front_desk":
-      return <Badge>Front Desk</Badge>;
+      return <Badge tone="neutral">Front Desk</Badge>;
     default:
       return null;
   }
@@ -75,10 +74,9 @@ export default function MembersPage() {
   const [query, setQuery] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
-  // When email delivery is off, the backend returns the raw code to share by
-  // hand. Hold it here so we can render a proper copyable panel (not inline).
   const [inviteShare, setInviteShare] = useState<{ email: string; code: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
 
   async function copyCode(code: string) {
     try {
@@ -86,7 +84,7 @@ export default function MembersPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard blocked (e.g. non-HTTPS) — the code is still visible to copy.
+      // Clipboard blocked
     }
   }
 
@@ -101,7 +99,7 @@ export default function MembersPage() {
   }
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => void load());
   }, []);
 
   function handleInviteResult(res: InviteResult, email: string, sentVerb: string) {
@@ -155,87 +153,117 @@ export default function MembersPage() {
 
   return (
     <>
-      <PageHeader title="Members" subtitle="Directory & status management" />
+      <PageHeader
+        title="Members"
+        subtitle="Directory & status management"
+        action={
+          <Button onClick={() => setShowInvite((s) => !s)}>
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
+            Invite member
+          </Button>
+        }
+      />
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
       {inviteMsg && (
-        <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--success-bg)] px-4 py-3 text-sm text-[var(--success)]">
-          {inviteMsg}
+        <div className="mb-4 animate-slide-down">
+          <Alert tone="success">{inviteMsg}</Alert>
         </div>
       )}
       {inviteShare && (
-        <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="mb-4 animate-slide-down rounded-[var(--radius-lg)] border border-[var(--border)] bg-white shadow-xs p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-medium">Invite code for {inviteShare.email}</div>
+              <div className="text-sm font-semibold text-[var(--foreground)]">Invite code for {inviteShare.email}</div>
               <div className="mt-0.5 text-xs text-[var(--muted)]">
-                Email delivery is off — share this single-use code with them. They redeem it at
-                the member app with your org code.
+                Email delivery is off — share this single-use code with them.
               </div>
             </div>
             <button
               type="button"
               onClick={() => setInviteShare(null)}
-              className="text-[var(--muted)] hover:text-[var(--foreground)]"
+              className="rounded-[var(--radius-sm)] p-1 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
               aria-label="Dismiss"
             >
-              ✕
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
           <div className="mt-3 flex items-center gap-2">
-            <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-sm">
+            <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 font-mono text-sm">
               {inviteShare.code}
             </code>
             <Button variant="secondary" onClick={() => copyCode(inviteShare.code)}>
-              {copied ? "Copied" : "Copy"}
+              {copied ? (
+                <>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                  Copied
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>
+                  Copy
+                </>
+              )}
             </Button>
           </div>
         </div>
       )}
 
-      <div className="mb-6">
-        <Card>
-          <CardHeader title="Invite a member" subtitle="Sends a single-use invite tied to their email" />
-          <form onSubmit={invite} className="flex flex-wrap items-end gap-3 p-5">
-            <div className="min-w-[240px] flex-1">
-              <Input
-                label="Email"
-                type="email"
-                required
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="member@email.com"
-              />
-            </div>
-            <Button type="submit">Send invite</Button>
-          </form>
-        </Card>
-      </div>
+      {showInvite && (
+        <div className="mb-6 animate-slide-down">
+          <Card>
+            <CardHeader title="Invite a member" subtitle="Sends a single-use invite tied to their email" />
+            <form onSubmit={invite} className="flex flex-wrap items-end gap-3 p-6">
+              <div className="min-w-[240px] flex-1">
+                <Input
+                  label="Email"
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="member@email.com"
+                />
+              </div>
+              <Button type="submit">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                Send invite
+              </Button>
+            </form>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <CardHeader
           title="Member directory"
           subtitle={members ? `${members.length} member${members.length === 1 ? "" : "s"}` : undefined}
           action={
-            <div className="w-56">
-              <Input placeholder="Search name or email…" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <div className="w-64">
+              <Input
+                placeholder="Search name or email..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
             </div>
           }
         />
         {members === null ? (
-          <Spinner />
+          <Spinner label="Loading members..." />
         ) : filtered.length === 0 ? (
-          <EmptyState title="No members found" hint={query ? "Try a different search." : "Members appear here after they sign up."} />
+          <EmptyState
+            title="No members found"
+            hint={query ? "Try a different search." : "Members appear here after they sign up."}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-[var(--muted)]">
+              <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                 <tr className="border-b border-[var(--border)]">
-                  <th className="px-5 py-3 font-medium">Name</th>
-                  <th className="px-5 py-3 font-medium">Email</th>
-                  <th className="px-5 py-3 font-medium">Role</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
+                  <th className="px-6 py-3.5">Name</th>
+                  <th className="px-6 py-3.5">Email</th>
+                  <th className="px-6 py-3.5">Role</th>
+                  <th className="px-6 py-3.5">Status</th>
+                  <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -244,20 +272,27 @@ export default function MembersPage() {
                   const isOwner = m.role === "owner";
                   const canAct = !isOwner && !isCurrentUser;
                   return (
-                    <tr key={m.member_id} className="hover:bg-gray-50/60">
-                      <td className="px-5 py-3 font-medium">
-                        {m.full_name || "—"}
-                        {isCurrentUser && <span className="ml-1.5 text-xs text-[var(--muted)]">(you)</span>}
+                    <tr key={m.member_id} className="transition-colors hover:bg-[var(--background)]">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={m.full_name || m.email} size="sm" />
+                          <div>
+                            <div className="font-medium text-[var(--foreground)]">
+                              {m.full_name || "—"}
+                              {isCurrentUser && <span className="ml-1.5 text-xs text-[var(--muted)]">(you)</span>}
+                            </div>
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-5 py-3 text-[var(--muted)]">{m.email}</td>
-                      <td className="px-5 py-3">{roleBadge(m.role)}</td>
-                      <td className="px-5 py-3">
+                      <td className="px-6 py-4 text-[var(--foreground-muted)]">{m.email}</td>
+                      <td className="px-6 py-4">{roleBadge(m.role)}</td>
+                      <td className="px-6 py-4">
                         <Badge tone={statusTone(m.member_status)}>{titleCase(m.member_status)}</Badge>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
                           {canAct && actionsFor(m.member_status).map((a) => (
-                            <Button key={a.action} variant={a.variant} onClick={() => act(m.member_id, a.action, a.endpoint)}>
+                            <Button key={a.action} variant={a.variant} size="sm" onClick={() => act(m.member_id, a.action, a.endpoint)}>
                               {a.label}
                             </Button>
                           ))}

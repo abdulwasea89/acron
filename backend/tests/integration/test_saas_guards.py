@@ -14,7 +14,7 @@ from sqlmodel import select
 
 from app.core.constants import SaasStatus
 from app.models.organization import Organization
-from tests.helpers import latest_code_for
+from tests.helpers import OWNER_PROFILE, latest_code_for
 
 PASSWORD = "Sup3rStr0ng!Pass"
 MEMBER_PWD = "M3mberStr0ng!Pwd"
@@ -25,7 +25,7 @@ async def _provision_gym_with_plan(client) -> tuple[str, str, dict]:
 
     await client.post("/api/v1/auth/register", json={
         "full_name": "Alex", "email": "owner@g.com",
-        "password": PASSWORD, "confirm_password": PASSWORD})
+        "password": PASSWORD, "confirm_password": PASSWORD, **OWNER_PROFILE})
     code = latest_code_for("owner@g.com")
     await client.post("/api/v1/auth/verify-email", json={"email": "owner@g.com", "code": code})
     r = await client.post("/api/v1/organizations/register", json={

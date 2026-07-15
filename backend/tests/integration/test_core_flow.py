@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.helpers import latest_code_for
+from tests.helpers import OWNER_PROFILE, latest_code_for
 
 PASSWORD = "Sup3rStr0ng!Pass"
 
@@ -18,6 +18,7 @@ async def test_owner_registration_to_published_plan(client):
         "email": "alex@ironpulse.com",
         "password": PASSWORD,
         "confirm_password": PASSWORD,
+        **OWNER_PROFILE,
     })
     assert r.status_code == 201, r.text
 
@@ -71,6 +72,7 @@ async def test_weak_password_rejected(client):
     r = await client.post("/api/v1/auth/register", json={
         "full_name": "Weak", "email": "weak@x.com",
         "password": "weak", "confirm_password": "weak",
+        **OWNER_PROFILE,
     })
     assert r.status_code == 422
 
@@ -79,7 +81,8 @@ async def test_weak_password_rejected(client):
 async def test_tenant_isolation_header_mismatch(client):
     # Register + verify + provision owner A
     await client.post("/api/v1/auth/register", json={
-        "full_name": "A", "email": "a@a.com", "password": PASSWORD, "confirm_password": PASSWORD})
+        "full_name": "Ann Owner", "email": "a@a.com", "password": PASSWORD, "confirm_password": PASSWORD,
+        **OWNER_PROFILE})
     code = latest_code_for("a@a.com")
     await client.post("/api/v1/auth/verify-email", json={"email": "a@a.com", "code": code})
     r = await client.post("/api/v1/organizations/register", json={

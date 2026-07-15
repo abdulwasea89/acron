@@ -82,6 +82,15 @@ async def register_owner_start(session: AsyncSession, data: OwnerRegisterStart) 
         full_name=data.full_name,
         hashed_password=hash_password(data.password),
         email_verified=False,
+        cnic=data.cnic,
+        phone=data.phone,
+        occupation=data.occupation,
+        education=data.education,
+        address=data.address,
+        date_of_birth=data.date_of_birth,
+        gender=data.gender,
+        city=data.city,
+        emergency_contact=data.emergency_contact,
     )
     session.add(user)
     await session.flush()
@@ -513,3 +522,57 @@ async def revoke_all_sessions(session: AsyncSession, *, user_id: str) -> None:
         s.revoked = True
         s.revoked_at = now_utc()
         session.add(s)
+
+
+# --------------------------------------------------------- multi-org switching
+async def list_user_organizations(
+    session: AsyncSession, user: User
+) -> list[dict]:
+    """Return all orgs the user belongs to (for the org switcher)."""
+
+    memberships = await _org_memberships(session, user.id)
+    result = []
+    for m in memberships:
+        o = await session.get(Organization, m.organization_id)
+        if o:
+            result.append({
+                "organization_id": o.id,
+                "name": o.name,
+                "org_code": o.org_code,
+                "role": m.role.value,
+                "member_status": m.member_status.value if m.member_status else None,
+            })
+    return result
+
+
+async def switch_organization(
+    session: AsyncSession,
+    user: User,
+    target_org_id: str,
+    *,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> tuple[str, str]:
+    """Issue new tokens scoped to a different org the user belongs to."""
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    membership = (
+        await session.execute(
+            select(OrganizationMember).where(
+                OrganizationMember.user_id == user.id,
+                OrganizationMember.organization_id == target_org_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if membership is None or membership.banned or membership.member_status == MemberStatus.BANNED:
+        raise HTTPException(status_code=403, detail="You don't have access to that organization.")
+
+    access, refresh = await create_session(
+        session, user=user, org_id=target_org_id, role=membership.role,
+        ip=ip, user_agent=user_agent,
+    )
+    await record_audit(session, action="auth.switch_org", actor_user_id=user.id,
+                       organization_id=target_org_id, ip_address=ip)
+    return access, refresh

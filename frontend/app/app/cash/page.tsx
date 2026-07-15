@@ -1,24 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, Input, Select, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { CashPaymentOut, MemberDirectoryItem, PlanOut, ReconciliationOut } from "@/lib/types";
 
+function localDate() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
 export default function CashPage() {
   return (
     <>
       <PageHeader
         title="Cash & offline payments"
-        subtitle="Log payments taken at the front desk, then reconcile the drawer at end of day"
+        subtitle="Record front-desk payments confidently, then close the drawer with a clear audit trail."
       />
-      <div className="grid gap-6 lg:grid-cols-2">
+
+      <section className="mb-6 grid gap-3 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-amber-50 p-4 sm:grid-cols-3 sm:p-5" aria-label="Cash workflow overview">
+        <WorkflowStep number="1" title="Record payment" hint="Select the member and plan" />
+        <WorkflowStep number="2" title="Activate membership" hint="Receipt is emailed automatically" />
+        <WorkflowStep number="3" title="Reconcile daily" hint="Flag discrepancies before close" />
+      </section>
+
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
         <LogPayment />
         <Reconcile />
       </div>
     </>
+  );
+}
+
+function WorkflowStep({ number, title, hint }: { number: string; title: string; hint: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-xs font-bold text-white">{number}</span>
+      <div>
+        <p className="text-sm font-semibold text-[var(--foreground)]">{title}</p>
+        <p className="text-xs text-[var(--foreground-muted)]">{hint}</p>
+      </div>
+    </div>
   );
 }
 
@@ -34,93 +59,124 @@ function LogPayment() {
   const [result, setResult] = useState<CashPaymentOut | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const memberOptions = useMemo(() => members?.filter((member) => member.role === "member") ?? [], [members]);
+  const selectedMember = memberOptions.find((member) => member.member_id === memberId);
+  const selectedPlan = plans.find((plan) => plan.id === planId);
+
   useEffect(() => {
-    (async () => {
+    async function loadFormOptions() {
       try {
-        const [m, p] = await Promise.all([
+        const [loadedMembers, loadedPlans] = await Promise.all([
           api.get<MemberDirectoryItem[]>("/members"),
           api.get<PlanOut[]>("/plans"),
         ]);
-        setMembers(m);
-        setPlans(p);
-      } catch (e) {
-        setError((e as ApiError).message);
+        setMembers(loadedMembers);
+        setPlans(loadedPlans);
+      } catch (caught) {
+        setError((caught as ApiError).message);
         setMembers([]);
       }
-    })();
+    }
+
+    void loadFormOptions();
   }, []);
 
-  // Default the amount to the chosen plan's price for convenience.
   function pickPlan(id: string) {
     setPlanId(id);
-    const plan = plans.find((p) => p.id === id);
-    if (plan && !amount) setAmount(String(plan.price));
+    const plan = plans.find((item) => item.id === id);
+    if (plan) setAmount(String(plan.price));
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const paymentAmount = Number(amount);
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+      setError("Enter a payment amount greater than zero.");
+      return;
+    }
+
     setError("");
     setResult(null);
     setLoading(true);
     try {
-      const out = await api.post<CashPaymentOut>("/cash/log", {
+      const output = await api.post<CashPaymentOut>("/cash/log", {
         member_id: memberId,
         plan_id: planId,
-        amount: parseFloat(amount) || 0,
+        amount: paymentAmount,
         method,
-        note: note || null,
+        note: note.trim() || null,
       });
-      setResult(out);
+      setResult(output);
+      setMemberId("");
+      setPlanId("");
       setAmount("");
       setNote("");
-    } catch (e) {
-      setError((e as ApiError).message);
+    } catch (caught) {
+      setError((caught as ApiError).message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Card>
-      <CardHeader title="Log a payment" subtitle="Activates the member and emails a receipt" />
+    <Card className="overflow-hidden">
+      <CardHeader title="Log a payment" subtitle="Activate a member and send their payment receipt in one step" action={<Badge tone="info">Front desk</Badge>} />
       {members === null ? (
-        <Spinner />
+        <Spinner label="Loading members and plans…" />
       ) : (
-        <form onSubmit={submit} className="grid gap-4 p-5">
-          {error && <Alert>{error}</Alert>}
+        <form onSubmit={submit} className="grid gap-5 p-5 sm:p-6">
+          {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
           {result && (
-            <Alert tone="success">
-              Logged {money(result.amount)} — member is now {result.member_status}.
+            <Alert tone="success" onDismiss={() => setResult(null)}>
+              <span className="font-semibold">Payment recorded.</span> {money(result.amount)} was logged and the membership is now {result.member_status}.
             </Alert>
           )}
-          <Select label="Member" required value={memberId} onChange={(e) => setMemberId(e.target.value)}>
-            <option value="">Select a member…</option>
-            {members
-              .filter((m) => m.role === "member")
-              .map((m) => (
-                <option key={m.member_id} value={m.member_id}>
-                  {m.full_name || m.email} ({m.member_status})
-                </option>
-              ))}
-          </Select>
-          <Select label="Plan" required value={planId} onChange={(e) => pickPlan(e.target.value)}>
-            <option value="">Select a plan…</option>
-            {plans.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} — {money(p.price, p.currency)}
-              </option>
-            ))}
-          </Select>
+
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">Payment details</p>
+            <div className="mt-4 grid gap-4">
+              <Select label="Member" required value={memberId} onChange={(event) => setMemberId(event.target.value)}>
+                <option value="">Choose a member…</option>
+                {memberOptions.map((member) => (
+                  <option key={member.member_id} value={member.member_id}>
+                    {member.full_name || member.email} · {member.member_status}
+                  </option>
+                ))}
+              </Select>
+              {selectedMember && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-indigo-100 bg-white px-3.5 py-3 text-sm">
+                  <span className="min-w-0 truncate font-medium text-[var(--foreground)]">{selectedMember.full_name || selectedMember.email}</span>
+                  <Badge tone={selectedMember.member_status === "active" ? "success" : "warning"}>{selectedMember.member_status}</Badge>
+                </div>
+              )}
+              <Select label="Membership plan" required value={planId} onChange={(event) => pickPlan(event.target.value)}>
+                <option value="">Choose a plan…</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} · {money(plan.price, plan.currency)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Amount" type="number" min="0" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
-            <Select label="Method" value={method} onChange={(e) => setMethod(e.target.value)}>
+            <Input label="Amount received" type="number" min="0.01" step="0.01" inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} hint={selectedPlan ? `Plan price: ${money(selectedPlan.price, selectedPlan.currency)}` : "Enter the amount actually received."} />
+            <Select label="Payment method" value={method} onChange={(event) => setMethod(event.target.value)}>
               <option value="cash">Cash</option>
               <option value="bank_transfer">Bank transfer</option>
               <option value="mobile_wallet">Mobile wallet</option>
             </Select>
           </div>
-          <Input label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reference, who took it, etc." />
-          <Button type="submit" loading={loading} disabled={!memberId || !planId}>Log payment</Button>
+          <Input label="Internal note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Reference number or handover detail" hint="Visible to your team, not the member." />
+
+          <div className="flex flex-col-reverse gap-3 border-t border-[var(--border)] pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-5 text-[var(--foreground-muted)]">The member is activated immediately. Confirm the amount before saving.</p>
+            <Button type="submit" loading={loading} disabled={!memberId || !planId} className="w-full sm:w-auto">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Record payment
+            </Button>
+          </div>
         </form>
       )}
     </Card>
@@ -128,67 +184,83 @@ function LogPayment() {
 }
 
 function Reconcile() {
-  const today = new Date().toISOString().slice(0, 10);
-  const [businessDate, setBusinessDate] = useState(today);
+  const [businessDate, setBusinessDate] = useState(localDate);
   const [counted, setCounted] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ReconciliationOut | null>(null);
   const [loading, setLoading] = useState(false);
+  const hasDiscrepancy = result ? Math.abs(result.discrepancy) > 0.009 : false;
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const countedTotal = Number(counted);
+    if (!Number.isFinite(countedTotal) || countedTotal < 0) {
+      setError("Enter the cash total counted in the drawer.");
+      return;
+    }
+
     setError("");
     setResult(null);
     setLoading(true);
     try {
-      const out = await api.post<ReconciliationOut>("/cash/reconcile", {
+      const output = await api.post<ReconciliationOut>("/cash/reconcile", {
         business_date: businessDate,
-        counted_total: parseFloat(counted) || 0,
-        notes: notes || null,
+        counted_total: countedTotal,
+        notes: notes.trim() || null,
       });
-      setResult(out);
-    } catch (e) {
-      setError((e as ApiError).message);
+      setResult(output);
+    } catch (caught) {
+      setError((caught as ApiError).message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Card>
-      <CardHeader title="End-of-day reconciliation" subtitle="Count the drawer against what was logged" />
-      <form onSubmit={submit} className="grid gap-4 p-5">
-        {error && <Alert>{error}</Alert>}
-        <Input label="Business date" type="date" required value={businessDate} onChange={(e) => setBusinessDate(e.target.value)} />
-        <Input label="Counted total" type="number" min="0" step="0.01" required value={counted} onChange={(e) => setCounted(e.target.value)} placeholder="Actual cash counted" />
-        <Input label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
-        <Button type="submit" loading={loading}>Reconcile</Button>
+    <Card className="overflow-hidden xl:sticky xl:top-6">
+      <CardHeader title="Close the drawer" subtitle="Reconcile each business day before handover" action={<Badge tone="warning">Daily control</Badge>} />
+      <form onSubmit={submit} className="grid gap-5 p-5 sm:p-6">
+        {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-900">
+          <p className="font-semibold">Count physical cash first</p>
+          <p className="mt-1 text-xs leading-5 text-amber-800">We compare your count with cash payments recorded for this date and preserve any difference in the audit trail.</p>
+        </div>
+        <Input label="Business date" type="date" required value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
+        <Input label="Cash counted" type="number" min="0" step="0.01" inputMode="decimal" required value={counted} onChange={(event) => setCounted(event.target.value)} placeholder="0.00" hint="Enter the actual amount in the cash drawer." />
+        <Input label="Reconciliation notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional handover or discrepancy context" />
+        <Button type="submit" loading={loading} className="w-full">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
+          Save reconciliation
+        </Button>
 
         {result && (
-          <div className="mt-2 rounded-lg border border-[var(--border)] p-4 text-sm">
-            <div className="flex justify-between py-1">
-              <span className="text-[var(--muted)]">System total</span>
-              <span className="tabular-nums">{money(result.system_total)}</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-[var(--muted)]">Counted total</span>
-              <span className="tabular-nums">{money(result.counted_total)}</span>
-            </div>
-            <div className="flex justify-between border-t border-[var(--border)] py-1 font-medium">
-              <span>Discrepancy</span>
-              <span className={`tabular-nums ${result.discrepancy !== 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
-                {money(result.discrepancy)}
-              </span>
-            </div>
-            {result.alert_triggered && (
-              <div className="mt-2">
-                <Badge tone="danger">Owner alerted — 3+ discrepancies in 30 days</Badge>
+          <section className={`rounded-xl border p-4 ${hasDiscrepancy ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"}`} aria-live="polite">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className={`font-semibold ${hasDiscrepancy ? "text-red-800" : "text-emerald-800"}`}>{hasDiscrepancy ? "Discrepancy recorded" : "Drawer balanced"}</p>
+                <p className={`mt-0.5 text-xs ${hasDiscrepancy ? "text-red-700" : "text-emerald-700"}`}>Business date: {result.business_date}</p>
               </div>
-            )}
-          </div>
+              <Badge tone={hasDiscrepancy ? "danger" : "success"}>{hasDiscrepancy ? "Review needed" : "Matched"}</Badge>
+            </div>
+            <dl className="mt-4 space-y-2.5 border-y border-current/10 py-3 text-sm">
+              <AmountRow label="Recorded cash" value={money(result.system_total)} />
+              <AmountRow label="Cash counted" value={money(result.counted_total)} />
+              <AmountRow label="Difference" value={money(result.discrepancy)} emphasis />
+            </dl>
+            {result.alert_triggered && <p className="mt-3 text-xs font-medium text-red-800">Owner alerted: this is the third discrepancy recorded within 30 days.</p>}
+          </section>
         )}
       </form>
     </Card>
+  );
+}
+
+function AmountRow({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className={emphasis ? "font-semibold" : "text-[var(--foreground-muted)]"}>{label}</dt>
+      <dd className={`tabular-nums ${emphasis ? "font-bold" : "font-medium"}`}>{value}</dd>
+    </div>
   );
 }

@@ -1,6 +1,16 @@
 // TypeScript mirrors of the backend Pydantic schemas (backend/app/schemas).
 // Kept intentionally small — only the fields the admin UI consumes.
 
+export type SaasTier = "starter" | "pro" | "enterprise";
+
+export interface OrganizationBrief {
+  organization_id: string;
+  name: string;
+  org_code: string;
+  role: string;
+  member_status: string | null;
+}
+
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
