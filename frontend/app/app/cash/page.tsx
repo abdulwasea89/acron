@@ -170,16 +170,16 @@ function MethodCard({ value, selected, onSelect }: { value: string; selected: bo
     <button
       type="button"
       onClick={onSelect}
-      className={`flex flex-1 flex-col items-center gap-2 rounded-xl border-2 p-3.5 transition-all ${
+      className={`flex flex-1 items-center gap-2 rounded-lg border-2 px-3 py-2 transition-all ${
         selected
-          ? "border-[var(--primary)] bg-[var(--primary-light)] shadow-sm"
+          ? "border-[var(--primary)] bg-[var(--primary-light)]"
           : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--background)]"
       }`}
     >
-      <svg className={`h-5 w-5 ${selected ? "text-[var(--primary)]" : "text-[var(--muted)]"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg className={`h-4 w-4 shrink-0 ${selected ? "text-[var(--primary)]" : "text-[var(--muted)]"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d={METHOD_ICONS[value]} />
       </svg>
-      <span className={`text-xs font-medium ${selected ? "text-[var(--primary)]" : "text-[var(--foreground-muted)]"}`}>
+      <span className={`text-[11px] font-semibold leading-none ${selected ? "text-[var(--primary)]" : "text-[var(--foreground-muted)]"}`}>
         {METHOD_LABELS[value]}
       </span>
     </button>
