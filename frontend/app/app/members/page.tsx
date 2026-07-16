@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -140,6 +141,7 @@ export default function MembersPage() {
       const res = await api.post<InviteResult>("/members/invite", { email: inviteEmail });
       handleInviteResult(res, inviteEmail, "sent");
       setInviteEmail("");
+      setShowInvite(false);
       load();
     } catch (e) {
       setError((e as ApiError).message);
@@ -209,29 +211,24 @@ export default function MembersPage() {
         </div>
       )}
 
-      {showInvite && (
-        <div className="mb-6 animate-slide-down">
-          <Card>
-            <CardHeader title="Invite a member" subtitle="Sends a single-use invite tied to their email" />
-            <form onSubmit={invite} className="flex flex-wrap items-end gap-3 p-6">
-              <div className="min-w-[240px] flex-1">
-                <Input
-                  label="Email"
-                  type="email"
-                  required
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="member@email.com"
-                />
-              </div>
-              <Button type="submit">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
-                Send invite
-              </Button>
-            </form>
-          </Card>
-        </div>
-      )}
+      <Dialog open={showInvite} onClose={() => setShowInvite(false)} title="Invite a member" subtitle="Sends a single-use invite tied to their email">
+        <form onSubmit={invite} className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[240px] flex-1">
+            <Input
+              label="Email"
+              type="email"
+              required
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="member@email.com"
+            />
+          </div>
+          <Button type="submit">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+            Send invite
+          </Button>
+        </form>
+      </Dialog>
 
       <Card>
         <CardHeader

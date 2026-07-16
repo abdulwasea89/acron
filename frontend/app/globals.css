@@ -383,12 +383,12 @@ body {
   font-weight: 700;
   letter-spacing: 0.11em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .auth-heading h1 {
   margin: 0;
-  color: #0b0b0d;
+  color: var(--foreground);
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(34px, 4vw, 42px);
   line-height: 1;
@@ -399,7 +399,7 @@ body {
 .auth-heading-desc {
   max-width: 340px;
   margin: 12px auto 0;
-  color: #6b7280;
+  color: var(--foreground-muted);
   font-size: 13px;
   line-height: 1.55;
 }
@@ -428,6 +428,7 @@ body {
 .auth-form-panel button[type="submit"] {
   border-radius: 10px;
   background: #08080a !important;
+  color: #fff !important;
   box-shadow: none;
 }
 
@@ -435,13 +436,13 @@ body {
 
 .auth-footer {
   margin-top: 30px;
-  color: #6b7280;
+  color: var(--foreground-muted);
   font-size: 13px;
   text-align: center;
 }
 
 .auth-link {
-  color: #09090b;
+  color: var(--foreground);
   font-weight: 700;
   text-decoration: none;
 }
@@ -545,7 +546,7 @@ body {
 
 .password-strength-label.is-weak { color: var(--danger); }
 .password-strength-label.is-fair { color: var(--warning); }
-.password-strength-label.is-good { color: #0284c7; }
+.password-strength-label.is-good { color: var(--info); }
 .password-strength-label.is-strong { color: var(--success); }
 
 /* Tier selector */

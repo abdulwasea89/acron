@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -50,11 +51,9 @@ export default function PlansPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      {showForm && (
-        <div className="mb-6 animate-slide-down">
-          <PlanForm onCreated={() => { setShowForm(false); load(); }} />
-        </div>
-      )}
+      <Dialog open={showForm} onClose={() => setShowForm(false)} title="Create plan" subtitle="Saved as a draft — publish it when ready" className="max-w-xl">
+        <PlanForm onCreated={() => { setShowForm(false); load(); }} />
+      </Dialog>
 
       <Card>
         <CardHeader title="All plans" subtitle={plans ? `${plans.length} total` : undefined} />
@@ -94,7 +93,7 @@ export default function PlansPage() {
                     <td className="px-5 py-3.5">
                       <div className="font-medium text-[var(--foreground)]">{p.name}</div>
                       {p.featured && (
-                        <span className="text-xs text-amber-600 font-medium">★ Featured</span>
+                        <span className="text-xs text-[var(--warning)] font-medium">★ Featured</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 tabular-nums font-semibold">{money(p.price, p.currency)}</td>
@@ -159,29 +158,26 @@ function PlanForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <Card>
-      <CardHeader title="Create plan" subtitle="Saved as a draft — publish it when ready" />
-      <form onSubmit={submit} className="grid gap-4 p-5 sm:grid-cols-2">
-        {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
-        <Input label="Plan name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Monthly Unlimited" />
-        <Input label="Price" type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
-        <Select label="Billing type" value={billing} onChange={(e) => setBilling(e.target.value)}>
-          <option value="recurring">Recurring</option>
-          <option value="one_time_pack">One-time pack</option>
-          <option value="drop_in">Drop-in</option>
-        </Select>
-        <Select label="Visibility" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
-          <option value="public">Public</option>
-          <option value="members_only">Members only</option>
-          <option value="invite_only">Invite only</option>
-        </Select>
-        <div className="sm:col-span-2">
-          <Input label="Public description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What members see on the signup screen" />
-        </div>
-        <div className="sm:col-span-2">
-          <Button type="submit" loading={loading}>Save draft</Button>
-        </div>
-      </form>
-    </Card>
+    <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+      {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
+      <Input label="Plan name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Monthly Unlimited" />
+      <Input label="Price" type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
+      <Select label="Billing type" value={billing} onChange={(e) => setBilling(e.target.value)}>
+        <option value="recurring">Recurring</option>
+        <option value="one_time_pack">One-time pack</option>
+        <option value="drop_in">Drop-in</option>
+      </Select>
+      <Select label="Visibility" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+        <option value="public">Public</option>
+        <option value="members_only">Members only</option>
+        <option value="invite_only">Invite only</option>
+      </Select>
+      <div className="sm:col-span-2">
+        <Input label="Public description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What members see on the signup screen" />
+      </div>
+      <div className="sm:col-span-2">
+        <Button type="submit" loading={loading}>Save draft</Button>
+      </div>
+    </form>
   );
 }

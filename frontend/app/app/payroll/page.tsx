@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -60,16 +61,14 @@ export default function PayrollPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      {showForm && (
-        <div className="mb-6 animate-slide-down">
-          <RunForm
-            onCreated={() => {
-              setShowForm(false);
-              load();
-            }}
-          />
-        </div>
-      )}
+      <Dialog open={showForm} onClose={() => setShowForm(false)} title="New payroll run" subtitle="Generates a draft with one entry per active staff member">
+        <RunForm
+          onCreated={() => {
+            setShowForm(false);
+            load();
+          }}
+        />
+      </Dialog>
 
       {runs === null ? (
         <Spinner label="Loading payroll runs..." />
@@ -118,20 +117,17 @@ function RunForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <Card>
-      <CardHeader title="New payroll run" subtitle="Generates a draft with one entry per active staff member" />
-      <form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">
-        {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
-        <Input label="Period start" type="date" required value={start} onChange={(e) => setStart(e.target.value)} />
-        <Input label="Period end" type="date" required value={end} onChange={(e) => setEnd(e.target.value)} />
-        <div className="sm:col-span-2">
-          <Button type="submit" loading={loading}>
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-            Generate draft
-          </Button>
-        </div>
-      </form>
-    </Card>
+    <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+      {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
+      <Input label="Period start" type="date" required value={start} onChange={(e) => setStart(e.target.value)} />
+      <Input label="Period end" type="date" required value={end} onChange={(e) => setEnd(e.target.value)} />
+      <div className="sm:col-span-2">
+        <Button type="submit" loading={loading}>
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+          Generate draft
+        </Button>
+      </div>
+    </form>
   );
 }
 

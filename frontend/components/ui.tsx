@@ -43,8 +43,8 @@ export function Button({
   };
   const sizes: Record<string, string> = {
     sm: "h-9 px-3.5 text-xs gap-1.5 rounded-[10px]",
-    md: "h-12 px-5 text-sm gap-2 rounded-[10px]",
-    lg: "h-[52px] px-7 text-sm gap-2 rounded-[10px]",
+    md: "h-10 px-4 text-sm gap-2 rounded-[10px]",
+    lg: "h-11 px-6 text-sm gap-2 rounded-[10px]",
   };
   return (
     <button
@@ -85,7 +85,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <label className="block">
       {label && (
-        <span className="mb-1.5 block text-[13px] font-medium text-black">
+        <span className="mb-1.5 block text-[13px] font-medium text-[var(--foreground)]">
           {label}
         </span>
       )}
@@ -93,7 +93,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         id={id}
         className={cx(
-          "h-11 w-full rounded-xl border bg-[#f6f7f9] px-3.5 text-base sm:text-sm text-black dark:bg-[var(--background)]",
+          "h-11 w-full rounded-xl border bg-[#f6f7f9] px-3.5 text-base sm:text-sm text-[var(--foreground)] dark:bg-[var(--background)]",
           "transition duration-150",
           "placeholder:text-[var(--muted)]",
           error
