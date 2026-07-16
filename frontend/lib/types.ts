@@ -207,3 +207,18 @@ export interface PaymentOut {
   paid_at: string | null;
   created_at: string;
 }
+
+// ------------------------------------------------------------------ tasks
+export interface TaskOut {
+  id: string;
+  title: string;
+  assignee_member_id: string | null;
+  deadline: string | null;
+  done: boolean;
+}
+
+export interface TaskCreate {
+  title: string;
+  assignee_member_id?: string | null;
+  deadline?: string | null;
+}

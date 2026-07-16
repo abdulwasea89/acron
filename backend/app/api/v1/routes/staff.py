@@ -20,6 +20,7 @@ from app.schemas.staff import (
     StaffInviteRedeem,
     TaskCreateIn,
     TaskOut,
+    TaskUpdateIn,
 )
 from app.services import staff_service as staff
 
@@ -135,3 +136,25 @@ async def complete_task(
     task = await staff.complete_task(session, org_id=ctx.org_id, task_id=task_id)
     return TaskOut(id=task.id, title=task.title, assignee_member_id=task.assignee_member_id,
                    deadline=task.deadline, done=task.done)
+
+
+@router.patch("/tasks/{task_id}", response_model=TaskOut)
+async def update_task(
+    task_id: str,
+    data: TaskUpdateIn,
+    ctx: TenantContext = Depends(require_capability(Capability.ASSIGN_TASKS)),
+    session: AsyncSession = Depends(get_session),
+):
+    task = await staff.update_task(session, org_id=ctx.org_id, task_id=task_id, data=data)
+    return TaskOut(id=task.id, title=task.title, assignee_member_id=task.assignee_member_id,
+                   deadline=task.deadline, done=task.done)
+
+
+@router.delete("/tasks/{task_id}", response_model=Message)
+async def delete_task(
+    task_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.ASSIGN_TASKS)),
+    session: AsyncSession = Depends(get_session),
+):
+    await staff.delete_task(session, org_id=ctx.org_id, task_id=task_id)
+    return Message(message="Task deleted.")

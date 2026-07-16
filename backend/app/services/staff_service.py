@@ -20,7 +20,7 @@ from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.staff import Shift, StaffInvite, Task
 from app.models.user import User
-from app.schemas.staff import CompensationUpdate, StaffInviteCreate, TaskCreateIn
+from app.schemas.staff import CompensationUpdate, StaffInviteCreate, TaskCreateIn, TaskUpdateIn
 from app.services import auth_service
 from app.services.audit_service import record_audit
 from app.utils.org_code import _rand
@@ -240,3 +240,28 @@ async def complete_task(session: AsyncSession, *, org_id: str, task_id: str) -> 
     task.done = True
     session.add(task)
     return task
+
+
+async def update_task(session: AsyncSession, *, org_id: str, task_id: str, data: TaskUpdateIn) -> Task:
+    task = await session.get(Task, task_id)
+    if task is None or task.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    if data.title is not None:
+        task.title = data.title
+    if data.assignee_member_id is not None:
+        task.assignee_member_id = data.assignee_member_id
+    if data.deadline is not None:
+        task.deadline = data.deadline
+    session.add(task)
+    await record_audit(session, action="task.updated", organization_id=org_id,
+                       entity_type="task", entity_id=task.id, new_values=data.model_dump(exclude_none=True))
+    return task
+
+
+async def delete_task(session: AsyncSession, *, org_id: str, task_id: str) -> None:
+    task = await session.get(Task, task_id)
+    if task is None or task.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    await session.delete(task)
+    await record_audit(session, action="task.deleted", organization_id=org_id,
+                       entity_type="task", entity_id=task_id)

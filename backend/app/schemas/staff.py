@@ -50,6 +50,12 @@ class TaskCreateIn(BaseModel):
     deadline: datetime | None = None
 
 
+class TaskUpdateIn(BaseModel):
+    title: str | None = None
+    assignee_member_id: str | None = None
+    deadline: datetime | None = None
+
+
 class TaskOut(BaseModel):
     id: str
     title: str
