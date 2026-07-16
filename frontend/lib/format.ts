@@ -14,6 +14,22 @@ export function titleCase(s: string): string {
 
 export type Tone = "neutral" | "success" | "danger" | "warning";
 
+const GYM_STATUS_LABELS: Record<string, string> = {
+  open: "Open",
+  closed: "Closed",
+  half_day: "Half day",
+};
+
+export function gymStatusLabel(status: string): string {
+  return GYM_STATUS_LABELS[status] ?? titleCase(status);
+}
+
+export function gymStatusTone(status: string): Tone {
+  if (status === "open") return "success";
+  if (status === "closed") return "danger";
+  return "warning"; // half_day
+}
+
 export function statusTone(status: string): Tone {
   const s = status.toLowerCase();
   if (["active", "succeeded", "published", "paid"].includes(s)) return "success";

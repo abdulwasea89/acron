@@ -1,8 +1,8 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Badge, Card, CardHeader, StatCard } from "@/components/ui";
 import { backend } from "@/lib/backend";
-import { money, titleCase } from "@/lib/format";
-import type { HeadlineMetrics, SaasStatusOut, SetupChecklist } from "@/lib/types";
+import { gymStatusLabel, gymStatusTone, money, titleCase } from "@/lib/format";
+import type { HeadlineMetrics, OrganizationOut, SaasStatusOut, SetupChecklist } from "@/lib/types";
 
 async function safe<T>(p: Promise<T>): Promise<T | null> {
   try { return await p; } catch { return null; }
@@ -20,10 +20,11 @@ const CHECKLIST_LABELS: Record<keyof SetupChecklist, string> = {
 };
 
 export default async function DashboardPage() {
-  const [metrics, checklist, saas] = await Promise.all([
+  const [metrics, checklist, saas, org] = await Promise.all([
     safe(backend<HeadlineMetrics>("/analytics/headline")),
     safe(backend<SetupChecklist>("/organizations/me/checklist")),
     safe(backend<SaasStatusOut>("/saas-billing/status")),
+    safe(backend<OrganizationOut>("/organizations/me")),
   ]);
 
   const stats = [
@@ -68,6 +69,12 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {org && (
+        <div className="mt-6">
+          <GymStatusCard status={org.gym_status} />
+        </div>
+      )}
+
       <div className="mt-6">
         <Card>
           <CardHeader
@@ -106,5 +113,45 @@ export default async function DashboardPage() {
         </Card>
       </div>
     </>
+  );
+}
+
+function GymStatusCard({ status }: { status: string }) {
+  const tone = gymStatusTone(status);
+  const iconBg =
+    tone === "success" ? "bg-[var(--success-bg)] text-[var(--success)]" :
+    tone === "danger" ? "bg-[var(--danger-bg)] text-[var(--danger)]" :
+    "bg-[var(--warning-bg)] text-[var(--warning)]";
+  return (
+    <Card hover className="overflow-hidden">
+      <div className="flex items-center gap-5 p-5">
+        <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${iconBg}`}>
+          {status === "open" && (
+            <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12" />
+            </svg>
+          )}
+          {status === "closed" && (
+            <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+          )}
+          {status === "half_day" && (
+            <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-heading text-[19px] leading-tight text-[var(--foreground)]">{gymStatusLabel(status)}</p>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            {status === "open" && "Your gym is open and accepting members."}
+            {status === "closed" && "Your gym is closed and not accepting anyone."}
+            {status === "half_day" && "Your gym is operating on limited hours today."}
+          </p>
+        </div>
+        <Badge tone={tone as "success" | "danger" | "warning"}>{gymStatusLabel(status)}</Badge>
+      </div>
+    </Card>
   );
 }

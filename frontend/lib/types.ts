@@ -3,6 +3,8 @@
 
 export type SaasTier = "starter" | "pro" | "enterprise";
 
+export type GymStatus = "open" | "closed" | "half_day";
+
 export interface OrganizationBrief {
   organization_id: string;
   name: string;
@@ -29,7 +31,7 @@ export interface OrganizationOut {
   saas_tier: string;
   saas_status: string;
   enrollment_mode: string;
-  gym_status: string;
+  gym_status: GymStatus;
   member_cap: number | null;
   stripe_connect_status: string;
   accent_color: string | null;

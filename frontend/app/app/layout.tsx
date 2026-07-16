@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-dvh bg-[var(--background)]">
-      <Sidebar orgName={org.name} orgCode={org.org_code} orgId={org.id} />
+      <Sidebar orgName={org.name} orgCode={org.org_code} orgId={org.id} gymStatus={org.gym_status} />
       <main className="min-w-0 flex-1 overflow-y-auto">
         <div className="container-app">
           <div className="page-content">{children}</div>
