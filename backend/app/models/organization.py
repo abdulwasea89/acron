@@ -65,3 +65,7 @@ class Organization(UUIDModel, TimestampModel, table=True):
 
     # Org-code abuse control (Section 7.2)
     signup_frozen: bool = False
+
+    # Failed-charge lifecycle (Section 3.2.4)
+    saas_retry_count: int = 0  # how many consecutive payment-failure webhooks fired
+    saas_state_changed_at: datetime | None = None  # when current saas_status was entered

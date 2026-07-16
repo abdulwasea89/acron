@@ -105,6 +105,69 @@ export default function BillingPage() {
             </Card>
           </div>
 
+          {status.saas_status === "past_due" && (
+            <div className="mt-6">
+              <Card>
+                <CardHeader
+                  title="Payment retry status"
+                  subtitle={
+                    status.retry_count > 0
+                      ? `Stripe has retried ${status.retry_count} time${status.retry_count === 1 ? "" : "s"} without success. You have until ${status.grace_until ? new Date(status.grace_until).toLocaleDateString() : "soon"} before read-only mode.`
+                      : "Your subscription payment failed. Update your card to resume normal service."
+                  }
+                />
+                <div className="px-6 pb-6">
+                  <div className="flex flex-wrap gap-6">
+                    <div>
+                      <span className="text-xs font-medium text-[var(--muted)]">Retry attempts</span>
+                      <p className="mt-1 text-lg font-bold tabular-nums text-[var(--foreground)]">{status.retry_count} / 3</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-[var(--muted)]">Grace period ends</span>
+                      <p className="mt-1 text-lg font-bold tabular-nums text-[var(--foreground)]">
+                        {status.grace_until ? new Date(status.grace_until).toLocaleDateString() : "—"}
+                      </p>
+                    </div>
+                    <div className="flex items-center">
+                      <a
+                        href="#"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--primary)] hover:underline"
+                        onClick={(e) => { e.preventDefault(); alert("Configure your payment method (Stripe customer portal integration pending)."); }}
+                      >
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+                        Update card
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {status.saas_status === "read_only" && (
+            <div className="mt-6">
+              <Card>
+                <CardHeader title="Read-only mode" subtitle="Write access is blocked until the subscription is renewed." />
+              </Card>
+            </div>
+          )}
+
+          {status.saas_status === "suspended" && (
+            <div className="mt-6">
+              <Card>
+                <CardHeader title="Account suspended" subtitle="Contact support to restore access." />
+              </Card>
+            </div>
+          )}
+
+          {status.saas_status === "cancelled" && (
+            <div className="mt-6">
+              <Card>
+                <CardHeader title="Subscription cancelled" subtitle="Your data will be archived at the end of the retention period." />
+              </Card>
+            </div>
+          )}
+
           <div className="mt-6">
             <Card>
               <CardHeader title="Change plan" subtitle="Upgrade is immediate; downgrade blocked if usage exceeds the lower cap" />

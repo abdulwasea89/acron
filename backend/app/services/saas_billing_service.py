@@ -32,6 +32,8 @@ from app.services.audit_service import record_audit
 
 # Read-only once SaaS grace ends; full lockout / archive later (Section 3.2.4).
 GRACE_DAYS = 6
+SUSPEND_AFTER_DAYS = 30       # days in READ_ONLY before SUSPENDED
+ARCHIVE_AFTER_DAYS = 90       # days in SUSPENDED before ARCHIVED
 
 
 async def _member_count(session: AsyncSession, org_id: str) -> int:
@@ -61,6 +63,8 @@ async def status(session: AsyncSession, *, org: Organization) -> dict:
         "current_period_end": org.saas_current_period_end,
         "grace_until": org.saas_grace_until,
         "read_only": org.saas_status in {SaasStatus.READ_ONLY, SaasStatus.SUSPENDED},
+        "retry_count": org.saas_retry_count,
+        "state_changed_at": org.saas_state_changed_at,
     }
 
 
@@ -110,6 +114,8 @@ async def cancel(session: AsyncSession, *, org: Organization, actor_id: str) -> 
     """Cancel — runs to end of paid period, then archived after retention (Section 3.2.7)."""
 
     org.saas_status = SaasStatus.CANCELLED
+    org.saas_retry_count = 0
+    org.saas_state_changed_at = now_utc()
     session.add(org)
     await record_audit(session, action="saas.cancelled", organization_id=org.id, actor_user_id=actor_id,
                        entity_type="organization", entity_id=org.id)
@@ -132,34 +138,153 @@ async def list_invoices(session: AsyncSession, *, org_id: str) -> list[Payment]:
 
 
 # ----------------------------------------------- failed-charge lifecycle
-async def handle_failed_charge(session: AsyncSession, *, org: Organization) -> Organization:
-    """Begin the failed-charge grace workflow (Section 3.2.4, day 0)."""
+async def _notify_owner(
+    session: AsyncSession, *, org: Organization, kind: str,
+) -> None:
+    """Send email+push to the owner about a failed-charge event."""
 
-    org.saas_status = SaasStatus.PAST_DUE
-    org.saas_grace_until = now_utc() + timedelta(days=GRACE_DAYS)
-    session.add(org)
     owner = await _owner_user(session, org.id)
-    if owner is not None:
-        await send_email(owner.email, "Payment failed",
-                         f"Your SaaS payment for {org.name} failed. Please update your card; "
-                         f"you have {GRACE_DAYS} days before read-only mode.")
-        await send_push(None, "Payment failed", "Update your billing to avoid service interruption.")
-    await record_audit(session, action="saas.payment_failed", organization_id=org.id,
-                       entity_type="organization", entity_id=org.id)
+    if owner is None:
+        return
+    days_left = max(0, GRACE_DAYS - (org.saas_retry_count or 0))
+    if kind == "first_failure":
+        await send_email(
+            owner.email, f"SaaS Payment Failed — {org.name}",
+            f"Your subscription payment for {org.name} failed.\n"
+            f"Update your card in Settings → Billing; you have {GRACE_DAYS} days before "
+            f"the account becomes read-only.\n"
+            f"Grace period ends: {org.saas_grace_until}.",
+        )
+        await send_push(
+            None, "Payment failed",
+            f"Update billing — {GRACE_DAYS} days of access left.",
+        )
+    else:
+        n = org.saas_retry_count
+        await send_email(
+            owner.email, f"SaaS Payment Retry #{n} Failed — {org.name}",
+            f"Stripe retry #{n} failed. You have approximately {days_left} days "
+            f"until read-only mode. Update your card in Settings → Billing.",
+        )
+        await send_push(
+            None, f"Retry #{n} failed",
+            f"Update billing — {days_left} days left.",
+        )
+
+
+async def handle_failed_charge(session: AsyncSession, *, org: Organization) -> Organization:
+    """Handle a SaaS payment-failure webhook (Section 3.2.4).
+
+    First failure (``ACTIVE → PAST_DUE``):
+        sets grace_until = now + 6 days, notifies owner.
+
+    Subsequent failures (Stripe retries):
+        increments ``saas_retry_count``, notifies owner, does NOT reset grace_until.
+    """
+
+    now = now_utc()
+    if org.saas_status == SaasStatus.ACTIVE:
+        # First failure — begin the grace workflow.
+        org.saas_status = SaasStatus.PAST_DUE
+        org.saas_grace_until = now + timedelta(days=GRACE_DAYS)
+        org.saas_retry_count = 0
+        org.saas_state_changed_at = now
+        session.add(org)
+        await _notify_owner(session, org=org, kind="first_failure")
+        await record_audit(session, action="saas.payment_failed",
+                           organization_id=org.id, entity_type="organization", entity_id=org.id,
+                           new_values={"status": org.saas_status.value, "grace_until": str(org.saas_grace_until)})
+    else:
+        # Stripe retry failed — increment counter, notify, keep existing grace_until.
+        org.saas_retry_count = (org.saas_retry_count or 0) + 1
+        session.add(org)
+        await _notify_owner(session, org=org, kind="retry_failure")
+        await record_audit(session, action="saas.retry_failed",
+                           organization_id=org.id, entity_type="organization", entity_id=org.id,
+                           new_values={"retry_count": org.saas_retry_count})
+
+    from app.realtime.events import publish
+    await publish(org.id, "saas.payment_failed", {
+        "status": org.saas_status.value,
+        "retry_count": org.saas_retry_count,
+        "grace_until": org.saas_grace_until.isoformat() if org.saas_grace_until else None,
+    })
     return org
 
 
-async def enforce_lifecycle(session: AsyncSession, *, org: Organization) -> Organization:
-    """Advance an org through read-only -> suspended based on the grace clock.
+async def _archive_org_data(session: AsyncSession, *, org: Organization) -> None:
+    """Anonymize sensitive data when an org is archived (Day 90, Section 3.2.8)."""
 
-    Called by the billing worker; here it's deterministic against ``now``.
+    org.name = f"[Archived] {org.name}"
+    org.address = None
+    org.logo_url = None
+    org.accent_color = None
+    org.working_hours = None
+    org.org_code = f"archived-{org.id[:8]}"
+    session.add(org)
+
+    from app.models.membership import OrganizationMember
+    members = (
+        await session.execute(
+            select(OrganizationMember).where(OrganizationMember.organization_id == org.id)
+        )
+    ).scalars().all()
+    for m in members:
+        m.phone = None
+        m.emergency_contact = None
+        m.photo_url = None
+
+    await record_audit(session, action="saas.archived",
+                       organization_id=org.id, entity_type="organization", entity_id=org.id)
+
+
+async def enforce_lifecycle(session: AsyncSession, *, org: Organization) -> Organization:
+    """Advance an org through the failed-charge lifecycle.
+
+    Called hourly by the billing worker (celery_app.py). Transition timeline:
+
+        PAST_DUE + grace_until passed  →  READ_ONLY  (day 6)
+        READ_ONLY + 30 days            →  SUSPENDED  (day 30)
+        SUSPENDED + 90 days            →  ARCHIVED   (day 90)
     """
 
-    if org.saas_status == SaasStatus.PAST_DUE and org.saas_grace_until and org.saas_grace_until < now_utc():
+    now = now_utc()
+    changed = False
+
+    if org.saas_status == SaasStatus.PAST_DUE and org.saas_grace_until and org.saas_grace_until < now:
         org.saas_status = SaasStatus.READ_ONLY
+        org.saas_state_changed_at = now
+        changed = True
+        await record_audit(session, action="saas.read_only",
+                           organization_id=org.id, entity_type="organization", entity_id=org.id,
+                           new_values={"status": "read_only"})
+
+    elif org.saas_status == SaasStatus.READ_ONLY and org.saas_state_changed_at and (
+        now - org.saas_state_changed_at
+    ).days >= SUSPEND_AFTER_DAYS:
+        org.saas_status = SaasStatus.SUSPENDED
+        org.saas_state_changed_at = now
+        changed = True
+        await record_audit(session, action="saas.suspended",
+                           organization_id=org.id, entity_type="organization", entity_id=org.id,
+                           new_values={"status": "suspended"})
+
+    elif org.saas_status == SaasStatus.SUSPENDED and org.saas_state_changed_at and (
+        now - org.saas_state_changed_at
+    ).days >= ARCHIVE_AFTER_DAYS:
+        org.saas_status = SaasStatus.ARCHIVED
+        org.saas_state_changed_at = now
+        changed = True
+        await _archive_org_data(session, org=org)
+        await record_audit(session, action="saas.archived",
+                           organization_id=org.id, entity_type="organization", entity_id=org.id,
+                           new_values={"status": "archived"})
+
+    if changed:
         session.add(org)
-        await record_audit(session, action="saas.read_only", organization_id=org.id,
-                           entity_type="organization", entity_id=org.id)
+        from app.realtime.events import publish
+        await publish(org.id, "saas.status_changed", {"status": org.saas_status.value})
+
     return org
 
 

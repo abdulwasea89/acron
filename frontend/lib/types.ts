@@ -112,6 +112,8 @@ export interface SaasStatusOut {
   current_period_end: string | null;
   grace_until: string | null;
   read_only: boolean;
+  retry_count: number;
+  state_changed_at: string | null;
 }
 
 export interface InvoiceOut {

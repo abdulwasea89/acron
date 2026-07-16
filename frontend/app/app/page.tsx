@@ -57,9 +57,35 @@ export default async function DashboardPage() {
         }
       />
 
+      {saas && saas.saas_status === "past_due" && (
+        <div className="mb-6 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger)]">
+          <strong>Payment failed.</strong>{" "}
+          {saas.retry_count > 0
+            ? `Stripe retry #${saas.retry_count} failed. `
+            : ""}
+          Your subscription is past due — update your card in{" "}
+          <a href="/app/billing" className="underline font-medium">Billing</a>{" "}
+          to avoid service interruption.
+        </div>
+      )}
+
       {saas?.read_only && (
         <div className="mb-6 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger)]">
-          Your subscription is past due — the account is read-only. Update billing to restore write access.
+          <strong>Account is read-only.</strong> Your subscription is past due — write access is
+          blocked. Update billing to restore full access.
+        </div>
+      )}
+
+      {saas?.saas_status === "suspended" && (
+        <div className="mb-6 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-4 py-3 text-sm text-[var(--warning)]">
+          <strong>Account suspended.</strong> Your subscription has been suspended. Contact support
+          to reactivate your gym.
+        </div>
+      )}
+
+      {saas?.saas_status === "cancelled" && (
+        <div className="mb-6 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--muted)]">
+          Your subscription is cancelled and will be archived at the end of the retention period.
         </div>
       )}
 

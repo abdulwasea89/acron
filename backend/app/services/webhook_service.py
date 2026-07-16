@@ -78,6 +78,8 @@ async def handle_platform_event(session: AsyncSession, event: dict) -> dict:
         if org is not None:
             org.saas_status = SaasStatus.ACTIVE
             org.saas_grace_until = None
+            org.saas_retry_count = 0
+            org.saas_state_changed_at = now_utc()
             org.saas_current_period_end = now_utc() + timedelta(days=30)
             session.add(org)
             await record_audit(session, action="saas.payment_succeeded", organization_id=org.id,
@@ -94,6 +96,8 @@ async def handle_platform_event(session: AsyncSession, event: dict) -> dict:
         org = await _org_by_customer(session, obj.get("customer"))
         if org is not None:
             org.saas_status = SaasStatus.CANCELLED
+            org.saas_retry_count = 0
+            org.saas_state_changed_at = now_utc()
             session.add(org)
             await record_audit(session, action="saas.subscription_deleted", organization_id=org.id,
                                entity_type="organization", entity_id=org.id)

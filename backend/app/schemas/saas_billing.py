@@ -21,6 +21,8 @@ class SaasStatusOut(BaseModel):
     current_period_end: datetime | None
     grace_until: datetime | None
     read_only: bool
+    retry_count: int = 0
+    state_changed_at: datetime | None = None
 
 
 class InvoiceOut(BaseModel):
