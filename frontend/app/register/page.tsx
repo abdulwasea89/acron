@@ -38,7 +38,7 @@ function Steps({ current }: { current: number }) {
             <span
               className={cx(
                 "mt-2 flex items-center gap-1.5 truncate text-[11px] font-semibold leading-tight transition-colors duration-300",
-                reached ? "text-[var(--foreground)]" : "text-[var(--muted)]",
+                reached ? "text-black" : "text-[var(--muted)]",
               )}
             >
               <span className="tabular-nums opacity-60">{n}</span>

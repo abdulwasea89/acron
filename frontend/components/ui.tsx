@@ -31,20 +31,20 @@ export function Button({
 }: ButtonProps) {
   const variants: Record<string, string> = {
     primary:
-      "bg-neutral-950 text-white hover:bg-neutral-800 shadow-sm active:brightness-95",
+      "bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] shadow-sm active:brightness-95",
     secondary:
-      "bg-white text-[var(--foreground)] border border-[var(--border)] hover:bg-gray-50 hover:border-gray-300 shadow-xs",
+      "bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--background)] hover:border-[var(--border-strong)] shadow-xs",
     danger:
       "bg-[var(--danger)] text-white hover:bg-[var(--danger-hover)] shadow-sm",
     ghost:
-      "text-[var(--foreground-muted)] hover:bg-gray-100 hover:text-[var(--foreground)]",
+      "text-[var(--foreground-muted)] hover:bg-[var(--background)] hover:text-[var(--foreground)]",
     accent:
-      "bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] shadow-sm",
+      "bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)] shadow-sm",
   };
   const sizes: Record<string, string> = {
-    sm: "h-8 px-3 text-xs gap-1.5 rounded-[10px]",
-    md: "h-11 px-4 text-sm gap-2 rounded-[10px]",
-    lg: "h-12 px-6 text-sm gap-2 rounded-[10px]",
+    sm: "h-9 px-3.5 text-xs gap-1.5 rounded-[10px]",
+    md: "h-12 px-5 text-sm gap-2 rounded-[10px]",
+    lg: "h-[52px] px-7 text-sm gap-2 rounded-[10px]",
   };
   return (
     <button
@@ -85,7 +85,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <label className="block">
       {label && (
-        <span className="mb-1.5 block text-[13px] font-medium text-[var(--foreground)]">
+        <span className="mb-1.5 block text-[13px] font-medium text-black">
           {label}
         </span>
       )}
@@ -93,14 +93,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         id={id}
         className={cx(
-          "h-11 w-full rounded-xl border bg-[#f6f7f9] px-3.5 text-base sm:text-sm text-[var(--foreground)]",
+          "h-11 w-full rounded-xl border bg-[#f6f7f9] px-3.5 text-base sm:text-sm text-black dark:bg-[var(--background)]",
           "transition duration-150",
-          "placeholder:text-gray-400",
+          "placeholder:text-[var(--muted)]",
           error
-            ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-100"
-            : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10",
+            ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--danger)]/20"
+            : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10 dark:border-[var(--border)] dark:focus:border-[var(--primary)] dark:focus:ring-[var(--primary)]/20",
           "focus:outline-none",
-          "disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-100",
+          "disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-[var(--surface)]",
           className,
         )}
         {...rest}
@@ -132,11 +132,11 @@ export function Select({ label, error, className, children, ...rest }: SelectPro
       <div className="relative">
         <select
           className={cx(
-            "h-11 w-full appearance-none rounded-xl border bg-[#f6f7f9] px-3.5 pr-10 text-base sm:text-sm text-[var(--foreground)]",
+            "h-11 w-full appearance-none rounded-xl border bg-[#f6f7f9] px-3.5 pr-10 text-base sm:text-sm text-[var(--foreground)] dark:bg-[var(--background)]",
             "transition duration-150",
             error
-              ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-100"
-              : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10",
+              ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--danger)]/20"
+              : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10 dark:border-[var(--border)] dark:focus:border-[var(--primary)] dark:focus:ring-[var(--primary)]/20",
             "focus:outline-none",
             className,
           )}
@@ -169,12 +169,12 @@ export function Textarea({ label, error, className, ...rest }: TextareaProps) {
       )}
       <textarea
         className={cx(
-            "w-full rounded-xl border bg-[#f6f7f9] px-3.5 py-2.5 text-base sm:text-sm text-[var(--foreground)]",
+            "w-full rounded-xl border bg-[#f6f7f9] px-3.5 py-2.5 text-base sm:text-sm text-[var(--foreground)] dark:bg-[var(--background)]",
             "transition-all duration-150",
             error
-              ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-100"
-              : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10",
-            "placeholder:text-gray-400 focus:outline-none",
+              ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--danger)]/20"
+              : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10 dark:border-[var(--border)] dark:focus:border-[var(--primary)] dark:focus:ring-[var(--primary)]/20",
+            "placeholder:text-[var(--muted)] focus:outline-none",
           className,
         )}
         {...rest}
@@ -194,9 +194,9 @@ export function Card({ children, className, hover = false }: { children: ReactNo
   return (
     <div
       className={cx(
-        "rounded-xl border border-[var(--border)] bg-white",
+        "rounded-xl border border-[var(--border)] bg-[var(--surface)]",
         "shadow-xs",
-        hover && "transition-all duration-150 hover:shadow-md hover:border-gray-300",
+        hover && "transition-all duration-150 hover:shadow-md hover:border-[var(--border-strong)]",
         className,
       )}
     >
@@ -209,7 +209,7 @@ export function CardHeader({ title, subtitle, action }: { title: string; subtitl
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
       <div className="min-w-0">
-        <h3 className="text-[15px] font-semibold text-[var(--foreground)]">{title}</h3>
+        <h3 className="font-heading text-[19px] leading-tight text-[var(--foreground)]">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-[var(--muted)]">{subtitle}</p>}
       </div>
       {action}
@@ -228,11 +228,11 @@ export function Badge({
   size?: "sm" | "md";
 }) {
   const tones: Record<string, string> = {
-    neutral: "bg-gray-100 text-gray-600",
-    success: "bg-emerald-50 text-emerald-700",
-    danger: "bg-red-50 text-red-700",
-    warning: "bg-amber-50 text-amber-700",
-    info: "bg-sky-50 text-sky-700",
+    neutral: "bg-[var(--background)] text-[var(--foreground-muted)]",
+    success: "bg-[var(--success-bg)] text-[var(--success)]",
+    danger: "bg-[var(--danger-bg)] text-[var(--danger)]",
+    warning: "bg-[var(--warning-bg)] text-[var(--warning)]",
+    info: "bg-[var(--info-bg)] text-[var(--info)]",
   };
   const sizes: Record<string, string> = {
     sm: "px-2 py-0.5 text-[11px]",
@@ -249,10 +249,10 @@ export function Badge({
 export function Alert({ tone = "danger", children, onDismiss }: { tone?: "danger" | "success" | "warning" | "info"; children: ReactNode; onDismiss?: () => void }) {
   if (!children) return null;
   const tones: Record<string, string> = {
-    danger: "bg-red-50 text-red-700 border-red-200",
-    success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    warning: "bg-amber-50 text-amber-700 border-amber-200",
-    info: "bg-sky-50 text-sky-700 border-sky-200",
+    danger: "bg-[var(--danger-bg)] text-[var(--danger)] border-[var(--danger-border)]",
+    success: "bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]",
+    warning: "bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning-border)]",
+    info: "bg-[var(--info-bg)] text-[var(--info)] border-[var(--info-border)]",
   };
   return (
     <div role={tone === "danger" ? "alert" : "status"} className={cx("flex items-start gap-3 rounded-lg border px-4 py-3 text-sm", tones[tone])}>
@@ -270,7 +270,7 @@ export function Alert({ tone = "danger", children, onDismiss }: { tone?: "danger
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16">
-      <div className="h-8 w-8 rounded-full border-[3px] border-gray-200 border-t-neutral-950 animate-spin" />
+      <div className="h-8 w-8 rounded-full border-[3px] border-[var(--border)] border-t-[var(--foreground)] animate-spin" />
       {label && <p className="text-sm text-[var(--muted)]">{label}</p>}
     </div>
   );
@@ -281,10 +281,10 @@ export function EmptyState({ title, hint, icon, action }: { title: string; hint?
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       {icon ? (
-        <div className="mb-4 text-gray-300">{icon}</div>
+        <div className="mb-4 text-[var(--border-strong)]">{icon}</div>
       ) : (
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100">
-          <svg className="h-8 w-8 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--background)]">
+          <svg className="h-8 w-8 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
           </svg>
         </div>
@@ -312,7 +312,7 @@ export function Avatar({ name, size = "md", className }: { name: string; size?: 
   return (
     <div
       className={cx(
-        "inline-flex items-center justify-center rounded-full bg-neutral-100 font-semibold text-neutral-950",
+        "inline-flex items-center justify-center rounded-full bg-[var(--primary-light)] font-semibold text-[var(--primary)]",
         sizes[size],
         className,
       )}
@@ -344,7 +344,7 @@ export function StatCard({
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
           <p className="text-[13px] text-[var(--muted)]">{label}</p>
-          <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-[var(--foreground)]">{value}</p>
+          <p className="mt-1.5 font-heading text-[30px] leading-none tabular-nums text-[var(--foreground)]">{value}</p>
           {trendValue && (
             <div className="mt-2 flex items-center gap-1 text-xs font-medium">
               {trend === "up" && <span className="text-[var(--success)]">↑</span>}
@@ -358,7 +358,7 @@ export function StatCard({
           )}
         </div>
         {icon && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-950">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--primary-light)] text-[var(--primary)]">
             {icon}
           </div>
         )}

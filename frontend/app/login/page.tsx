@@ -130,13 +130,13 @@ function LoginForm() {
               <div className="flex items-center justify-between gap-4">
                 <Link
                   href="/recover-codes"
-                  className="text-sm font-medium text-[var(--muted)] hover:text-[var(--primary)] transition-colors"
+                  className="text-sm font-medium text-[var(--muted)]  transition-colors"
                 >
                   Don&apos;t remember your gym code?
                 </Link>
                 <Link
                   href="/forgot-password"
-                  className="text-sm font-medium text-[var(--primary)] hover:underline shrink-0"
+                  className="text-sm font-medium  text-[var(--muted)]  hover:underline shrink-0"
                 >
                   Forgot password?
                 </Link>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { OrgSwitcher } from "./OrgSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
 
 function cx(...parts: (string | false | undefined | null)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -33,7 +34,7 @@ export function Sidebar({ orgName, orgCode, orgId }: { orgName: string; orgCode:
   return (
     <>
       <MobileNavigation orgName={orgName} />
-      <aside className="hidden lg:flex w-[260px] shrink-0 flex-col border-r border-[var(--border)] bg-white">
+      <aside className="hidden lg:flex w-[260px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]">
       {/* Brand + Org Switcher */}
       <div className="px-4 py-3 border-b border-[var(--border)]">
         <OrgSwitcher currentOrgName={orgName} currentOrgCode={orgCode} currentOrgId={orgId} />
@@ -50,14 +51,14 @@ export function Sidebar({ orgName, orgCode, orgId }: { orgName: string; orgCode:
               className={cx(
                 "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-150",
                   active
-                    ? "bg-neutral-950 text-white shadow-sm"
-                    : "text-[var(--foreground-muted)] hover:bg-gray-50 hover:text-[var(--foreground)]",
+                    ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                    : "text-[var(--foreground-muted)] hover:bg-[var(--background)] hover:text-[var(--foreground)]",
               )}
             >
               <svg
                 className={cx(
                   "h-[18px] w-[18px] shrink-0 transition-colors",
-                  active ? "text-white" : "text-gray-400 group-hover:text-gray-600",
+                  active ? "text-[var(--primary-foreground)]" : "text-[var(--muted)] group-hover:text-[var(--foreground-muted)]",
                 )}
                 viewBox="0 0 24 24"
                 fill="none"
@@ -74,11 +75,12 @@ export function Sidebar({ orgName, orgCode, orgId }: { orgName: string; orgCode:
         })}
       </nav>
 
-      {/* Sign out */}
-      <div className="border-t border-[var(--border)] p-3">
+      {/* Theme + Sign out */}
+      <div className="space-y-2 border-t border-[var(--border)] p-3">
+        <ThemeToggle />
         <button
           onClick={logout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-[var(--foreground-muted)] transition-all duration-150 hover:bg-red-50 hover:text-[var(--danger)]"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-[var(--foreground-muted)] transition-all duration-150 hover:bg-[var(--danger-bg)] hover:text-[var(--danger)]"
         >
           <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
@@ -95,23 +97,24 @@ function MobileNavigation({ orgName }: { orgName: string }) {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-20 flex min-h-14 items-center gap-3 border-b border-[var(--border)] bg-white/95 px-4 backdrop-blur lg:hidden">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-950 text-white" aria-hidden="true">
+    <header className="sticky top-0 z-20 flex min-h-14 items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 backdrop-blur lg:hidden">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)]" aria-hidden="true">
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         </svg>
       </div>
       <p className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--foreground)]">{orgName}</p>
+      <ThemeToggle />
       <details className="relative">
         <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950">
           Menu
           <svg className="h-4 w-4 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
         </summary>
-        <nav aria-label="Mobile navigation" className="absolute right-0 top-[calc(100%+0.5rem)] z-30 grid w-64 max-w-[calc(100vw-2rem)] gap-1 rounded-xl border border-[var(--border)] bg-white p-2 shadow-lg">
+        <nav aria-label="Mobile navigation" className="absolute right-0 top-[calc(100%+0.5rem)] z-30 grid w-64 max-w-[calc(100vw-2rem)] gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
           {NAV.map((item) => {
             const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
             return (
-              <Link key={item.href} href={item.href} className={cx("flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors", active ? "bg-neutral-100 text-neutral-950 font-semibold" : "text-[var(--foreground-muted)] hover:bg-[var(--background)] hover:text-[var(--foreground)]")}>
+              <Link key={item.href} href={item.href} className={cx("flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors", active ? "bg-[var(--primary-light)] text-[var(--foreground)] font-semibold" : "text-[var(--foreground-muted)] hover:bg-[var(--background)] hover:text-[var(--foreground)]")}>
                 <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={item.icon} /></svg>
                 {item.label}
               </Link>

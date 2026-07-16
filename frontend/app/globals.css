@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
+/* Enable `dark:` utilities via a `.dark` class on any ancestor (Tailwind v4,
+   config-less). next-themes toggles this class on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
+  color-scheme: light;
   --background: #f1f5f9;
   --surface: #ffffff;
   --foreground: #0f172a;
@@ -9,14 +14,14 @@
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
 
-  --primary: #4338ca;
-  --primary-hover: #3730a3;
-  --primary-light: #eef2ff;
+  --primary: #0a0a0a;
+  --primary-hover: #262626;
+  --primary-light: #f4f4f5;
   --primary-foreground: #ffffff;
 
-  --accent: #f59e0b;
-  --accent-hover: #d97706;
-  --accent-light: #fffbeb;
+  --accent: #171717;
+  --accent-hover: #000000;
+  --accent-light: #f4f4f5;
   --accent-foreground: #ffffff;
 
   --success: #059669;
@@ -39,8 +44,8 @@
   --info-bg: #eff6ff;
   --info-border: #bfdbfe;
 
-  --ring: rgba(67, 56, 202, 0.3);
-  --ring-accent: rgba(245, 158, 11, 0.3);
+  --ring: rgba(10, 10, 10, 0.25);
+  --ring-accent: rgba(10, 10, 10, 0.25);
 
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
@@ -56,6 +61,60 @@
 
   --transition: 150ms ease-out;
   --transition-slow: 250ms ease-out;
+}
+
+/* Dark theme — re-declares the color tokens above so every component that reads
+   var(--…) flips automatically. Hues for --primary/--accent are preserved;
+   surfaces, text, borders, and semantic tints are darkened. */
+.dark {
+  color-scheme: dark;
+
+  --background: #000000;
+  --surface: #0a0a0a;
+  --foreground: #fafafa;
+  --foreground-muted: #a1a1a1;
+  --muted: #6e6e6e;
+  --border: #1f1f1f;
+  --border-strong: #2e2e2e;
+
+  --primary: #fafafa;
+  --primary-hover: #e5e5e5;
+  --primary-light: #1a1a1a;
+  --primary-foreground: #0a0a0a;
+
+  --accent: #fafafa;
+  --accent-hover: #e5e5e5;
+  --accent-light: #1a1a1a;
+  --accent-foreground: #0a0a0a;
+
+  --success: #4ade80;
+  --success-hover: #86efac;
+  --success-bg: #10231a;
+  --success-border: #1c3a2b;
+
+  --danger: #f87171;
+  --danger-hover: #fca5a5;
+  --danger-bg: #241413;
+  --danger-border: #3f2020;
+
+  --warning: #fbbf24;
+  --warning-hover: #fcd34d;
+  --warning-bg: #241d0f;
+  --warning-border: #3d3115;
+
+  --info: #60a5fa;
+  --info-hover: #93c5fd;
+  --info-bg: #101c2b;
+  --info-border: #1c3049;
+
+  --ring: rgba(250, 250, 250, 0.3);
+  --ring-accent: rgba(250, 250, 250, 0.3);
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.6);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.7), 0 1px 2px rgba(0,0,0,0.5);
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.7), 0 2px 4px -2px rgba(0,0,0,0.5);
+  --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.75), 0 4px 6px -4px rgba(0,0,0,0.5);
+  --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.8), 0 8px 10px -6px rgba(0,0,0,0.55);
 }
 
 @theme inline {
@@ -145,10 +204,7 @@ body {
   justify-content: center;
   overflow: hidden;
   padding: 0;
-  background:
-    radial-gradient(circle at 8% 5%, rgba(202, 19, 127, 0.52), transparent 28%),
-    radial-gradient(circle at 95% 100%, rgba(67, 56, 202, 0.62), transparent 32%),
-    linear-gradient(135deg, #0b0612 0%, #15051c 48%, #05060e 100%);
+  background: #000000;
 }
 
 .auth-frame {
@@ -168,10 +224,7 @@ body {
   display: none;
   position: relative;
   isolation: isolate;
-  background:
-    radial-gradient(ellipse 70% 48% at 80% 17%, rgba(254, 29, 126, 0.92), transparent 60%),
-    radial-gradient(ellipse 65% 40% at 24% 52%, rgba(63, 72, 255, 0.78), transparent 58%),
-    linear-gradient(145deg, #14031c 0%, #070817 47%, #080414 100%);
+  background: #000000;
   color: #fff;
   overflow: hidden;
 }
@@ -181,7 +234,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, rgba(3, 4, 15, 0.04) 35%, rgba(3, 3, 12, 0.86) 84%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 35%, rgba(0, 0, 0, 0.6) 84%);
   pointer-events: none;
 }
 
@@ -199,25 +252,25 @@ body {
 .auth-ribbon-one {
   top: 8%;
   left: -35%;
-  border: 11px solid rgba(255, 58, 172, 0.84);
-  border-right-color: rgba(132, 54, 255, 0.3);
-  box-shadow: 0 22px 42px rgba(255, 15, 133, 0.33), inset 0 12px 26px rgba(38, 16, 112, 0.44);
+  border: 11px solid rgba(255, 255, 255, 0.16);
+  border-right-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 22px 42px rgba(0, 0, 0, 0.5), inset 0 12px 26px rgba(255, 255, 255, 0.04);
 }
 
 .auth-ribbon-two {
   top: 34%;
   left: -16%;
-  border: 15px solid rgba(44, 147, 255, 0.78);
-  border-top-color: rgba(225, 30, 157, 0.86);
-  box-shadow: 0 -16px 40px rgba(6, 179, 255, 0.36), inset 0 10px 32px rgba(191, 15, 169, 0.48);
+  border: 15px solid rgba(255, 255, 255, 0.12);
+  border-top-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.45), inset 0 10px 32px rgba(255, 255, 255, 0.05);
 }
 
 .auth-ribbon-three {
   top: 68%;
   left: -43%;
-  border: 12px solid rgba(110, 59, 255, 0.82);
-  border-bottom-color: rgba(255, 30, 136, 0.46);
-  box-shadow: 0 -16px 48px rgba(129, 50, 255, 0.35);
+  border: 12px solid rgba(255, 255, 255, 0.1);
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.5);
 }
 
 .auth-brand-panel-inner {
@@ -289,7 +342,7 @@ body {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  color: #f6b9e0;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* Form panel (right side) */

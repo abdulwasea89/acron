@@ -57,7 +57,7 @@ export default async function DashboardPage() {
       />
 
       {saas?.read_only && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-6 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger)]">
           Your subscription is past due — the account is read-only. Update billing to restore write access.
         </div>
       )}
@@ -83,12 +83,12 @@ export default async function DashboardPage() {
               <li className="px-5 py-4 text-sm text-[var(--muted)]">Could not load checklist.</li>
             )}
             {checklistItems.map((item, i) => (
-              <li key={item.key} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/50 transition-colors">
+              <li key={item.key} className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--background)] transition-colors">
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
                     item.done
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-gray-100 text-gray-500 border border-gray-200"
+                      ? "bg-[var(--success-bg)] text-[var(--success)]"
+                      : "bg-[var(--background)] text-[var(--foreground-muted)] border border-[var(--border)]"
                   }`}
                 >
                   {item.done ? (

@@ -128,8 +128,8 @@ export default function CreateGymPage() {
                 onClick={() => setTier(t.value)}
                 className={`rounded-xl border-2 p-4 text-left transition-all ${
                   tier === t.value
-                    ? "border-neutral-950 bg-neutral-100"
-                    : "border-[var(--border)] bg-white hover:border-gray-300"
+                    ? "border-[var(--primary)] bg-[var(--primary-light)]"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]"
                 }`}
               >
                 <div className="text-sm font-bold text-[var(--foreground)]">{t.label}</div>

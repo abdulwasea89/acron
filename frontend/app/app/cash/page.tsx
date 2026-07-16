@@ -21,7 +21,7 @@ export default function CashPage() {
         subtitle="Record front-desk payments confidently, then close the drawer with a clear audit trail."
       />
 
-      <section className="mb-6 grid gap-3 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-amber-50 p-4 sm:grid-cols-3 sm:p-5" aria-label="Cash workflow overview">
+      <section className="mb-6 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-3 sm:p-5" aria-label="Cash workflow overview">
         <WorkflowStep number="1" title="Record payment" hint="Select the member and plan" />
         <WorkflowStep number="2" title="Activate membership" hint="Receipt is emailed automatically" />
         <WorkflowStep number="3" title="Reconcile daily" hint="Flag discrepancies before close" />
@@ -38,7 +38,7 @@ export default function CashPage() {
 function WorkflowStep({ number, title, hint }: { number: string; title: string; hint: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-xs font-bold text-white">{number}</span>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-xs font-bold text-[var(--primary-foreground)]">{number}</span>
       <div>
         <p className="text-sm font-semibold text-[var(--foreground)]">{title}</p>
         <p className="text-xs text-[var(--foreground-muted)]">{hint}</p>
@@ -144,7 +144,7 @@ function LogPayment() {
                 ))}
               </Select>
               {selectedMember && (
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-indigo-100 bg-white px-3.5 py-3 text-sm">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--primary-light)] bg-[var(--surface)] px-3.5 py-3 text-sm">
                   <span className="min-w-0 truncate font-medium text-[var(--foreground)]">{selectedMember.full_name || selectedMember.email}</span>
                   <Badge tone={selectedMember.member_status === "active" ? "success" : "warning"}>{selectedMember.member_status}</Badge>
                 </div>
@@ -222,9 +222,9 @@ function Reconcile() {
       <CardHeader title="Close the drawer" subtitle="Reconcile each business day before handover" action={<Badge tone="warning">Daily control</Badge>} />
       <form onSubmit={submit} className="grid gap-5 p-5 sm:p-6">
         {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-900">
+        <div className="rounded-xl border border-[var(--warning-border)] bg-[var(--warning-bg)] p-3.5 text-sm text-[var(--warning)]">
           <p className="font-semibold">Count physical cash first</p>
-          <p className="mt-1 text-xs leading-5 text-amber-800">We compare your count with cash payments recorded for this date and preserve any difference in the audit trail.</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--warning)]">We compare your count with cash payments recorded for this date and preserve any difference in the audit trail.</p>
         </div>
         <Input label="Business date" type="date" required value={businessDate} onChange={(event) => setBusinessDate(event.target.value)} />
         <Input label="Cash counted" type="number" min="0" step="0.01" inputMode="decimal" required value={counted} onChange={(event) => setCounted(event.target.value)} placeholder="0.00" hint="Enter the actual amount in the cash drawer." />
@@ -235,11 +235,11 @@ function Reconcile() {
         </Button>
 
         {result && (
-          <section className={`rounded-xl border p-4 ${hasDiscrepancy ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"}`} aria-live="polite">
+          <section className={`rounded-xl border p-4 ${hasDiscrepancy ? "border-[var(--danger-border)] bg-[var(--danger-bg)]" : "border-[var(--success-border)] bg-[var(--success-bg)]"}`} aria-live="polite">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className={`font-semibold ${hasDiscrepancy ? "text-red-800" : "text-emerald-800"}`}>{hasDiscrepancy ? "Discrepancy recorded" : "Drawer balanced"}</p>
-                <p className={`mt-0.5 text-xs ${hasDiscrepancy ? "text-red-700" : "text-emerald-700"}`}>Business date: {result.business_date}</p>
+                <p className={`font-semibold ${hasDiscrepancy ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>{hasDiscrepancy ? "Discrepancy recorded" : "Drawer balanced"}</p>
+                <p className={`mt-0.5 text-xs ${hasDiscrepancy ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>Business date: {result.business_date}</p>
               </div>
               <Badge tone={hasDiscrepancy ? "danger" : "success"}>{hasDiscrepancy ? "Review needed" : "Matched"}</Badge>
             </div>
@@ -248,7 +248,7 @@ function Reconcile() {
               <AmountRow label="Cash counted" value={money(result.counted_total)} />
               <AmountRow label="Difference" value={money(result.discrepancy)} emphasis />
             </dl>
-            {result.alert_triggered && <p className="mt-3 text-xs font-medium text-red-800">Owner alerted: this is the third discrepancy recorded within 30 days.</p>}
+            {result.alert_triggered && <p className="mt-3 text-xs font-medium text-[var(--danger)]">Owner alerted: this is the third discrepancy recorded within 30 days.</p>}
           </section>
         )}
       </form>
