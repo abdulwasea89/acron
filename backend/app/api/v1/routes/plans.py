@@ -100,12 +100,32 @@ async def duplicate_plan(
 @router.post("/{plan_id}/archive", response_model=PlanOut, dependencies=[Depends(require_writable_org)])
 async def archive_plan(
     plan_id: str,
-    data: ArchiveRequest,
+    data: ArchiveRequest | None = None,
     ctx: TenantContext = Depends(require_capability(Capability.ARCHIVE_PLANS)),
     session: AsyncSession = Depends(get_session),
 ):
     plan = await plans.archive_plan(
         session, org_id=ctx.org_id, plan_id=plan_id,
-        replacement_plan_id=data.replacement_plan_id, actor_id=ctx.user_id,
+        replacement_plan_id=data.replacement_plan_id if data else None,
+        actor_id=ctx.user_id,
     )
     return _to_out(plan)
+
+
+@router.post("/{plan_id}/unarchive", response_model=PlanOut, dependencies=[Depends(require_writable_org)])
+async def unarchive_plan(
+    plan_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.ARCHIVE_PLANS)),
+    session: AsyncSession = Depends(get_session),
+):
+    plan = await plans.unarchive_plan(session, org_id=ctx.org_id, plan_id=plan_id, actor_id=ctx.user_id)
+    return _to_out(plan)
+
+
+@router.delete("/{plan_id}", status_code=204, dependencies=[Depends(require_writable_org)])
+async def delete_plan(
+    plan_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.ARCHIVE_PLANS)),
+    session: AsyncSession = Depends(get_session),
+):
+    await plans.delete_plan(session, org_id=ctx.org_id, plan_id=plan_id, actor_id=ctx.user_id)

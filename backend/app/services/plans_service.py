@@ -16,9 +16,10 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.core.constants import PlanStatus, PlanVisibility
+from app.core.constants import PlanStatus, PlanVisibility, SubscriptionStatus
 from app.models.organization import Organization
 from app.models.plan import MembershipPlan
+from app.models.subscription import Subscription
 from app.schemas.plans import PlanCreate, PlanUpdate
 from app.services.audit_service import record_audit
 
@@ -121,6 +122,44 @@ async def archive_plan(
                        entity_type="plan", entity_id=plan.id,
                        metadata={"replacement_plan_id": replacement_plan_id})
     return plan
+
+
+async def unarchive_plan(
+    session: AsyncSession, *, org_id: str, plan_id: str, actor_id: str
+) -> MembershipPlan:
+    plan = await _get_owned_plan(session, org_id, plan_id)
+    plan.status = PlanStatus.DRAFT
+    plan.replacement_plan_id = None
+    session.add(plan)
+    await record_audit(session, action="plan.unarchived", organization_id=org_id, actor_user_id=actor_id,
+                       entity_type="plan", entity_id=plan.id)
+    return plan
+
+
+async def delete_plan(
+    session: AsyncSession, *, org_id: str, plan_id: str, actor_id: str
+) -> None:
+    plan = await _get_owned_plan(session, org_id, plan_id)
+    active = (
+        await session.execute(
+            select(Subscription).where(
+                Subscription.plan_id == plan_id,
+                Subscription.status.in_([
+                    SubscriptionStatus.ACTIVE, SubscriptionStatus.GRACE,
+                    SubscriptionStatus.FROZEN,
+                ]),
+            )
+        )
+    ).scalars().first()
+    if active is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete a plan that has active members. Archive it instead.",
+        )
+    await record_audit(session, action="plan.deleted", organization_id=org_id, actor_user_id=actor_id,
+                       entity_type="plan", entity_id=plan.id,
+                       old_values={"name": plan.name, "status": plan.status.value})
+    await session.delete(plan)
 
 
 async def duplicate_plan(
