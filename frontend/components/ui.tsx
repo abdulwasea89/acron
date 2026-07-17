@@ -25,7 +25,7 @@ export function Button({
   loading,
   disabled,
   className,
-  size = "md",
+  size = "sm",
   children,
   ...rest
 }: ButtonProps) {

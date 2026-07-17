@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
@@ -15,6 +15,79 @@ interface InviteResult {
   invite_code: string;
   member_status: string;
   email_delivered: boolean;
+}
+
+function KebabIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+    </svg>
+  );
+}
+
+type MenuAction = { label: string; onClick: () => void; danger?: boolean };
+
+function KebabMenu({ actions }: { actions: MenuAction[] }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ left: 0, top: 0 });
+  const menuRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  function toggle() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const flipUp = spaceBelow < 140;
+      setPos({
+        left: Math.max(8, rect.right - 130),
+        top: flipUp ? rect.top - 4 : rect.bottom + 4,
+      });
+    }
+    setOpen((s) => !s);
+  }
+
+  return (
+    <div ref={menuRef} className="relative inline-flex items-center">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={toggle}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+      >
+        <KebabIcon />
+      </button>
+      {open && (
+        <div
+          style={{ left: pos.left, top: pos.top, position: "fixed" }}
+          className="z-50 min-w-[130px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg"
+        >
+          {actions.map((a) => (
+            <button
+              key={a.label}
+              type="button"
+              onClick={() => { setOpen(false); a.onClick(); }}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
+                a.danger
+                  ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                  : "text-[var(--foreground)] hover:bg-[var(--background)]"
+              }`}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function actionsFor(status: string): { action: string; label: string; variant: "secondary" | "danger"; endpoint?: string }[] {
@@ -35,10 +108,7 @@ function actionsFor(status: string): { action: string; label: string; variant: "
         { action: "cancel", label: "Cancel", variant: "danger" },
       ];
     case "pending_approval":
-      return [
-        { action: "approve", label: "Approve", variant: "secondary", endpoint: "approval" },
-        { action: "reject", label: "Reject", variant: "danger", endpoint: "approval" },
-      ];
+      return [];
     case "expired":
       return [
         { action: "resend_invite", label: "Resend invite", variant: "secondary" },
@@ -78,6 +148,7 @@ export default function MembersPage() {
   const [inviteShare, setInviteShare] = useState<{ email: string; code: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [tab, setTab] = useState<"all" | "approvals">("all");
 
   async function copyCode(code: string) {
     try {
@@ -148,10 +219,35 @@ export default function MembersPage() {
     }
   }
 
-  const filtered = (members ?? []).filter((m) => {
+  const pending = (members ?? []).filter((m) => m.member_status === "pending_approval");
+
+  const filtered = ((tab === "approvals" ? pending : members ?? [])).filter((m) => {
     const q = query.toLowerCase();
     return !q || m.email.toLowerCase().includes(q) || (m.full_name ?? "").toLowerCase().includes(q);
   });
+
+  function tabBtn(t: "all" | "approvals", label: string, count: number) {
+    const active = tab === t;
+    return (
+      <button
+        onClick={() => setTab(t)}
+        className={`inline-flex h-7 items-center gap-1.5 px-4 text-sm font-medium transition-colors ${
+          active
+            ? "text-[var(--foreground)]"
+            : "text-[var(--muted)] hover:text-[var(--foreground)]"
+        }`}
+      >
+        {label}
+        <span className={`inline-flex items-center justify-center min-w-[4px] h-4 px-1 text-[11px] font-semibold rounded-full ${
+          active
+            ? "bg-[var(--foreground)] text-[var(--background)]"
+            : "bg-[var(--border)] text-[var(--muted)]"
+        }`}>
+          {count}
+        </span>
+      </button>
+    );
+  }
 
   return (
     <>
@@ -159,7 +255,7 @@ export default function MembersPage() {
         title="Members"
         subtitle="Directory & status management"
         action={
-          <Button onClick={() => setShowInvite((s) => !s)}>
+          <Button onClick={() => setShowInvite((s) => !s)} >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
             Invite member
           </Button>
@@ -223,7 +319,7 @@ export default function MembersPage() {
               placeholder="member@email.com"
             />
           </div>
-          <Button type="submit">
+          <Button type="submit" >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
             Send invite
           </Button>
@@ -233,14 +329,25 @@ export default function MembersPage() {
       <Card>
         <CardHeader
           title="Member directory"
-          subtitle={members ? `${members.length} member${members.length === 1 ? "" : "s"}` : undefined}
+          subtitle={
+            tab === "approvals"
+              ? `${filtered.length} pending approval`
+              : members
+                ? `${members.length} member${members.length === 1 ? "" : "s"}`
+                : undefined
+          }
           action={
-            <div className="w-full sm:w-64">
+            <div className="flex items-center gap-1.5">
               <Input
-                placeholder="Search name or email..."
+                placeholder="Search..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                className="!h-[32px] w-[70px]"
               />
+              <div className="flex items-center border border-[var(--border)] rounded-[var(--radius)] shrink-0">
+                {tabBtn("all", "All", members?.length ?? 0)}
+                {tabBtn("approvals", "Approvals", pending.length)}
+              </div>
             </div>
           }
         />
@@ -249,7 +356,13 @@ export default function MembersPage() {
         ) : filtered.length === 0 ? (
           <EmptyState
             title="No members found"
-            hint={query ? "Try a different search." : "Members appear here after they sign up."}
+            hint={
+              tab === "approvals"
+                ? "No members are waiting for approval."
+                : query
+                  ? "Try a different search."
+                  : "Members appear here after they sign up."
+            }
           />
         ) : (
           <div className="overflow-x-auto">
@@ -288,11 +401,20 @@ export default function MembersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
-                          {canAct && actionsFor(m.member_status).map((a) => (
-                            <Button key={a.action} variant={a.variant} size="sm" onClick={() => act(m.member_id, a.action, a.endpoint)}>
-                              {a.label}
-                            </Button>
-                          ))}
+                          {canAct && m.member_status === "pending_approval" ? (
+                            <KebabMenu
+                              actions={[
+                                { label: "Approve", onClick: () => act(m.member_id, "approve", "approval") },
+                                { label: "Reject", onClick: () => act(m.member_id, "reject", "approval"), danger: true },
+                              ]}
+                            />
+                          ) : canAct ? (
+                            actionsFor(m.member_status).map((a) => (
+                              <Button key={a.action} variant={a.variant} size="sm" onClick={() => act(m.member_id, a.action, a.endpoint)}>
+                                {a.label}
+                              </Button>
+                            ))
+                          ) : null}
                         </div>
                       </td>
                     </tr>
