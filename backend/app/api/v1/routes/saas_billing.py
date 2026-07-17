@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_org, get_session, require_capability
@@ -68,3 +69,20 @@ async def invoices(
                    created_at=p.created_at)
         for p in await billing.list_invoices(session, org_id=ctx.org_id)
     ]
+
+
+@router.get("/invoices/{invoice_id}/pdf")
+async def invoice_pdf(
+    invoice_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_SETTINGS)),
+    org: Organization = Depends(get_org),
+    session: AsyncSession = Depends(get_session),
+):
+    pdf_bytes = await billing.get_invoice_pdf(session, invoice_id=invoice_id, org=org)
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="invoice-{invoice_id[:12]}.pdf"',
+        },
+    )

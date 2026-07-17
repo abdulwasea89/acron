@@ -18,8 +18,10 @@ from sqlmodel import select
 from app.core.constants import (
     TIER_MEMBER_CAP,
     MemberStatus,
+    PaymentKind,
     SaasStatus,
     SaasTier,
+    TIER_PRICE_USD,
 )
 from app.core.security import now_utc
 from app.integrations.email import send_email_safe as send_email
@@ -29,6 +31,7 @@ from app.models.organization import Organization
 from app.models.payment import Payment
 from app.models.user import User
 from app.services.audit_service import record_audit
+from app.utils.pdf import render_invoice_pdf
 
 # Read-only once SaaS grace ends; full lockout / archive later (Section 3.2.4).
 GRACE_DAYS = 6
@@ -123,8 +126,6 @@ async def cancel(session: AsyncSession, *, org: Organization, actor_id: str) -> 
 
 
 async def list_invoices(session: AsyncSession, *, org_id: str) -> list[Payment]:
-    from app.core.constants import PaymentKind
-
     return list(
         (
             await session.execute(
@@ -134,6 +135,43 @@ async def list_invoices(session: AsyncSession, *, org_id: str) -> list[Payment]:
                 ).order_by(Payment.created_at.desc())
             )
         ).scalars()
+    )
+
+
+async def get_invoice_pdf(session: AsyncSession, *, invoice_id: str, org: Organization) -> bytes:
+    payment = (
+        await session.execute(
+            select(Payment).where(
+                Payment.id == invoice_id,
+                Payment.organization_id == org.id,
+                Payment.kind == PaymentKind.SAAS_SUBSCRIPTION,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if payment is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    subtotal = (payment.amount or 0.0) - (payment.tax_amount or 0.0)
+    tier_name = org.saas_tier.value.title() if org.saas_tier else "Subscription"
+    period = (
+        org.saas_current_period_end.strftime("%b %Y")
+        if org.saas_current_period_end
+        else ""
+    )
+    description = f"{tier_name} Plan{f' — {period}' if period else ''}"
+
+    return render_invoice_pdf(
+        gym_name=org.name,
+        gym_address=org.address,
+        invoice_id=payment.id[:12],
+        invoice_date=payment.paid_at.strftime("%b %d, %Y") if payment.paid_at else payment.created_at.strftime("%b %d, %Y"),
+        status=payment.status.value if hasattr(payment.status, "value") else str(payment.status),
+        description=description,
+        subtotal=subtotal,
+        tax=payment.tax_amount or 0.0,
+        total=payment.amount or 0.0,
+        currency=payment.currency or "USD",
     )
 
 
@@ -223,7 +261,6 @@ async def _archive_org_data(session: AsyncSession, *, org: Organization) -> None
     org.org_code = f"archived-{org.id[:8]}"
     session.add(org)
 
-    from app.models.membership import OrganizationMember
     members = (
         await session.execute(
             select(OrganizationMember).where(OrganizationMember.organization_id == org.id)

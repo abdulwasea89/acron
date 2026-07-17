@@ -1,0 +1,38 @@
+import { NextRequest, NextResponse } from "next/server";
+import { backendRaw, BackendError } from "@/lib/backend";
+
+// Binary download proxy. The browser calls /api/download/<backend-path>; this
+// handler forwards the request with auth to FastAPI and returns the raw body
+// with the original Content-Type. Used for PDF invoices, receipt exports, etc.
+
+async function handle(req: NextRequest, path: string[]) {
+  const backendPath = "/" + path.join("/");
+  const search = req.nextUrl.search;
+  const method = req.method;
+
+  try {
+    const res = await backendRaw(`${backendPath}${search}`, { method });
+
+    const body = await res.arrayBuffer();
+    return new NextResponse(body, {
+      status: res.status,
+      headers: {
+        "Content-Type": res.headers.get("Content-Type") ?? "application/octet-stream",
+        "Content-Disposition": res.headers.get("Content-Disposition") ?? "attachment",
+        "Content-Length": res.headers.get("Content-Length") ?? String(body.byteLength),
+      },
+    });
+  } catch (e) {
+    const err = e as BackendError;
+    return NextResponse.json(
+      { detail: err.detail ?? "Download failed" },
+      { status: err.status ?? 500 },
+    );
+  }
+}
+
+type Ctx = { params: Promise<{ path: string[] }> };
+
+export async function GET(req: NextRequest, ctx: Ctx) {
+  return handle(req, (await ctx.params).path);
+}

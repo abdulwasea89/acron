@@ -48,8 +48,39 @@ interface RefreshResult {
   orgId: string | null;
 }
 
-/** Low-level call to the backend. Returns parsed JSON or throws BackendError. */
-export async function backend<T = unknown>(path: string, opts: CallOpts = {}): Promise<T> {
+async function tryRefresh(): Promise<RefreshResult | null> {
+  const refresh = await getRefreshToken();
+  if (!refresh) return null;
+  const org = await getOrgId();
+  const res = await fetch(`${BASE}${PREFIX}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refresh, organization_id: org ?? null }),
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as {
+    access_token: string;
+    refresh_token: string;
+    organization_id?: string | null;
+  };
+  try {
+    await setSession(data);
+  } catch {
+    // Non-fatal: cookie will be re-persisted on the next Route Handler hit.
+  }
+  return { accessToken: data.access_token, orgId: data.organization_id ?? null };
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { detail: text };
+  }
+}
+
+async function fetchBackend(path: string, opts: CallOpts): Promise<Response> {
   const { method = "GET", body, auth = true, headers = {}, retryOn401 = true } = opts;
 
   const h: Record<string, string> = { ...headers };
@@ -76,7 +107,6 @@ export async function backend<T = unknown>(path: string, opts: CallOpts = {}): P
   if (res.status === 401 && auth && retryOn401) {
     const refreshResult = await tryRefresh();
     if (refreshResult) {
-      // Use the new token directly instead of re-reading from cookies.
       const retryH: Record<string, string> = { ...headers };
       if (body !== undefined) retryH["Content-Type"] = "application/json";
       retryH["Authorization"] = `Bearer ${refreshResult.accessToken}`;
@@ -88,16 +118,16 @@ export async function backend<T = unknown>(path: string, opts: CallOpts = {}): P
         body: body === undefined ? undefined : JSON.stringify(body),
         cache: "no-store",
       });
-
-      const retryText = await retryRes.text();
-      const retryData = retryText ? safeJson(retryText) : null;
-      if (!retryRes.ok) {
-        throw new BackendError(retryRes.status, extractDetail(retryData, `Request failed (${retryRes.status})`));
-      }
-      return retryData as T;
+      return retryRes;
     }
   }
 
+  return res;
+}
+
+/** Low-level call to the backend. Returns parsed JSON or throws BackendError. */
+export async function backend<T = unknown>(path: string, opts: CallOpts = {}): Promise<T> {
+  const res = await fetchBackend(path, opts);
   const text = await res.text();
   const data = text ? safeJson(text) : null;
 
@@ -107,40 +137,14 @@ export async function backend<T = unknown>(path: string, opts: CallOpts = {}): P
   return data as T;
 }
 
-function safeJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { detail: text };
-  }
-}
+/** Low-level call returning raw Response (for binary downloads). */
+export async function backendRaw(path: string, opts: CallOpts = {}): Promise<Response> {
+  const res = await fetchBackend(path, opts);
 
-async function tryRefresh(): Promise<RefreshResult | null> {
-  const refresh = await getRefreshToken();
-  if (!refresh) return null;
-  const org = await getOrgId();
-  const res = await fetch(`${BASE}${PREFIX}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refresh, organization_id: org ?? null }),
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as {
-    access_token: string;
-    refresh_token: string;
-    organization_id?: string | null;
-  };
-  // Try to persist for future requests. This works in Route Handlers but THROWS
-  // when a refresh is triggered during a Server Component render (Next.js only
-  // allows cookie mutation in Server Actions / Route Handlers). That throw must
-  // not abort the refresh — otherwise the retry below never runs, the 401
-  // propagates, and the /app <-> /login redirect loop kicks in. Swallow it and
-  // still return the fresh token so the in-flight request can retry and render.
-  try {
-    await setSession(data);
-  } catch {
-    // Non-fatal: cookie will be re-persisted on the next Route Handler hit.
+  if (!res.ok) {
+    const text = await res.text();
+    const data = text ? safeJson(text) : null;
+    throw new BackendError(res.status, extractDetail(data, `Request failed (${res.status})`));
   }
-  return { accessToken: data.access_token, orgId: data.organization_id ?? null };
+  return res;
 }

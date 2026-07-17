@@ -224,6 +224,7 @@ export default function BillingPage() {
                         <th className="px-6 py-3.5">Date</th>
                         <th className="px-6 py-3.5">Amount</th>
                         <th className="px-6 py-3.5">Status</th>
+                        <th className="px-6 py-3.5" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border)]">
@@ -233,6 +234,18 @@ export default function BillingPage() {
                           <td className="px-6 py-4 tabular-nums font-medium">{money(inv.amount, inv.currency)}</td>
                           <td className="px-6 py-4">
                             <Badge tone={statusTone(inv.status)}>{titleCase(inv.status)}</Badge>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <a
+                              href={`/api/download/saas-billing/invoices/${inv.id}/pdf`}
+                              download
+                              className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--primary)] hover:underline"
+                            >
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                              PDF
+                            </a>
                           </td>
                         </tr>
                       ))}
