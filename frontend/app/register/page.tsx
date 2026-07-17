@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/AuthShell";
 import { Alert, Button, Input, Select } from "@/components/ui";
 import { accountSchema, personalSchema, collectErrors } from "@/lib/validation/register";
+import { checkPwned } from "@/lib/hibp";
 
 const TIERS = [
   { id: "starter", name: "Starter", price: "$29", cap: "Up to 25 members" },
@@ -32,13 +33,13 @@ function Steps({ current }: { current: number }) {
             <span
               className={cx(
                 "block h-1 rounded-full transition-colors duration-300",
-                done ? "bg-[#08080a]" : active ? "bg-[#08080a]" : "bg-[var(--border)]",
+                done ? "bg-[var(--foreground)]" : active ? "bg-[var(--foreground)]" : "bg-[var(--border)]",
               )}
             />
             <span
               className={cx(
                 "mt-2 flex items-center gap-1.5 truncate text-[11px] font-semibold leading-tight transition-colors duration-300",
-                reached ? "text-black" : "text-[var(--muted)]",
+                reached ? "text-[var(--foreground)]" : "text-[var(--muted)]",
               )}
             >
               <span className="tabular-nums opacity-60">{n}</span>
@@ -72,6 +73,9 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [breached, setBreached] = useState<null | { count: number }>(null);
+  const [checkingBreach, setCheckingBreach] = useState(false);
+  const breachTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [code, setCode] = useState("");
   const [gymName, setGymName] = useState("");
   const [currency, setCurrency] = useState("USD");
@@ -115,6 +119,29 @@ export default function RegisterPage() {
   const strengthTone = ["weak", "weak", "fair", "good", "strong"][strength];
   const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][strength];
 
+  // HIBP breach check via k-anonymity (Section 4.2 / Security Rule #5).
+  // Only fires once all 5 complexity rules are met.
+  const allRulesMet = metCount === 5;
+
+  async function checkBreach() {
+    if (!allRulesMet) { setBreached(null); return; }
+    setCheckingBreach(true);
+    try {
+      const result = await checkPwned(password);
+      setBreached(result.pwned ? { count: result.count } : null);
+    } finally {
+      setCheckingBreach(false);
+    }
+  }
+
+  useEffect(() => {
+    if (breachTimerRef.current) clearTimeout(breachTimerRef.current);
+    if (!allRulesMet) { setBreached(null); return; }
+    breachTimerRef.current = setTimeout(checkBreach, 700);
+    return () => { if (breachTimerRef.current) clearTimeout(breachTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [password]);
+
   function validateAccount(): boolean {
     const { success, errors } = collectErrors(accountSchema, { fullName, email, password, confirm });
     setFieldErrors(errors);
@@ -139,6 +166,10 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     if (!validateAccount()) return;
+    if (breached) {
+      setError("This password appears in a data breach. Choose a different one.");
+      return;
+    }
     setFieldErrors({});
     setStep(2);
   }
@@ -302,6 +333,16 @@ export default function RegisterPage() {
                 <span key={rule.label} className={`password-rule ${rule.met ? "is-met" : ""}`}>{rule.label}</span>
               ))}
             </div>
+
+            {breached && (
+              <p className="mt-2 text-xs leading-relaxed text-[var(--danger)]">
+                ⚠ This password appeared in <strong>{breached.count.toLocaleString()}</strong> data breach{breached.count === 1 ? "" : "es"}.
+                Choose a different password.
+              </p>
+            )}
+            {checkingBreach && allRulesMet && !breached && (
+              <p className="mt-2 text-xs text-[var(--muted)]">Checking against known breaches…</p>
+            )}
 
             <Input
               label="Confirm password"

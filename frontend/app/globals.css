@@ -207,6 +207,10 @@ body {
   background: #000000;
 }
 
+.dark .auth-shell {
+  background: var(--background);
+}
+
 .auth-frame {
   position: relative;
   display: grid;
@@ -217,6 +221,10 @@ body {
   border-radius: 0;
   background: #fff;
   box-shadow: none;
+}
+
+.dark .auth-frame {
+  background: var(--surface);
 }
 
 /* Brand panel (desktop left side) */
@@ -354,6 +362,10 @@ body {
   background: rgba(255, 255, 255, 0.98);
 }
 
+.dark .auth-form-panel {
+  background: rgba(10, 10, 10, 0.98);
+}
+
 .auth-form-panel-inner {
   width: 100%;
   max-width: 390px;
@@ -419,20 +431,28 @@ body {
   box-shadow: none;
 }
 
+.dark .auth-form-panel input,
+.dark .auth-form-panel select {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
 .auth-form-panel input:focus,
 .auth-form-panel select:focus {
   border-color: #0b0b0d;
   box-shadow: 0 0 0 3px rgba(9, 9, 11, 0.1);
 }
 
-.auth-form-panel button[type="submit"] {
-  border-radius: 10px;
-  background: #08080a !important;
-  color: #fff !important;
-  box-shadow: none;
+.dark .auth-form-panel input:focus,
+.dark .auth-form-panel select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(250, 250, 250, 0.2);
 }
 
-.auth-form-panel button[type="submit"]:hover { background: #29292e !important; }
+.auth-form-panel button[type="submit"] {
+  border-radius: 10px;
+  box-shadow: none;
+}
 
 .auth-footer {
   margin-top: 30px;
@@ -598,6 +618,7 @@ body {
 
 @media (max-width: 1023px) {
   .auth-shell { padding: 0; background: #fff; }
+  .dark .auth-shell { background: var(--background); }
   .auth-frame { min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
 }
 
