@@ -81,6 +81,7 @@ export default function RegisterPage() {
   const [currency, setCurrency] = useState("USD");
   const [tier, setTier] = useState("pro");
 
+
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
