@@ -51,6 +51,8 @@ export function useRealtime(onEvent: (e: RtEvent) => void): RtStatus {
 
     async function connect() {
       if (disposed) return;
+      if (ws?.readyState === WebSocket.OPEN) return;
+      setStatus("connecting");
       try {
         const res = await fetch("/api/ws-ticket");
         if (!res.ok) throw new Error("no ticket");
@@ -79,11 +81,10 @@ export function useRealtime(onEvent: (e: RtEvent) => void): RtStatus {
     }
 
     const onOnline = () => {
-      if (ws?.readyState !== WebSocket.OPEN) {
-        attempt = 0;
-        clearTimers();
-        connect();
-      }
+      attempt = 0;
+      clearTimers();
+      ws?.close();
+      connect();
     };
     const onOffline = () => setStatus("offline");
 
