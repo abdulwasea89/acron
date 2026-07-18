@@ -172,7 +172,6 @@ async def create_session(
 ) -> tuple[str, str]:
     """Issue access+refresh tokens and persist a tracked session."""
 
-    access = create_access_token(user_id=user.id, org_id=org_id, role=role.value, remember=remember)
     refresh = create_refresh_token(user_id=user.id, org_id=org_id, role=role.value)
     days = settings.remember_device_days if remember else settings.refresh_token_expire_days
     auth_session = AuthSession(
@@ -188,6 +187,12 @@ async def create_session(
         remember_device=remember,
     )
     session.add(auth_session)
+    await session.flush()
+
+    access = create_access_token(
+        user_id=user.id, org_id=org_id, role=role.value,
+        remember=remember, session_id=auth_session.id,
+    )
 
     # Persist last-used org so next login goes here (B — last-used org).
     user.last_org_id = org_id
@@ -525,6 +530,46 @@ async def revoke_all_sessions(session: AsyncSession, *, user_id: str) -> None:
         s.revoked = True
         s.revoked_at = now_utc()
         session.add(s)
+
+
+async def admin_list_sessions(
+    session: AsyncSession, *, org_id: str,
+) -> list[dict]:
+    """List all sessions in an org with user info. Owner/manager only."""
+    result = await session.execute(
+        select(AuthSession, User)
+        .join(User, AuthSession.user_id == User.id)
+        .where(AuthSession.organization_id == org_id)
+        .order_by(AuthSession.last_activity_at.desc().nullslast())
+    )
+    rows: list[dict] = []
+    for auth_s, user in result:
+        rows.append({
+            "id": auth_s.id,
+            "user_id": user.id,
+            "user_email": user.email,
+            "user_name": user.full_name,
+            "device_type": auth_s.device_type,
+            "os": auth_s.os,
+            "ip_address": auth_s.ip_address,
+            "user_agent": auth_s.user_agent,
+            "last_activity_at": auth_s.last_activity_at.isoformat() + "Z"
+                if auth_s.last_activity_at else None,
+            "revoked": auth_s.revoked,
+        })
+    return rows
+
+
+async def admin_revoke_session(
+    session: AsyncSession, *, session_id: str, org_id: str,
+) -> None:
+    """Revoke ANY session within the org. Owner/manager only."""
+    auth_session = await session.get(AuthSession, session_id)
+    if auth_session is None or auth_session.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    auth_session.revoked = True
+    auth_session.revoked_at = now_utc()
+    session.add(auth_session)
 
 
 # --------------------------------------------------------- org code recovery

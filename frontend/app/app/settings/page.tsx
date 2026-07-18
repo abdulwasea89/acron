@@ -131,6 +131,21 @@ export default function SettingsPage() {
             </div>
           </Card>
 
+          <Card>
+            <CardHeader
+              title="Sessions"
+              subtitle="Manage active login sessions"
+              action={
+                <a
+                  href="/app/settings/sessions"
+                  className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--foreground)] shadow-xs transition hover:bg-[var(--background)]"
+                >
+                  View sessions
+                </a>
+              }
+            />
+          </Card>
+
           <Card className="border-[var(--danger-border)]">
             <CardHeader
               title="Security"

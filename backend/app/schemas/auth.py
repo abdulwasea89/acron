@@ -208,6 +208,22 @@ class SessionInfo(BaseModel):
     current: bool = False
 
 
+class AdminSessionInfo(BaseModel):
+    """Session info with user details, for owner/manager session management."""
+
+    id: str
+    user_id: str
+    user_email: str
+    user_name: str | None = None
+    device_type: str | None = None
+    os: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
+    last_activity_at: str | None = None
+    revoked: bool = False
+    current: bool = False
+
+
 class ProfileOut(BaseModel):
     full_name: str | None = None
     email: str

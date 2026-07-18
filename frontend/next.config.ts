@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['10.35.197.85'],
+
   /* config options here */
   // reactCompiler runs via a Babel plugin on this Next version (16.2.10) — no
   // Rust port yet. It was pinning dev-server CPU (~62%) and thrashing disk on

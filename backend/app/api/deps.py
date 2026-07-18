@@ -18,6 +18,7 @@ from app.core.tenancy import ORG_HEADER, TenantContext
 from app.db.session import get_session
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
+from app.models.session import AuthSession
 from app.models.user import User
 
 # Re-export so routers can `from app.api.deps import get_session`.
@@ -64,6 +65,12 @@ async def get_current_user(
     user = await session.get(User, user_id) if user_id else None
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    session_id = payload.get("session_id")
+    if session_id:
+        auth_session = await session.get(AuthSession, session_id)
+        if auth_session is None or auth_session.revoked:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
     return user
 
 
@@ -108,6 +115,12 @@ async def get_tenant(
     ).scalar_one_or_none()
     if membership is None or membership.banned:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No access to organization")
+
+    session_id = payload.get("session_id")
+    if session_id:
+        auth_session = await session.get(AuthSession, session_id)
+        if auth_session is None or auth_session.revoked:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
 
     try:
         role_enum = Role(role)

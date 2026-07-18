@@ -228,6 +228,21 @@ export interface TaskCreate {
   deadline?: string | null;
 }
 
+// ------------------------------------------------------------- sessions
+export interface AdminSessionInfo {
+  id: string;
+  user_id: string;
+  user_email: string;
+  user_name: string | null;
+  device_type: string | null;
+  os: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  last_activity_at: string | null;
+  revoked: boolean;
+  current: boolean;
+}
+
 // --------------------------------------------------------------------- mfa
 export interface MfaStatus {
   mfa_enabled: boolean;

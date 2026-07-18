@@ -90,19 +90,22 @@ def _create_token(
 
 
 def create_access_token(
-    *, user_id: str, org_id: str | None, role: str | None, remember: bool = False
+    *, user_id: str, org_id: str | None, role: str | None,
+    remember: bool = False, session_id: str | None = None,
 ) -> str:
     minutes = (
         settings.remember_device_days * 24 * 60
         if remember
         else settings.access_token_expire_minutes
     )
+    extra = {"session_id": session_id} if session_id else None
     return _create_token(
         subject=user_id,
         org_id=org_id,
         role=role,
         token_type=ACCESS,
         expires_delta=timedelta(minutes=minutes),
+        extra=extra,
     )
 
 

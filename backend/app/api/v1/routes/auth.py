@@ -5,12 +5,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_client_ip, get_current_user, get_session, get_tenant
+from app.api.deps import get_client_ip, get_current_user, get_session, get_tenant, require_role
+from app.core.constants import Role
 from app.core.tenancy import TenantContext
 from app.models.membership import OrganizationMember
 from app.models.user import User
 from sqlmodel import select
 from app.schemas.auth import (
+    AdminSessionInfo,
     EmailVerifyRequest,
     LoginRequest,
     LoginResponse,
@@ -248,17 +250,21 @@ async def password_reset_confirm(
 
 @router.get("/sessions", response_model=list[SessionInfo])
 async def list_sessions(
-    user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    request: Request = None,
 ):
     sessions = await auth_service.list_sessions(session, user_id=user.id)
+    current_session_id = _session_id_from_request(request)
     return [
         SessionInfo(
             id=s.id,
             device_type=s.device_type,
             os=s.os,
             ip_address=s.ip_address,
-            last_activity_at=s.last_activity_at.isoformat() if s.last_activity_at else None,
+            last_activity_at=s.last_activity_at.isoformat() + "Z" if s.last_activity_at else None,
             revoked=s.revoked,
+            current=(s.id == current_session_id),
         )
         for s in sessions
     ]
@@ -272,6 +278,40 @@ async def revoke_session(
 ):
     await auth_service.revoke_session(session, user_id=user.id, session_id=session_id)
     return Message(message="Session revoked.")
+
+
+# ----------------------------------------------------------- admin sessions
+@router.get("/admin/sessions", response_model=list[AdminSessionInfo])
+async def admin_list_sessions(
+    tenant: TenantContext = Depends(require_role(Role.OWNER, Role.MANAGER)),
+    session: AsyncSession = Depends(get_session),
+    request: Request = None,
+):
+    raw = await auth_service.admin_list_sessions(session, org_id=tenant.org_id)
+    current_session_id = _session_id_from_request(request)
+    return [
+        AdminSessionInfo(**s, current=(s["id"] == current_session_id))
+        for s in raw
+    ]
+
+
+@router.delete("/admin/sessions/{session_id}", response_model=Message)
+async def admin_revoke_session(
+    session_id: str,
+    tenant: TenantContext = Depends(require_role(Role.OWNER, Role.MANAGER)),
+    session: AsyncSession = Depends(get_session),
+):
+    await auth_service.admin_revoke_session(session, session_id=session_id, org_id=tenant.org_id)
+    return Message(message="Session revoked.")
+
+
+def _session_id_from_request(request: Request) -> str | None:
+    from app.core.security import safe_decode
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return None
+    payload = safe_decode(auth[7:])
+    return payload.get("session_id") if payload else None
 
 
 # --------------------------------------------------------------------- MFA
