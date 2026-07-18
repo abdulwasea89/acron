@@ -46,6 +46,7 @@ class OrganizationOut(BaseModel):
     stripe_connect_status: str
     accent_color: str | None = None
     logo_url: str | None = None
+    mfa_required: bool = False
 
 
 class RegisterGymResponse(BaseModel):

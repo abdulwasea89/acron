@@ -36,6 +36,7 @@ export interface OrganizationOut {
   stripe_connect_status: string;
   accent_color: string | null;
   logo_url: string | null;
+  mfa_required: boolean;
 }
 
 export interface SetupChecklist {
@@ -225,6 +226,17 @@ export interface TaskCreate {
   description?: string | null;
   assignee_member_id?: string | null;
   deadline?: string | null;
+}
+
+// --------------------------------------------------------------------- mfa
+export interface MfaStatus {
+  mfa_enabled: boolean;
+}
+
+export interface MfaEnrollResponse {
+  secret: string;
+  otpauth_uri: string;
+  current_code: string;
 }
 
 export interface ProfileOut {

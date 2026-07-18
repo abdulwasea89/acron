@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Button, Card, CardHeader, Input, Select, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
-import type { ProfileOut } from "@/lib/types";
+import type { OrganizationOut, ProfileOut } from "@/lib/types";
+import { MfaCard } from "./MfaCard";
 
 export default function AccountPage() {
   const [profile, setProfile] = useState<ProfileOut | null>(null);
+  const [org, setOrg] = useState<OrganizationOut | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,8 +25,12 @@ export default function AccountPage() {
   async function load() {
     setError("");
     try {
-      const p = await api.get<ProfileOut>("/auth/me/profile");
+      const [p, o] = await Promise.all([
+        api.get<ProfileOut>("/auth/me/profile"),
+        api.get<OrganizationOut>("/organizations/me"),
+      ]);
       setProfile(p);
+      setOrg(o);
       setFullName(p.full_name ?? "");
       setPhone(p.phone ?? "");
       setAddress(p.address ?? "");
@@ -127,6 +133,8 @@ export default function AccountPage() {
             </a>
           </div>
         </Card>
+
+        {org && <MfaCard mfaRequired={org.mfa_required} />}
       </div>
     </>
   );
