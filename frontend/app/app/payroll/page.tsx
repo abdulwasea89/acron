@@ -6,17 +6,23 @@ import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
-import type { PayrollRun } from "@/lib/types";
+import type { MemberDirectoryItem, PayrollRun } from "@/lib/types";
 
 export default function PayrollPage() {
   const [runs, setRuns] = useState<PayrollRun[] | null>(null);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [staffMap, setStaffMap] = useState<Record<string, string>>({});
 
   async function load() {
     setError("");
     try {
-      setRuns(await api.get<PayrollRun[]>("/payroll/runs"));
+      const [runsData, members] = await Promise.all([
+        api.get<PayrollRun[]>("/payroll/runs"),
+        api.get<MemberDirectoryItem[]>("/members"),
+      ]);
+      setRuns(runsData);
+      setStaffMap(Object.fromEntries(members.map((m) => [m.member_id, m.full_name || m.email])));
     } catch (e) {
       setError((e as ApiError).message);
       setRuns([]);
@@ -88,7 +94,7 @@ export default function PayrollPage() {
       ) : (
         <div className="space-y-6">
           {runs.map((run) => (
-            <RunCard key={run.id} run={run} onAction={act} onChanged={load} />
+            <RunCard key={run.id} run={run} staffMap={staffMap} onAction={act} onChanged={load} />
           ))}
         </div>
       )}
@@ -133,10 +139,12 @@ function RunForm({ onCreated }: { onCreated: () => void }) {
 
 function RunCard({
   run,
+  staffMap,
   onAction,
   onChanged,
 }: {
   run: PayrollRun;
+  staffMap: Record<string, string>;
   onAction: (id: string, action: string) => void;
   onChanged: () => void;
 }) {
@@ -190,7 +198,7 @@ function RunCard({
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
             {run.entries.map((e) => (
-              <EntryRow key={e.id} runId={run.id} entry={e} editable={editable} onChanged={onChanged} />
+              <EntryRow key={e.id} runId={run.id} entry={e} staffMap={staffMap} editable={editable} onChanged={onChanged} />
             ))}
           </tbody>
         </table>
@@ -202,11 +210,13 @@ function RunCard({
 function EntryRow({
   runId,
   entry,
+  staffMap,
   editable,
   onChanged,
 }: {
   runId: string;
   entry: import("@/lib/types").PayrollEntry;
+  staffMap: Record<string, string>;
   editable: boolean;
   onChanged: () => void;
 }) {
@@ -238,7 +248,7 @@ function EntryRow({
   return (
     <>
       <tr className="transition-colors hover:bg-[var(--background)]">
-        <td className="px-6 py-4 font-mono text-xs text-[var(--foreground-muted)]">{entry.staff_member_id.slice(0, 8)}</td>
+        <td className="px-6 py-4 font-medium text-[var(--foreground)]">{staffMap[entry.staff_member_id] || entry.staff_member_id.slice(0, 8)}</td>
         <td className="px-6 py-4 tabular-nums">{money(entry.fixed)}</td>
         <td className="px-6 py-4 tabular-nums">{money(entry.hourly_amount)}</td>
         <td className="px-6 py-4 tabular-nums">{money(entry.class_amount)}</td>

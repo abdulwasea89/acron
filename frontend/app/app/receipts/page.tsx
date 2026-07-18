@@ -5,16 +5,22 @@ import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
-import type { ReceiptReviewItem } from "@/lib/types";
+import type { MemberDirectoryItem, ReceiptReviewItem } from "@/lib/types";
 
 export default function ReceiptsPage() {
   const [items, setItems] = useState<ReceiptReviewItem[] | null>(null);
   const [error, setError] = useState("");
+  const [staffMap, setStaffMap] = useState<Record<string, string>>({});
 
   async function load() {
     setError("");
     try {
-      setItems(await api.get<ReceiptReviewItem[]>("/receipts/review-queue"));
+      const [receipts, members] = await Promise.all([
+        api.get<ReceiptReviewItem[]>("/receipts/review-queue"),
+        api.get<MemberDirectoryItem[]>("/members"),
+      ]);
+      setItems(receipts);
+      setStaffMap(Object.fromEntries(members.map((m) => [m.member_id, m.full_name || m.email])));
     } catch (e) {
       setError((e as ApiError).message);
       setItems([]);
@@ -49,7 +55,7 @@ export default function ReceiptsPage() {
       ) : (
         <div className="space-y-4">
           {items.map((r) => (
-            <ReceiptCard key={r.id} receipt={r} onDone={load} onError={setError} />
+            <ReceiptCard key={r.id} receipt={r} staffMap={staffMap} onDone={load} onError={setError} />
           ))}
         </div>
       )}
@@ -66,10 +72,12 @@ function confidenceTone(score: number | null): "success" | "warning" | "danger" 
 
 function ReceiptCard({
   receipt,
+  staffMap,
   onDone,
   onError,
 }: {
   receipt: ReceiptReviewItem;
+  staffMap: Record<string, string>;
   onDone: () => void;
   onError: (msg: string) => void;
 }) {
@@ -92,7 +100,7 @@ function ReceiptCard({
   return (
     <Card>
       <CardHeader
-        title={`Member ${receipt.member_id.slice(0, 8)}`}
+        title={staffMap[receipt.member_id] || `Member ${receipt.member_id.slice(0, 8)}`}
         subtitle={receipt.extracted_date ? `Dated ${receipt.extracted_date}` : "No date extracted"}
       />
       <div className="grid gap-5 p-6 sm:grid-cols-3">
