@@ -16,8 +16,14 @@ async function handle(req: NextRequest, path: string[]) {
     body = text ? JSON.parse(text) : undefined;
   }
 
+  const idempotencyKey = req.headers.get("Idempotency-Key") || undefined;
+
   try {
-    const data = await backend(`${backendPath}${search}`, { method, body });
+    const data = await backend(`${backendPath}${search}`, {
+      method,
+      body,
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+    });
     return NextResponse.json(data ?? {});
   } catch (e) {
     const err = e as BackendError;

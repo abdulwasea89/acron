@@ -11,10 +11,12 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
+  const h: Record<string, string> = { ...headers };
+  if (body !== undefined) h["Content-Type"] = "application/json";
   const res = await fetch(`/api/proxy${path}`, {
     method,
-    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    headers: Object.keys(h).length > 0 ? h : undefined,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
@@ -31,7 +33,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
-  post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
+  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) => request<T>("POST", path, body, headers),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
   del: <T>(path: string) => request<T>("DELETE", path),
 };

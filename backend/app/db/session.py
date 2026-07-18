@@ -15,8 +15,12 @@ from sqlmodel import SQLModel
 
 from app.core.config import settings
 
-# SQLite needs check_same_thread disabled for async usage.
-_connect_args = {"check_same_thread": False} if settings.is_sqlite else {}
+# SQLite needs check_same_thread disabled for async usage. Cloud Postgres
+# (Neon/Supabase) requires TLS — asyncpg enables it via ssl="require".
+if settings.is_sqlite:
+    _connect_args: dict = {"check_same_thread": False}
+else:
+    _connect_args = {"ssl": "require"}
 
 engine = create_async_engine(
     settings.database_url,

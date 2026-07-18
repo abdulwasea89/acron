@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.core.constants import PaymentMethod, PaymentStatus
+from app.core.constants import PaymentKind, PaymentMethod, PaymentStatus
 from app.core.security import now_utc
 from app.integrations.email import send_email_safe as send_email
 from app.integrations.stripe_connect import connect_stripe
@@ -53,6 +53,17 @@ async def refund(
     )
     if not claim.claimed:
         return payment  # replay -> current (already-refunded) state
+
+    # This endpoint refunds member fees only — money that flowed through the
+    # gym's Connect account. SaaS subscription and trainer-payout money never
+    # touches Connect (Security Rule #3), so it can't be refunded here; SaaS
+    # billing is managed via the platform subscription (upgrade/cancel).
+    if payment.kind != PaymentKind.MEMBER_FEE:
+        await idempotency_service.fail(session, claim.record, code=422,
+                                       body='{"detail":"Only member payments can be refunded here."}')
+        raise HTTPException(status_code=422,
+                            detail="Only member payments can be refunded here. "
+                                   "SaaS subscription charges are managed in billing settings.")
 
     if payment.status not in {PaymentStatus.SUCCEEDED, PaymentStatus.PARTIALLY_REFUNDED}:
         await idempotency_service.fail(session, claim.record, code=409,

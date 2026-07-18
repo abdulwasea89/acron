@@ -9,14 +9,42 @@ zero external accounts. Provide real keys to activate real calls.
 from __future__ import annotations
 
 from functools import lru_cache
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-import os 
+import os
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# asyncpg does not understand libpq query params like ``sslmode`` /
+# ``channel_binding`` (those belong to psycopg). Neon/Supabase copy-paste URLs
+# ship them, so we strip them here and enable TLS via connect_args instead.
+_LIBPQ_ONLY_PARAMS = {"sslmode", "channel_binding", "options", "gssencmode"}
+
+
+def _normalize_pg_url(url: str) -> str:
+    """Coerce a pasted Postgres URL into an asyncpg-compatible SQLAlchemy URL.
+
+    - ``postgres://`` / ``postgresql://`` -> ``postgresql+asyncpg://``
+    - drops libpq-only query params (``sslmode``, ``channel_binding``, ...)
+    """
+
+    parts = urlsplit(url)
+    scheme = parts.scheme
+    if scheme in ("postgres", "postgresql"):
+        scheme = "postgresql+asyncpg"
+
+    kept = [
+        pair
+        for pair in parts.query.split("&")
+        if pair and pair.split("=", 1)[0].lower() not in _LIBPQ_ONLY_PARAMS
+    ]
+    query = "&".join(kept)
+
+    return urlunsplit((scheme, parts.netloc, parts.path, query, parts.fragment))
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -47,11 +75,33 @@ class Settings(BaseSettings):
     failed_login_window_minutes: int = 15
 
     # --------------------------------------------------------------- database
-    # Defaults to a local async SQLite file so the app runs with no services.
-    # In production set DATABASE_URL to a postgresql+asyncpg URL.
-    # database_url: str = "sqlite+aiosqlite:///./gym_platform.db"
-    database_url: str = os.getenv("DATABASE_URL") or "sqlite+aiosqlite:///./gym_platform.db"
+    # Toggle: USE_CLOUD_DB=yes -> use CLOUD_DATABASE_URL (Neon/Supabase Postgres).
+    #         USE_CLOUD_DB=no  -> use the local SQLite file (default, no services).
+    use_cloud_db: bool = os.getenv("USE_CLOUD_DB", "no").strip().lower() in (
+        "1",
+        "yes",
+        "true",
+        "on",
+    )
+    # Paste your Neon connection string here (or in .env as CLOUD_DATABASE_URL).
+    cloud_database_url: str = os.getenv("CLOUD_DATABASE_URL", "")
+    # Local fallback file used when USE_CLOUD_DB is off.
+    local_database_url: str = os.getenv(
+        "LOCAL_DATABASE_URL", "sqlite+aiosqlite:///./gym_platform.db"
+    )
     db_echo: bool = False
+
+    @property
+    def database_url(self) -> str:
+        """Active database URL, chosen by the ``USE_CLOUD_DB`` toggle."""
+        if self.use_cloud_db:
+            if not self.cloud_database_url:
+                raise RuntimeError(
+                    "USE_CLOUD_DB is enabled but CLOUD_DATABASE_URL is empty. "
+                    "Paste your Neon connection string into .env."
+                )
+            return _normalize_pg_url(self.cloud_database_url)
+        return self.local_database_url
 
     # ------------------------------------------------------------------ redis
     redis_url: str = "redis://localhost:6379/0"

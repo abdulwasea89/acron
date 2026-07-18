@@ -27,8 +27,14 @@ export default function PaymentsPage() {
     queueMicrotask(() => void load());
   }, []);
 
+  // Only member fees (routed through the gym's Connect account) are refundable
+  // here. SaaS subscription charges go through the platform account and are
+  // managed in billing settings, not refunded on this screen.
   const refundable = (p: PaymentOut) =>
-    p.status === "succeeded" && p.method === "card" && p.refunded_amount < p.amount;
+    p.kind === "member_fee" &&
+    p.status === "succeeded" &&
+    p.method === "card" &&
+    p.refunded_amount < p.amount;
 
   return (
     <>
@@ -140,7 +146,7 @@ function RefundForm({
         payment_id: payment.id,
         amount: parseFloat(amount) || null,
         reason: reason || null,
-      });
+      }, { "Idempotency-Key": crypto.randomUUID() });
       onDone();
     } catch (e) {
       setError((e as ApiError).message);
