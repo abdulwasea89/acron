@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Dialog } from "@/components/Dialog";
+import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -26,6 +27,8 @@ export default function PaymentsPage() {
   useEffect(() => {
     queueMicrotask(() => void load());
   }, []);
+
+  useRealtimeEvent(["payment.recorded"], () => void load());
 
   // Only member fees (routed through the gym's Connect account) are refundable
   // here. SaaS subscription charges go through the platform account and are

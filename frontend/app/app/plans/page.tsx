@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Dialog } from "@/components/Dialog";
+import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -197,6 +198,8 @@ export default function PlansPage() {
   useEffect(() => {
     queueMicrotask(() => void load());
   }, []);
+
+  useRealtimeEvent(["plan.changed"], () => void load());
 
   async function act(id: string, action: string) {
     setError("");

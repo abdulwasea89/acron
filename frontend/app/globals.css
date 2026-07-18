@@ -676,3 +676,10 @@ body {
   border-radius: var(--radius);
 }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Realtime: soft highlight on rows updated by a live event. */
+.rt-flash { animation: rt-flash 1.6s ease-out; }
+@keyframes rt-flash {
+  from { background-color: color-mix(in oklab, var(--primary) 16%, transparent); }
+  to { background-color: transparent; }
+}

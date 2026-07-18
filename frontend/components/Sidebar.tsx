@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { GymStatusToggle } from "./GymStatusToggle";
+import { LiveIndicator } from "./Realtime";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 import type { GymStatus } from "@/lib/types";
@@ -82,6 +83,9 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus }: { orgName: strin
 
       {/* Theme + Sign out */}
       <div className="space-y-2 border-t border-[var(--border)] p-3">
+        <div className="flex justify-end px-1 pb-1">
+          <LiveIndicator />
+        </div>
         <ThemeToggle />
         <button
           onClick={logout}

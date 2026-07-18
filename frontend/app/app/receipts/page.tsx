@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -30,6 +31,8 @@ export default function ReceiptsPage() {
   useEffect(() => {
     queueMicrotask(() => void load());
   }, []);
+
+  useRealtimeEvent(["receipt.processed", "payment.recorded"], () => void load());
 
   return (
     <>

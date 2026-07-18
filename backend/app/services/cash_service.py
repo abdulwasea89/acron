@@ -134,6 +134,10 @@ async def log_cash_payment(
     await send_push(None, "Payment recorded",
                     f"Your payment of {plan.currency} {data.amount:.2f} has been recorded. "
                     f"Membership active until {end_str}.")
+
+    from app.realtime import events
+
+    await events.payment_recorded(org_id, payment_id=payment.id, member_id=member.id)
     return payment, member, pdf_url
 
 

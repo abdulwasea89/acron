@@ -131,6 +131,10 @@ async def review(
     await record_audit(session, action=f"receipt.{action}", organization_id=org_id,
                        actor_user_id=reviewer_user_id, entity_type="receipt", entity_id=receipt.id,
                        metadata={"reason": reason})
+
+    from app.realtime import events
+
+    await events.receipt_processed(org_id, receipt_id=receipt.id, status=receipt.status.value)
     return receipt
 
 
