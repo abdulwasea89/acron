@@ -215,7 +215,8 @@ async def create_task(
             raise HTTPException(status_code=403, detail="Trainers can only assign tasks to themselves.")
         assignee = actor_member_id
     task = Task(
-        organization_id=org_id, title=data.title, assignee_member_id=assignee,
+        organization_id=org_id, title=data.title, description=data.description,
+        assignee_member_id=assignee,
         created_by=actor_user_id, deadline=data.deadline,
     )
     session.add(task)
@@ -248,6 +249,8 @@ async def update_task(session: AsyncSession, *, org_id: str, task_id: str, data:
         raise HTTPException(status_code=404, detail="Task not found.")
     if data.title is not None:
         task.title = data.title
+    if data.description is not None:
+        task.description = data.description
     if data.assignee_member_id is not None:
         task.assignee_member_id = data.assignee_member_id
     if data.deadline is not None:

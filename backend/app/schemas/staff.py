@@ -46,12 +46,14 @@ class CompensationUpdate(BaseModel):
 
 class TaskCreateIn(BaseModel):
     title: str
+    description: str | None = None
     assignee_member_id: str | None = None
     deadline: datetime | None = None
 
 
 class TaskUpdateIn(BaseModel):
     title: str | None = None
+    description: str | None = None
     assignee_member_id: str | None = None
     deadline: datetime | None = None
 
@@ -59,6 +61,7 @@ class TaskUpdateIn(BaseModel):
 class TaskOut(BaseModel):
     id: str
     title: str
+    description: str | None
     assignee_member_id: str | None
     deadline: datetime | None
     done: bool

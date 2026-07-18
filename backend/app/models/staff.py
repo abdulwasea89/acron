@@ -32,6 +32,7 @@ class Task(UUIDModel, TimestampModel, table=True):
 
     organization_id: str = Field(index=True, foreign_key="organizations.id")
     title: str
+    description: str | None = None
     assignee_member_id: str | None = Field(default=None, foreign_key="organization_members.id")
     created_by: str | None = Field(default=None, foreign_key="users.id")
     deadline: datetime | None = None

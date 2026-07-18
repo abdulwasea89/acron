@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Dialog } from "@/components/Dialog";
 import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { PlanOut } from "@/lib/types";
@@ -104,6 +104,16 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
                   <polygon points="5 3 19 12 5 21 5 3" />
                 </svg>
               )}
+              {a.icon === "edit" && (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 16.604a4.5 4.5 0 01-1.897 1.13L4 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                </svg>
+              )}
+              {a.icon === "view" && (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
               {a.icon === "copy" && (
                 <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
@@ -181,8 +191,10 @@ export default function PlansPage() {
   const [plans, setPlans] = useState<PlanOut[] | null>(null);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<PlanOut | null>(null);
   const [filter, setFilter] = useState<"active" | "archived">("active");
   const [search, setSearch] = useState("");
+  const [viewing, setViewing] = useState<PlanOut | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   async function load() {
@@ -257,8 +269,8 @@ export default function PlansPage() {
 
       {error && <div className="mb-5"><Alert>{error}</Alert></div>}
 
-      <Dialog open={showForm} onClose={() => setShowForm(false)} title="Create plan" subtitle="Saved as a draft — publish it when ready" className="max-w-xl">
-        <PlanForm onCreated={() => { setShowForm(false); load(); }} />
+      <Dialog open={showForm} onClose={() => { setShowForm(false); setEditing(null); }} title={editing ? "Edit plan" : "Create plan"} subtitle={editing ? "Update plan details" : "Saved as a draft — publish it when ready"} className="max-w-xl">
+        <PlanForm plan={editing} onCreated={() => { setShowForm(false); setEditing(null); load(); }} />
       </Dialog>
 
       <Dialog open={deleteId !== null} onClose={() => setDeleteId(null)} title="Delete plan" className="max-w-sm">
@@ -272,6 +284,47 @@ export default function PlansPage() {
           <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
           <Button variant="danger" onClick={confirmDelete}>Delete plan</Button>
         </div>
+      </Dialog>
+
+      {/* Detail view dialog */}
+      <Dialog open={!!viewing} onClose={() => setViewing(null)} title={viewing?.name ?? ""} subtitle="Plan details">
+        {viewing && (
+          <div className="space-y-5">
+            {viewing.public_description && (
+              <div>
+                <span className="mb-1.5 block text-[13px] font-medium text-[var(--foreground)]">Description</span>
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--foreground-muted)]">{viewing.public_description}</p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Price</span>
+                <span className="text-sm font-semibold text-[var(--foreground)]">{money(viewing.price, viewing.currency)}</span>
+              </div>
+              <div>
+                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Billing</span>
+                <span className="text-sm text-[var(--foreground-muted)]">{titleCase(viewing.billing_type)}</span>
+              </div>
+              <div>
+                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Visibility</span>
+                <span className="text-sm text-[var(--foreground-muted)]">{titleCase(viewing.visibility)}</span>
+              </div>
+              <div>
+                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Status</span>
+                <Badge tone={statusTone(viewing.status)}>{titleCase(viewing.status)}</Badge>
+              </div>
+            </div>
+            {viewing.featured && (
+              <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+                <StarIcon /> Featured
+              </div>
+            )}
+            <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4">
+              <Button variant="secondary" onClick={() => { setViewing(null); setEditing(viewing); setShowForm(true); }}>Edit</Button>
+              <Button variant="ghost" onClick={() => setViewing(null)}>Close</Button>
+            </div>
+          </div>
+        )}
       </Dialog>
 
       <Card>
@@ -381,16 +434,14 @@ export default function PlansPage() {
                       <div className="flex items-center gap-2">
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-[var(--foreground)]">{p.name}</span>
+                            <button type="button" onClick={() => setViewing(p)} className="max-w-[260px] truncate font-medium text-[var(--foreground)] hover:underline">{p.name}</button>
                             {p.featured && (
                               <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
                                 <StarIcon /> Featured
                               </span>
                             )}
                           </div>
-                          {p.public_description && (
-                            <div className="mt-0.5 text-xs text-[var(--foreground-muted)] line-clamp-1">{p.public_description}</div>
-                          )}
+
                         </div>
                       </div>
                     </td>
@@ -430,6 +481,8 @@ export default function PlansPage() {
                                   : []),
                               ]
                             : []),
+                          { label: "View", icon: "view", onClick: () => setViewing(p) },
+                          { label: "Edit", icon: "edit", onClick: () => { setEditing(p); setShowForm(true); } },
                           { label: "Duplicate", icon: "copy", onClick: () => act(p.id, "duplicate") },
                           ...(p.status !== "archived"
                             ? [{ label: "Archive", icon: "archive", onClick: () => act(p.id, "archive"), danger: true }]
@@ -449,13 +502,13 @@ export default function PlansPage() {
   );
 }
 
-function PlanForm({ onCreated }: { onCreated: () => void }) {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("0");
-  const [billing, setBilling] = useState("recurring");
-  const [visibility, setVisibility] = useState("public");
-  const [desc, setDesc] = useState("");
-  const [featured, setFeatured] = useState(false);
+function PlanForm({ plan, onCreated }: { plan?: PlanOut | null; onCreated: () => void }) {
+  const [name, setName] = useState(plan?.name ?? "");
+  const [price, setPrice] = useState(plan ? String(plan.price) : "0");
+  const [billing, setBilling] = useState(plan?.billing_type ?? "recurring");
+  const [visibility, setVisibility] = useState(plan?.visibility ?? "public");
+  const [desc, setDesc] = useState(plan?.public_description ?? "");
+  const [featured, setFeatured] = useState(plan?.featured ?? false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -464,7 +517,7 @@ function PlanForm({ onCreated }: { onCreated: () => void }) {
     setError("");
     setLoading(true);
     try {
-      await api.post("/plans", {
+      const body = {
         name,
         price: parseFloat(price) || 0,
         billing_type: billing,
@@ -472,7 +525,12 @@ function PlanForm({ onCreated }: { onCreated: () => void }) {
         public_description: desc || null,
         featured: featured || undefined,
         ...(billing === "recurring" ? { cycle_unit: "month", cycle_length: 1 } : {}),
-      });
+      };
+      if (plan) {
+        await api.patch(`/plans/${plan.id}`, body);
+      } else {
+        await api.post("/plans", body);
+      }
       onCreated();
     } catch (e) {
       setError((e as ApiError).message);
@@ -502,7 +560,7 @@ function PlanForm({ onCreated }: { onCreated: () => void }) {
       </Select>
 
       <div className="sm:col-span-2">
-        <Input label="Public description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What members see on the signup screen" />
+        <Textarea label="Public description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What members see on the signup screen" rows={3} />
       </div>
 
       <div className="sm:col-span-2 flex items-center gap-2">
@@ -517,7 +575,7 @@ function PlanForm({ onCreated }: { onCreated: () => void }) {
       </div>
 
       <div className="sm:col-span-2 flex justify-end gap-2 border-t border-[var(--border)] pt-5">
-        <Button type="submit" loading={loading} size="lg">Save draft</Button>
+        <Button type="submit" loading={loading} size="lg">{plan ? "Save changes" : "Save draft"}</Button>
       </div>
     </form>
   );

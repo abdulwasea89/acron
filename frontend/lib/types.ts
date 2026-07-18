@@ -214,6 +214,7 @@ export interface PaymentOut {
 export interface TaskOut {
   id: string;
   title: string;
+  description: string | null;
   assignee_member_id: string | null;
   deadline: string | null;
   done: boolean;
@@ -221,6 +222,21 @@ export interface TaskOut {
 
 export interface TaskCreate {
   title: string;
+  description?: string | null;
   assignee_member_id?: string | null;
   deadline?: string | null;
+}
+
+export interface ProfileOut {
+  full_name: string | null;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  occupation: string | null;
+  education: string | null;
+  emergency_contact: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  photo_url: string | null;
 }

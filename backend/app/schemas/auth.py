@@ -206,3 +206,27 @@ class SessionInfo(BaseModel):
     last_activity_at: str | None = None
     revoked: bool = False
     current: bool = False
+
+
+class ProfileOut(BaseModel):
+    full_name: str | None = None
+    email: str
+    phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    occupation: str | None = None
+    education: str | None = None
+    emergency_contact: str | None = None
+    date_of_birth: str | None = None
+    gender: str | None = None
+    photo_url: str | None = None
+
+
+class ProfileUpdate(BaseModel):
+    full_name: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    occupation: str | None = None
+    education: str | None = None
+    emergency_contact: str | None = None

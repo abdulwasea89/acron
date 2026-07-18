@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import type { TaskOut, MemberDirectoryItem } from "@/lib/types";
 
@@ -16,11 +16,13 @@ export default function TasksPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<TaskOut | null>(null);
   const [deleting, setDeleting] = useState<TaskOut | null>(null);
+  const [viewing, setViewing] = useState<TaskOut | null>(null);
   const [menuTask, setMenuTask] = useState<TaskOut | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   // Create form state
   const [formTitle, setFormTitle] = useState("");
+  const [formDesc, setFormDesc] = useState("");
   const [formAssignee, setFormAssignee] = useState("");
   const [formDeadline, setFormDeadline] = useState("");
   const [formError, setFormError] = useState("");
@@ -65,6 +67,7 @@ export default function TasksPage() {
     try {
       await api.post("/staff/tasks", {
         title: formTitle,
+        description: formDesc || null,
         assignee_member_id: formAssignee || null,
         deadline: formDeadline || null,
       });
@@ -86,6 +89,7 @@ export default function TasksPage() {
     try {
       await api.patch(`/staff/tasks/${editing.id}`, {
         title: formTitle,
+        description: formDesc || null,
         assignee_member_id: formAssignee || null,
         deadline: formDeadline || null,
       });
@@ -114,6 +118,7 @@ export default function TasksPage() {
 
   function resetForm() {
     setFormTitle("");
+    setFormDesc("");
     setFormAssignee("");
     setFormDeadline("");
     setShowForm(false);
@@ -124,6 +129,7 @@ export default function TasksPage() {
   function openEdit(task: TaskOut) {
     setEditing(task);
     setFormTitle(task.title);
+    setFormDesc(task.description || "");
     setFormAssignee(task.assignee_member_id || "");
     setFormDeadline(task.deadline ? task.deadline.slice(0, 10) : "");
     setShowForm(true);
@@ -222,6 +228,7 @@ export default function TasksPage() {
             ))}
           </Select>
           <Input label="Deadline" type="date" value={formDeadline} onChange={(e) => setFormDeadline(e.target.value)} />
+          <Textarea label="Description" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="Optional details, notes, or instructions" rows={3} />
           <div className="flex gap-2 pt-2">
             <Button type="submit" loading={formLoading}>{editing ? "Save changes" : "Create task"}</Button>
             <Button type="button" variant="ghost" onClick={resetForm}>Cancel</Button>
@@ -252,6 +259,42 @@ export default function TasksPage() {
             <Button variant="danger" onClick={confirmDelete} className="flex-1">Delete</Button>
           </div>
         </div>
+      </Dialog>
+
+      {/* Detail view dialog */}
+      <Dialog open={!!viewing} onClose={() => setViewing(null)} title={viewing?.title ?? ""} subtitle="Task details">
+        {viewing && (
+          <div className="space-y-5">
+            {viewing.description && (
+              <div>
+                <span className="mb-1.5 block text-[13px] font-medium text-[var(--foreground)]">Description</span>
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--foreground-muted)]">{viewing.description}</p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Assignee</span>
+                <span className="text-sm text-[var(--foreground-muted)]">
+                  {viewing.assignee_member_id ? (memberById[viewing.assignee_member_id] || "—") : "Unassigned"}
+                </span>
+              </div>
+              <div>
+                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Deadline</span>
+                <span className="text-sm text-[var(--foreground-muted)]">
+                  {viewing.deadline ? formatDate(viewing.deadline) : "No deadline"}
+                </span>
+              </div>
+            </div>
+            <div>
+              <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Status</span>
+              <Badge tone={viewing.done ? "success" : "neutral"}>{viewing.done ? "Done" : "Active"}</Badge>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4">
+              <Button variant="secondary" onClick={() => { setViewing(null); openEdit(viewing); }}>Edit</Button>
+              <Button variant="ghost" onClick={() => setViewing(null)}>Close</Button>
+            </div>
+          </div>
+        )}
       </Dialog>
 
       <Card>
@@ -307,8 +350,10 @@ export default function TasksPage() {
                           )}
                         </button>
                       </td>
-                      <td className={`px-4 py-3 font-medium ${task.done ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>
-                        {task.title}
+                      <td className={`max-w-[260px] px-4 py-3 font-medium ${task.done ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>
+                        <button type="button" onClick={() => setViewing(task)} className="block w-full truncate text-left hover:underline">
+                          {task.title}
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         {task.assignee_member_id ? (
@@ -366,19 +411,29 @@ export default function TasksPage() {
             className="fixed z-50 min-w-[140px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
             style={{ top: menuPos.top, right: menuPos.right }}
           >
-            <button
-              type="button"
-              onClick={() => { closeMenu(); openEdit(menuTask); }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--background)]"
-            >
-              <svg className="h-3.5 w-3.5 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-              </svg>
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={() => { closeMenu(); setDeleting(menuTask); }}
+              <button
+                type="button"
+                onClick={() => { closeMenu(); setViewing(menuTask); }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--background)]"
+              >
+                <svg className="h-3.5 w-3.5 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                View
+              </button>
+              <button
+                type="button"
+                onClick={() => { closeMenu(); openEdit(menuTask); }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--background)]"
+              >
+                <svg className="h-3.5 w-3.5 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                </svg>
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => { closeMenu(); setDeleting(menuTask); }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--danger)] transition-colors hover:bg-[var(--background)]"
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

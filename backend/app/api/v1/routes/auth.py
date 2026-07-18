@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_client_ip, get_current_user, get_session, get_tenant
 from app.core.tenancy import TenantContext
+from app.models.membership import OrganizationMember
 from app.models.user import User
 from sqlmodel import select
 from app.schemas.auth import (
@@ -23,6 +24,8 @@ from app.schemas.auth import (
     OwnerRegisterStart,
     PasswordResetConfirm,
     PasswordResetRequest,
+    ProfileOut,
+    ProfileUpdate,
     RecoverCodesRequest,
     RefreshRequest,
     ResendCodeRequest,
@@ -56,6 +59,57 @@ async def get_me(ctx: TenantContext = Depends(get_tenant), session: AsyncSession
         "member_id": member.id if member else None,
         "member_status": member.member_status.value if member else None,
     }
+
+
+@router.get("/me/profile", response_model=ProfileOut)
+async def get_profile(
+    ctx: TenantContext = Depends(get_tenant),
+    session: AsyncSession = Depends(get_session),
+):
+    user = await session.get(User, ctx.user_id)
+    return ProfileOut(
+        full_name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        address=user.address,
+        city=user.city,
+        occupation=user.occupation,
+        education=user.education,
+        emergency_contact=user.emergency_contact,
+        date_of_birth=str(user.date_of_birth) if user.date_of_birth else None,
+        gender=user.gender.value if user.gender else None,
+        photo_url=None,
+    )
+
+
+@router.patch("/me/profile", response_model=ProfileOut)
+async def update_profile(
+    data: ProfileUpdate,
+    ctx: TenantContext = Depends(get_tenant),
+    session: AsyncSession = Depends(get_session),
+):
+    user = await session.get(User, ctx.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    for field in ("full_name", "phone", "address", "city", "occupation", "education", "emergency_contact"):
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(user, field, val)
+    session.add(user)
+    await session.flush()
+    return ProfileOut(
+        full_name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        address=user.address,
+        city=user.city,
+        occupation=user.occupation,
+        education=user.education,
+        emergency_contact=user.emergency_contact,
+        date_of_birth=str(user.date_of_birth) if user.date_of_birth else None,
+        gender=user.gender.value if user.gender else None,
+        photo_url=None,
+    )
 
 
 @router.get("/my-organizations")

@@ -98,7 +98,7 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader title="Enrollment mode" subtitle="Controls how new members can join" />
-            <div className="flex flex-wrap items-end gap-3 p-6">
+            <div className="flex flex-wrap items-center gap-3 p-6">
               <div className="min-w-0 sm:min-w-[280px]">
                 <Select value={enrollment} onChange={(e) => setEnrollment(e.target.value)}>
                   <option value="open">Open — anyone with the code can join & pay</option>
@@ -106,7 +106,7 @@ export default function SettingsPage() {
                   <option value="invite_only">Invite-only — code disabled</option>
                 </Select>
               </div>
-              <Button onClick={saveEnrollment} disabled={enrollment === org.enrollment_mode}>
+              <Button onClick={saveEnrollment} disabled={enrollment === org.enrollment_mode} className="h-11">
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                 Save
               </Button>

@@ -111,7 +111,7 @@ async def create_task(
     actor_member_id = await _actor_member_id(session, ctx)
     task = await staff.create_task(session, org_id=ctx.org_id, data=data, actor_user_id=ctx.user_id,
                                    actor_role=ctx.role, actor_member_id=actor_member_id)
-    return TaskOut(id=task.id, title=task.title, assignee_member_id=task.assignee_member_id,
+    return TaskOut(id=task.id, title=task.title, description=task.description, assignee_member_id=task.assignee_member_id,
                    deadline=task.deadline, done=task.done)
 
 
@@ -121,7 +121,7 @@ async def list_tasks(
     session: AsyncSession = Depends(get_session),
 ):
     return [
-        TaskOut(id=t.id, title=t.title, assignee_member_id=t.assignee_member_id,
+        TaskOut(id=t.id, title=t.title, description=t.description, assignee_member_id=t.assignee_member_id,
                 deadline=t.deadline, done=t.done)
         for t in await staff.list_tasks(session, org_id=ctx.org_id)
     ]
@@ -134,7 +134,7 @@ async def complete_task(
     session: AsyncSession = Depends(get_session),
 ):
     task = await staff.complete_task(session, org_id=ctx.org_id, task_id=task_id)
-    return TaskOut(id=task.id, title=task.title, assignee_member_id=task.assignee_member_id,
+    return TaskOut(id=task.id, title=task.title, description=task.description, assignee_member_id=task.assignee_member_id,
                    deadline=task.deadline, done=task.done)
 
 
@@ -146,7 +146,7 @@ async def update_task(
     session: AsyncSession = Depends(get_session),
 ):
     task = await staff.update_task(session, org_id=ctx.org_id, task_id=task_id, data=data)
-    return TaskOut(id=task.id, title=task.title, assignee_member_id=task.assignee_member_id,
+    return TaskOut(id=task.id, title=task.title, description=task.description, assignee_member_id=task.assignee_member_id,
                    deadline=task.deadline, done=task.done)
 
 
