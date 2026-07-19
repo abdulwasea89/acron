@@ -37,3 +37,7 @@ async def payment_recorded(org_id: str, *, payment_id: str, member_id: str | Non
 
 async def check_in(org_id: str, *, member_id: str) -> None:
     await publish(org_id, "shift.check_in", {"member_id": member_id})
+
+
+async def sessions_changed(org_id: str) -> None:
+    await publish(org_id, "sessions.changed")

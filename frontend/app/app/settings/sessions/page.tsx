@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { useRealtimeEvent } from "@/components/Realtime";
 import { Card, Button, Alert, Spinner, Badge } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import type { AdminSessionInfo } from "@/lib/types";
@@ -35,6 +36,8 @@ export default function SessionsPage() {
   }, []);
 
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
+
+  useRealtimeEvent(["sessions.changed"], useCallback(() => { void load(); }, [load]));
 
   async function revoke(id: string) {
     setRevokingId(id);

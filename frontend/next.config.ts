@@ -1,7 +1,11 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['10.35.197.85'],
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
 
   /* config options here */
   // reactCompiler runs via a Babel plugin on this Next version (16.2.10) — no

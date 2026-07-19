@@ -198,6 +198,9 @@ async def create_session(
     user.last_org_id = org_id
     session.add(user)
 
+    from app.realtime import events
+
+    await events.sessions_changed(org_id)
     return access, refresh
 
 
@@ -523,6 +526,11 @@ async def revoke_session(session: AsyncSession, *, user_id: str, session_id: str
     auth_session.revoked = True
     auth_session.revoked_at = now_utc()
     session.add(auth_session)
+    org_id = auth_session.organization_id
+    if org_id:
+        from app.realtime import events
+
+        await events.sessions_changed(org_id)
 
 
 async def revoke_all_sessions(session: AsyncSession, *, user_id: str) -> None:
@@ -570,6 +578,9 @@ async def admin_revoke_session(
     auth_session.revoked = True
     auth_session.revoked_at = now_utc()
     session.add(auth_session)
+    from app.realtime import events
+
+    await events.sessions_changed(org_id)
 
 
 # --------------------------------------------------------- org code recovery

@@ -1,0 +1,43 @@
+"use client";
+
+import { useEffect } from "react";
+import { Button, Card } from "@/components/ui";
+
+export default function AnalyticsErrorPage({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
+  return (
+    <div className="container-app">
+      <div className="page-content">
+        <div className="flex items-start justify-center pt-24">
+          <Card className="w-full max-w-sm p-8 text-center">
+            <div className="mb-4 text-5xl">⚠</div>
+            <h1 className="mb-2 text-lg font-semibold text-[var(--foreground)]">Could not load analytics</h1>
+            <p className="mb-6 text-sm text-[var(--foreground-muted)]">
+              An error occurred while loading the analytics data.
+            </p>
+            {error.digest && (
+              <p className="mb-4 text-[11px] break-all text-[var(--muted)]">
+                Error ID: {error.digest}
+              </p>
+            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Button onClick={reset}>Try again</Button>
+              <Button variant="secondary" onClick={() => (window.location.href = "/app")}>
+                Back to dashboard
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
