@@ -16,6 +16,7 @@ from app.core.constants import BookingStatus, MemberStatus, Role
 from app.core.security import now_utc
 from app.models.class_session import ClassBooking, ClassSession
 from app.models.membership import OrganizationMember
+from app.models.user import User
 from app.schemas.classes import ClassSessionCreate
 from app.services import idempotency_service
 from app.services.audit_service import record_audit
@@ -207,3 +208,32 @@ async def trainer_check_in(
                        actor_user_id=user_id, entity_type="class_session", entity_id=cs.id,
                        metadata={"at": now_utc().isoformat()})
     return cs
+
+
+async def list_bookings(
+    session: AsyncSession, *, org_id: str, class_id: str
+) -> list[dict]:
+    """Return all bookings for a session with member name/email."""
+    cs = await _get_owned_session(session, org_id, class_id)
+    rows = (
+        await session.execute(
+            select(ClassBooking, OrganizationMember, User)
+            .join(OrganizationMember, OrganizationMember.id == ClassBooking.member_id)
+            .join(User, User.id == OrganizationMember.user_id)
+            .where(
+                ClassBooking.class_session_id == cs.id,
+                ClassBooking.organization_id == org_id,
+            )
+        )
+    ).all()
+    result = []
+    for b, m, u in rows:
+        result.append({
+            "booking_id": b.id,
+            "class_session_id": b.class_session_id,
+            "member_id": m.id,
+            "member_name": m.display_name or u.full_name,
+            "member_email": u.email,
+            "status": b.status.value,
+        })
+    return result

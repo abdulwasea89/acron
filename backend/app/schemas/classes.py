@@ -40,3 +40,12 @@ class BookingOut(BaseModel):
     class_session_id: str
     member_id: str
     status: str
+
+
+class BookingWithMember(BaseModel):
+    booking_id: str
+    class_session_id: str
+    member_id: str
+    member_name: str | None
+    member_email: str
+    status: str

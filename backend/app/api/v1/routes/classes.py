@@ -14,6 +14,7 @@ from app.core.tenancy import IDEMPOTENCY_HEADER, TenantContext
 from app.schemas.classes import (
     BookingCreate,
     BookingOut,
+    BookingWithMember,
     ClassSessionCreate,
     ClassSessionOut,
 )
@@ -69,6 +70,15 @@ async def trainer_check_in(
 ):
     cs = await classes.trainer_check_in(session, org_id=ctx.org_id, user_id=ctx.user_id, class_id=class_id)
     return _to_out(cs)
+
+
+@router.get("/{class_id}/bookings", response_model=list[BookingWithMember])
+async def list_bookings(
+    class_id: str,
+    ctx: TenantContext = Depends(get_tenant),
+    session: AsyncSession = Depends(get_session),
+):
+    return await classes.list_bookings(session, org_id=ctx.org_id, class_id=class_id)
 
 
 @router.post("/book", response_model=BookingOut)

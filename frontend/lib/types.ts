@@ -139,6 +139,15 @@ export interface StaffInviteOut {
   used: boolean;
 }
 
+export interface BookingWithMember {
+  booking_id: string;
+  class_session_id: string;
+  member_id: string;
+  member_name: string | null;
+  member_email: string;
+  status: string;
+}
+
 // --------------------------------------------------------------- classes
 export interface ClassSessionOut {
   id: string;
