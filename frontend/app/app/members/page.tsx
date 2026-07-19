@@ -19,8 +19,8 @@ interface InviteResult {
 
 function KebabIcon() {
   return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
     </svg>
   );
 }
@@ -90,38 +90,7 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
   );
 }
 
-function actionsFor(status: string): { action: string; label: string; variant: "secondary" | "danger"; endpoint?: string }[] {
-  switch (status) {
-    case "active":
-    case "grace":
-      return [
-        { action: "freeze", label: "Freeze", variant: "secondary" },
-        { action: "ban", label: "Ban", variant: "danger" },
-      ];
-    case "frozen":
-      return [{ action: "unfreeze", label: "Unfreeze", variant: "secondary" }];
-    case "banned":
-      return [{ action: "unban", label: "Unban", variant: "secondary" }];
-    case "pending_activation":
-      return [
-        { action: "resend_invite", label: "Resend invite", variant: "secondary" },
-        { action: "cancel", label: "Cancel", variant: "danger" },
-      ];
-    case "pending_approval":
-      return [];
-    case "expired":
-      return [
-        { action: "resend_invite", label: "Resend invite", variant: "secondary" },
-        { action: "cancel", label: "Remove", variant: "danger" },
-      ];
-    case "cancelled":
-      return [
-        { action: "resend_invite", label: "Resend invite", variant: "secondary" },
-      ];
-    default:
-      return [];
-  }
-}
+
 
 function roleBadge(role: string) {
   switch (role) {
@@ -149,6 +118,14 @@ export default function MembersPage() {
   const [copied, setCopied] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [tab, setTab] = useState<"all" | "approvals">("all");
+
+  // Delete member
+  const [deletingMember, setDeletingMember] = useState<MemberDirectoryItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const isOwner = currentUser?.role === "owner";
+  const canManage = isOwner || currentUser?.role === "manager";
 
   async function copyCode(code: string) {
     try {
@@ -219,11 +196,26 @@ export default function MembersPage() {
     }
   }
 
+  async function confirmDelete() {
+    if (!deletingMember) return;
+    setDeleteError("");
+    setDeleteLoading(true);
+    try {
+      await api.del(`/members/${deletingMember.member_id}`);
+      setDeletingMember(null);
+      await load();
+    } catch (e) {
+      setDeleteError((e as ApiError).message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   const pending = (members ?? []).filter((m) => m.member_status === "pending_approval");
 
   const filtered = ((tab === "approvals" ? pending : members ?? [])).filter((m) => {
     const q = query.toLowerCase();
-    return !q || m.email.toLowerCase().includes(q) || (m.full_name ?? "").toLowerCase().includes(q);
+    return !q || m.email.toLowerCase().includes(q) || (m.display_name || m.full_name || "").toLowerCase().includes(q);
   });
 
   function tabBtn(t: "all" | "approvals", label: string, count: number) {
@@ -326,6 +318,32 @@ export default function MembersPage() {
         </form>
       </Dialog>
 
+      {/* Delete member confirmation */}
+      <Dialog
+        open={!!deletingMember}
+        onClose={() => setDeletingMember(null)}
+        title=""
+        subtitle=""
+        hideTitle
+      >
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--danger-bg)]">
+            <svg className="h-6 w-6 text-[var(--danger)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h3 className="mb-1 text-lg font-semibold text-[var(--foreground)]">Delete member</h3>
+          <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
+            Are you sure you want to delete <span className="font-medium text-[var(--foreground)]">{deletingMember?.display_name || deletingMember?.full_name || deletingMember?.email}</span>? This will permanently remove them from the organization. This action cannot be undone.
+          </p>
+          {deleteError && <div className="mb-4"><Alert>{deleteError}</Alert></div>}
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={() => setDeletingMember(null)} className="flex-1">Cancel</Button>
+            <Button variant="danger" onClick={confirmDelete} loading={deleteLoading} className="flex-1">Delete</Button>
+          </div>
+        </div>
+      </Dialog>
+
       <Card>
         <CardHeader
           title="Member directory"
@@ -378,18 +396,17 @@ export default function MembersPage() {
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {filtered.map((m) => {
-                  const isCurrentUser = m.member_id === currentUser?.member_id;
-                  const isOwner = m.role === "owner";
-                  const canAct = !isOwner && !isCurrentUser;
+                  const isRowOwner = m.role === "owner";
+                  const isRowSelf = m.member_id === currentUser?.member_id;
                   return (
                     <tr key={m.member_id} className="transition-colors hover:bg-[var(--background)]">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <Avatar name={m.full_name || m.email} size="sm" />
+                          <Avatar name={m.display_name || m.full_name || m.email} size="sm" />
                           <div>
                             <div className="font-medium text-[var(--foreground)]">
-                              {m.full_name || "—"}
-                              {isCurrentUser && <span className="ml-1.5 text-xs text-[var(--muted)]">(you)</span>}
+                              {m.display_name || m.full_name || "—"}
+                              {isRowSelf && <span className="ml-1.5 text-xs text-[var(--muted)]">(you)</span>}
                             </div>
                           </div>
                         </div>
@@ -401,19 +418,39 @@ export default function MembersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
-                          {canAct && m.member_status === "pending_approval" ? (
+                          {canManage && !isRowSelf && !isRowOwner ? (
                             <KebabMenu
-                              actions={[
-                                { label: "Approve", onClick: () => act(m.member_id, "approve", "approval") },
-                                { label: "Reject", onClick: () => act(m.member_id, "reject", "approval"), danger: true },
-                              ]}
+                              actions={(() => {
+                                const s = m.member_status;
+                                const a: MenuAction[] = [];
+                                if (s === "pending_approval") {
+                                  a.push({ label: "Approve", onClick: () => act(m.member_id, "approve", "approval") });
+                                  a.push({ label: "Reject", onClick: () => act(m.member_id, "reject", "approval"), danger: true });
+                                } else {
+                                  if (s === "active" || s === "grace") {
+                                    a.push({ label: "Freeze", onClick: () => act(m.member_id, "freeze") });
+                                    a.push({ label: "Ban", onClick: () => act(m.member_id, "ban"), danger: true });
+                                  }
+                                  if (s === "frozen") {
+                                    a.push({ label: "Unfreeze", onClick: () => act(m.member_id, "unfreeze") });
+                                  }
+                                  if (s === "banned") {
+                                    a.push({ label: "Unban", onClick: () => act(m.member_id, "unban") });
+                                  }
+                                  if (s === "pending_activation" || s === "expired") {
+                                    a.push({ label: "Resend invite", onClick: () => act(m.member_id, "resend_invite") });
+                                    a.push({ label: s === "expired" ? "Remove" : "Cancel", onClick: () => act(m.member_id, "cancel"), danger: true });
+                                  }
+                                  if (s === "cancelled") {
+                                    a.push({ label: "Resend invite", onClick: () => act(m.member_id, "resend_invite") });
+                                  }
+                                  if (isOwner) {
+                                    a.push({ label: "Delete member", onClick: () => setDeletingMember(m), danger: true });
+                                  }
+                                }
+                                return a;
+                              })()}
                             />
-                          ) : canAct ? (
-                            actionsFor(m.member_status).map((a) => (
-                              <Button key={a.action} variant={a.variant} size="sm" onClick={() => act(m.member_id, a.action, a.endpoint)}>
-                                {a.label}
-                              </Button>
-                            ))
                           ) : null}
                         </div>
                       </td>

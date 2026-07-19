@@ -321,7 +321,7 @@ export default function StaffPage() {
         open={!!editingEmail}
         onClose={() => setEditingEmail(null)}
         title="Edit email"
-        subtitle={`Change email for ${editingEmail?.full_name || editingEmail?.email}`}
+        subtitle={`Change email for ${editingEmail?.display_name || editingEmail?.full_name || editingEmail?.email}`}
       >
         <div className="space-y-4">
           {emailError && <Alert>{emailError}</Alert>}
@@ -345,7 +345,7 @@ export default function StaffPage() {
         open={!!changingRole}
         onClose={() => setChangingRole(null)}
         title="Change role"
-        subtitle={`Change role for ${changingRole?.full_name || changingRole?.email}`}
+        subtitle={`Change role for ${changingRole?.display_name || changingRole?.full_name || changingRole?.email}`}
       >
         <div className="space-y-4">
           {roleChangeError && <Alert>{roleChangeError}</Alert>}
@@ -386,7 +386,7 @@ export default function StaffPage() {
           </div>
           <h3 className="mb-1 text-lg font-semibold text-[var(--foreground)]">Remove staff member</h3>
           <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
-            Are you sure you want to remove <span className="font-medium text-[var(--foreground)]">{removing?.full_name || removing?.email}</span> from staff? Their membership will be cancelled.
+            Are you sure you want to remove <span className="font-medium text-[var(--foreground)]">{removing?.display_name || removing?.full_name || removing?.email}</span> from staff? Their membership will be cancelled.
           </p>
           {removeError && <div className="mb-4"><Alert>{removeError}</Alert></div>}
           <div className="flex gap-3">
@@ -426,7 +426,7 @@ export default function StaffPage() {
                 {staff.map((s) => (
                   <tr key={s.member_id} className="transition-colors hover:bg-[var(--background)]">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-[var(--foreground)]">{s.full_name || "—"}</p>
+                      <p className="font-medium text-[var(--foreground)]">{s.display_name || s.full_name || "—"}</p>
                     </td>
                     <td className="px-4 py-3 text-[var(--foreground-muted)]">{s.email}</td>
                     <td className="px-4 py-3">

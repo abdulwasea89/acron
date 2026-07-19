@@ -9,6 +9,7 @@ from app.api.deps import get_session, require_capability
 from app.core.constants import MemberStatus, Role
 from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
+from app.schemas.common import Message
 from app.schemas.members import (
     ApprovalDecision,
     EmailUpdate,
@@ -27,6 +28,7 @@ router = APIRouter()
 def _item(m, u) -> MemberDirectoryItem:
     return MemberDirectoryItem(
         member_id=m.id, user_id=u.id, email=u.email, full_name=u.full_name,
+        display_name=m.display_name,
         role=m.role.value, member_status=m.member_status.value, phone=m.phone,
         profile_complete=m.profile_complete,
     )
@@ -110,6 +112,17 @@ async def change_email(
 
     user = await session.get(User, member.user_id)
     return _item(member, user)
+
+
+@router.delete("/{member_id}", response_model=Message)
+async def delete_member(
+    member_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    await members.delete_member(session, org_id=ctx.org_id, member_id=member_id,
+                                actor_user_id=ctx.user_id, actor_role=ctx.role)
+    return Message(message="Member deleted.")
 
 
 def _invite_out(member, email: str, code: str) -> MemberInviteOut:

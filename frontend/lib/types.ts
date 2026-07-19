@@ -82,6 +82,7 @@ export interface MemberDirectoryItem {
   user_id: string;
   email: string;
   full_name: string | null;
+  display_name: string | null;
   role: string;
   member_status: string;
   phone: string | null;

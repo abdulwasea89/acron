@@ -338,3 +338,21 @@ async def bulk_import_csv(
                        entity_type="organization", entity_id=org_id,
                        metadata={"created": created, "skipped": skipped, "errors": len(errors)})
     return {"created": created, "skipped": skipped, "errors": errors}
+
+
+async def delete_member(
+    session: AsyncSession, *, org_id: str, member_id: str, actor_user_id: str, actor_role: Role,
+) -> None:
+    if actor_role != Role.OWNER:
+        raise HTTPException(status_code=403, detail="Only the owner can delete a member.")
+    member = await session.get(OrganizationMember, member_id)
+    if member is None or member.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Member not found.")
+    if member.role == Role.OWNER:
+        raise HTTPException(status_code=422, detail="Cannot delete the owner.")
+    if member.user_id == actor_user_id:
+        raise HTTPException(status_code=422, detail="Cannot delete yourself.")
+    await record_audit(session, action="member.deleted", organization_id=org_id, actor_user_id=actor_user_id,
+                       entity_type="member", entity_id=member.id,
+                       metadata={"deleted_user_id": member.user_id, "deleted_role": member.role.value})
+    await session.delete(member)

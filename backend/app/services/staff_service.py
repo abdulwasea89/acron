@@ -155,6 +155,7 @@ async def redeem_invite(
     member = OrganizationMember(
         organization_id=invite.organization_id, user_id=user.id, role=role,
         member_status=MemberStatus.ACTIVE, joined_at=now_utc(), profile_complete=True,
+        display_name=full_name,
     )
     session.add(member)
     invite.used = True

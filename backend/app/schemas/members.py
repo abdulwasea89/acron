@@ -10,6 +10,7 @@ class MemberDirectoryItem(BaseModel):
     user_id: str
     email: str
     full_name: str | None
+    display_name: str | None = None
     role: str
     member_status: str
     phone: str | None

@@ -25,6 +25,7 @@ class OrganizationMember(UUIDModel, TimestampModel, table=True):
     member_status: MemberStatus = Field(default=MemberStatus.PENDING_PAYMENT, index=True)
 
     # Member profile (Section 8.7)
+    display_name: str | None = None  # org-scoped name, independent of User.full_name
     phone: str | None = None
     photo_url: str | None = None
     emergency_contact: str | None = None
