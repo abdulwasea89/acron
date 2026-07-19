@@ -68,6 +68,40 @@ async def revoke_invite(
     return invite
 
 
+async def update_invite_email(
+    session: AsyncSession, *, org_id: str, invite_id: str, email: str, actor_id: str
+) -> StaffInvite:
+    invite = await session.get(StaffInvite, invite_id)
+    if invite is None or invite.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Invite not found.")
+    if invite.used:
+        raise HTTPException(status_code=409, detail="Cannot edit a redeemed invite.")
+    invite.email = email.lower()
+    session.add(invite)
+    await record_audit(session, action="staff.invite_email_updated", organization_id=org_id,
+                       actor_user_id=actor_id, entity_type="staff_invite", entity_id=invite.id,
+                       new_values={"email": email})
+    return invite
+
+
+async def update_invite_role(
+    session: AsyncSession, *, org_id: str, invite_id: str, role: str, actor_id: str
+) -> StaffInvite:
+    if role not in {Role.TRAINER.value, Role.FRONT_DESK.value, Role.MANAGER.value}:
+        raise HTTPException(status_code=422, detail="Invalid staff role.")
+    invite = await session.get(StaffInvite, invite_id)
+    if invite is None or invite.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Invite not found.")
+    if invite.used:
+        raise HTTPException(status_code=409, detail="Cannot edit a redeemed invite.")
+    invite.role = role
+    session.add(invite)
+    await record_audit(session, action="staff.invite_role_updated", organization_id=org_id,
+                       actor_user_id=actor_id, entity_type="staff_invite", entity_id=invite.id,
+                       new_values={"role": role})
+    return invite
+
+
 async def list_invites(session: AsyncSession, *, org_id: str) -> list[StaffInvite]:
     return list(
         (

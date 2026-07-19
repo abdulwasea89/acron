@@ -28,7 +28,7 @@ export default function StaffPage() {
 
   // Kebab menu
   const [menuMember, setMenuMember] = useState<MemberDirectoryItem | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
 
   // Role change
   const [changingRole, setChangingRole] = useState<MemberDirectoryItem | null>(null);
@@ -50,6 +50,22 @@ export default function StaffPage() {
   // Revoke invite
   const [revoking, setRevoking] = useState<StaffInviteOut | null>(null);
   const [revokeLoading, setRevokeLoading] = useState(false);
+
+  // Invite kebab menu
+  const [menuInvite, setMenuInvite] = useState<StaffInviteOut | null>(null);
+  const [menuInvitePos, setMenuInvitePos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+
+  // Invite email edit
+  const [editingInviteEmail, setEditingInviteEmail] = useState<StaffInviteOut | null>(null);
+  const [inviteEmailValue, setInviteEmailValue] = useState("");
+  const [inviteEmailError, setInviteEmailError] = useState("");
+  const [inviteEmailLoading, setInviteEmailLoading] = useState(false);
+
+  // Invite role change
+  const [changingInviteRole, setChangingInviteRole] = useState<StaffInviteOut | null>(null);
+  const [inviteRoleValue, setInviteRoleValue] = useState("");
+  const [inviteRoleError, setInviteRoleError] = useState("");
+  const [inviteRoleLoading, setInviteRoleLoading] = useState(false);
 
   const isOwner = currentUser?.role === "owner";
 
@@ -80,18 +96,34 @@ export default function StaffPage() {
   const pendingInvites = invites.filter((i) => !i.used);
 
   useEffect(() => {
-    if (!menuMember) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") closeMenu(); };
+    if (!menuMember && !menuInvite) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") { closeMenu(); closeInviteMenu(); } };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [menuMember]);
+  }, [Boolean(menuMember || menuInvite)]);
 
   function closeMenu() { setMenuMember(null); setMenuPos(null); }
 
   function openMenu(member: MemberDirectoryItem, e: React.MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPos({ top: rect.bottom + 4, right: document.documentElement.clientWidth - rect.right });
+    const vh = window.innerHeight;
+    const top = rect.bottom + 4;
+    setMenuPos(top + 200 > vh
+      ? { bottom: vh - rect.top + 4, right: document.documentElement.clientWidth - rect.right }
+      : { top, right: document.documentElement.clientWidth - rect.right });
     setMenuMember(member);
+  }
+
+  function closeInviteMenu() { setMenuInvite(null); setMenuInvitePos(null); }
+
+  function openInviteMenu(invite: StaffInviteOut, e: React.MouseEvent) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const vh = window.innerHeight;
+    const top = rect.bottom + 4;
+    setMenuInvitePos(top + 200 > vh
+      ? { bottom: vh - rect.top + 4, right: document.documentElement.clientWidth - rect.right }
+      : { top, right: document.documentElement.clientWidth - rect.right });
+    setMenuInvite(invite);
   }
 
   async function createInvite(e: React.FormEvent) {
@@ -172,6 +204,38 @@ export default function StaffPage() {
       // best-effort
     } finally {
       setRevokeLoading(false);
+    }
+  }
+
+  async function submitInviteEmailChange() {
+    if (!editingInviteEmail || !inviteEmailValue.trim()) return;
+    setInviteEmailError("");
+    setInviteEmailLoading(true);
+    try {
+      await api.patch(`/staff/invites/${editingInviteEmail.id}/email`, { email: inviteEmailValue.trim() });
+      setEditingInviteEmail(null);
+      setInviteEmailValue("");
+      load();
+    } catch (e) {
+      setInviteEmailError((e as ApiError).message);
+    } finally {
+      setInviteEmailLoading(false);
+    }
+  }
+
+  async function submitInviteRoleChange() {
+    if (!changingInviteRole || !inviteRoleValue) return;
+    setInviteRoleError("");
+    setInviteRoleLoading(true);
+    try {
+      await api.patch(`/staff/invites/${changingInviteRole.id}/role`, { role: inviteRoleValue });
+      setChangingInviteRole(null);
+      setInviteRoleValue("");
+      load();
+    } catch (e) {
+      setInviteRoleError((e as ApiError).message);
+    } finally {
+      setInviteRoleLoading(false);
     }
   }
 
@@ -402,7 +466,7 @@ export default function StaffPage() {
           <div className="fixed inset-0 z-40" onClick={closeMenu} />
           <div
             className="fixed z-50 min-w-[160px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
-            style={{ top: menuPos.top, right: menuPos.right }}
+            style={{ top: menuPos.top, bottom: menuPos.bottom, right: menuPos.right }}
           >
             <button
               type="button"
@@ -465,6 +529,105 @@ export default function StaffPage() {
         </div>
       </Dialog>
 
+      {/* Invite email edit dialog */}
+      <Dialog
+        open={!!editingInviteEmail}
+        onClose={() => setEditingInviteEmail(null)}
+        title="Edit invite email"
+        subtitle={`Change email for the pending invite`}
+      >
+        <div className="space-y-4">
+          {inviteEmailError && <Alert>{inviteEmailError}</Alert>}
+          <Input
+            label="New email"
+            type="email"
+            required
+            value={inviteEmailValue}
+            onChange={(e) => setInviteEmailValue(e.target.value)}
+            placeholder="newemail@example.com"
+          />
+          <div className="flex gap-2 pt-2">
+            <Button onClick={submitInviteEmailChange} loading={inviteEmailLoading}>Save</Button>
+            <Button variant="ghost" onClick={() => setEditingInviteEmail(null)}>Cancel</Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Invite role change dialog */}
+      <Dialog
+        open={!!changingInviteRole}
+        onClose={() => setChangingInviteRole(null)}
+        title="Change invite role"
+        subtitle={`Change role for the pending invite`}
+      >
+        <div className="space-y-4">
+          {inviteRoleError && <Alert>{inviteRoleError}</Alert>}
+          <Select label="New role" value={inviteRoleValue || "manager"} onChange={(e) => setInviteRoleValue(e.target.value)}>
+            <option value="manager">Manager</option>
+            <option value="trainer">Trainer</option>
+            <option value="front_desk">Front Desk</option>
+          </Select>
+          <div className="flex gap-2 pt-2">
+            <Button onClick={submitInviteRoleChange} loading={inviteRoleLoading}>Save</Button>
+            <Button variant="ghost" onClick={() => setChangingInviteRole(null)}>Cancel</Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Invite kebab menu portal */}
+      {menuInvite && menuInvitePos && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={closeInviteMenu} />
+          <div
+            className="fixed z-50 min-w-[160px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
+            style={{ top: menuInvitePos.top, bottom: menuInvitePos.bottom, right: menuInvitePos.right }}
+          >
+            <button
+              type="button"
+              onClick={() => { closeInviteMenu(); setEditingInviteEmail(menuInvite); setInviteEmailValue(menuInvite.email || ""); setInviteEmailError(""); }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--background)]"
+            >
+              <svg className="h-3.5 w-3.5 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+              Edit email
+            </button>
+            <button
+              type="button"
+              onClick={() => { closeInviteMenu(); setChangingInviteRole(menuInvite); setInviteRoleValue(menuInvite.role); setInviteRoleError(""); }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--background)]"
+            >
+              <svg className="h-3.5 w-3.5 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+              Change role
+            </button>
+            <button
+              type="button"
+              onClick={() => { closeInviteMenu(); navigator.clipboard.writeText(menuInvite.code); }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--background)]"
+            >
+              <svg className="h-3.5 w-3.5 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+              </svg>
+              Copy code
+            </button>
+            <hr className="border-t border-[var(--border)]" />
+            <button
+              type="button"
+              onClick={() => { closeInviteMenu(); setRevoking(menuInvite); }}
+              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--danger)] transition-colors hover:bg-[var(--background)]"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              Revoke
+            </button>
+          </div>
+        </>,
+        document.body,
+      )}
+
       {/* Pending invites (owner only) */}
       {isOwner && pendingInvites.length > 0 && (
         <Card className="mt-4">
@@ -479,7 +642,7 @@ export default function StaffPage() {
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3" />
+                  <th className="w-24 px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -490,8 +653,18 @@ export default function StaffPage() {
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs text-[var(--muted)]" title={inv.code}>{maskCode(inv.code)}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <Button variant="ghost" size="sm" onClick={() => setRevoking(inv)}>Revoke</Button>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => openInviteMenu(inv, e)}
+                        className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+                      >
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="5" r="1.5" />
+                          <circle cx="12" cy="12" r="1.5" />
+                          <circle cx="12" cy="19" r="1.5" />
+                        </svg>
+                      </button>
                     </td>
                   </tr>
                 ))}

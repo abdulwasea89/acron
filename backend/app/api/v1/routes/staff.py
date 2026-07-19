@@ -14,6 +14,8 @@ from app.schemas.auth import LoginResponse
 from app.schemas.common import Message
 from app.schemas.staff import (
     CompensationUpdate,
+    InviteEmailUpdate,
+    InviteRoleUpdate,
     ShiftOut,
     StaffInviteCreate,
     StaffInviteOut,
@@ -47,6 +49,32 @@ async def list_invites(
         StaffInviteOut(id=i.id, code=i.code, role=i.role, email=i.email, used=i.used)
         for i in await staff.list_invites(session, org_id=ctx.org_id)
     ]
+
+
+@router.patch("/invites/{invite_id}/email", response_model=StaffInviteOut)
+async def update_invite_email(
+    invite_id: str,
+    data: InviteEmailUpdate,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    invite = await staff.update_invite_email(session, org_id=ctx.org_id, invite_id=invite_id,
+                                              email=data.email, actor_id=ctx.user_id)
+    return StaffInviteOut(id=invite.id, code=invite.code, role=invite.role,
+                          email=invite.email, used=invite.used)
+
+
+@router.patch("/invites/{invite_id}/role", response_model=StaffInviteOut)
+async def update_invite_role(
+    invite_id: str,
+    data: InviteRoleUpdate,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    invite = await staff.update_invite_role(session, org_id=ctx.org_id, invite_id=invite_id,
+                                             role=data.role, actor_id=ctx.user_id)
+    return StaffInviteOut(id=invite.id, code=invite.code, role=invite.role,
+                          email=invite.email, used=invite.used)
 
 
 @router.delete("/invites/{invite_id}", response_model=Message)

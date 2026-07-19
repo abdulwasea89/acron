@@ -22,6 +22,14 @@ class StaffInviteOut(BaseModel):
     used: bool
 
 
+class InviteEmailUpdate(BaseModel):
+    email: str
+
+
+class InviteRoleUpdate(BaseModel):
+    role: str
+
+
 class StaffInviteRedeem(BaseModel):
     code: str
     full_name: str
