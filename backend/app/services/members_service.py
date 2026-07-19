@@ -106,6 +106,21 @@ async def change_role(
     return member
 
 
+async def update_email(
+    session: AsyncSession, *, org_id: str, member_id: str, new_email: str, actor_id: str
+) -> OrganizationMember:
+    member = await _get_member(session, org_id, member_id)
+    user = await session.get(User, member.user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+    user.email = new_email.lower().strip()
+    session.add(user)
+    await record_audit(session, action="member.email_updated", organization_id=org_id, actor_user_id=actor_id,
+                       entity_type="member", entity_id=member.id,
+                       metadata={"new_email": new_email})
+    return member
+
+
 # ------------------------------------------------------- approval queue
 async def approval_queue(session: AsyncSession, *, org_id: str) -> list[tuple[OrganizationMember, User]]:
     return await directory(session, org_id=org_id, status=MemberStatus.PENDING_APPROVAL)

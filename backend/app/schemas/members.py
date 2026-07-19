@@ -27,6 +27,10 @@ class RoleChange(BaseModel):
     role: str
 
 
+class EmailUpdate(BaseModel):
+    email: EmailStr
+
+
 class ApprovalDecision(BaseModel):
     approve: bool
     reason: str | None = None

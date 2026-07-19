@@ -49,6 +49,16 @@ async def list_invites(
     ]
 
 
+@router.delete("/invites/{invite_id}", response_model=Message)
+async def revoke_invite(
+    invite_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    await staff.revoke_invite(session, org_id=ctx.org_id, invite_id=invite_id, actor_id=ctx.user_id)
+    return Message(message="Invite revoked.")
+
+
 @router.post("/invites/redeem", response_model=LoginResponse)
 async def redeem_invite(data: StaffInviteRedeem, session: AsyncSession = Depends(get_session)):
     member, access, refresh = await staff.redeem_invite(

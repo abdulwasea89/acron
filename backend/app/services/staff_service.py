@@ -53,6 +53,21 @@ async def create_invite(
     return invite
 
 
+async def revoke_invite(
+    session: AsyncSession, *, org_id: str, invite_id: str, actor_id: str
+) -> StaffInvite:
+    invite = await session.get(StaffInvite, invite_id)
+    if invite is None or invite.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Invite not found.")
+    if invite.used:
+        raise HTTPException(status_code=409, detail="Invite already redeemed.")
+    invite.used = True
+    session.add(invite)
+    await record_audit(session, action="staff.invite_revoked", organization_id=org_id, actor_user_id=actor_id,
+                       entity_type="staff_invite", entity_id=invite.id)
+    return invite
+
+
 async def list_invites(session: AsyncSession, *, org_id: str) -> list[StaffInvite]:
     return list(
         (

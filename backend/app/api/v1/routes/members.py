@@ -11,6 +11,7 @@ from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
 from app.schemas.members import (
     ApprovalDecision,
+    EmailUpdate,
     MemberDirectoryItem,
     MemberInvite,
     MemberInviteOut,
@@ -90,6 +91,21 @@ async def change_role(
 ):
     member = await members.change_role(session, org_id=ctx.org_id, member_id=member_id,
                                         new_role=data.role, actor_id=ctx.user_id, actor_role=ctx.role)
+    from app.models.user import User
+
+    user = await session.get(User, member.user_id)
+    return _item(member, user)
+
+
+@router.patch("/{member_id}/email", response_model=MemberDirectoryItem)
+async def change_email(
+    member_id: str,
+    data: EmailUpdate,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    member = await members.update_email(session, org_id=ctx.org_id, member_id=member_id,
+                                         new_email=data.email, actor_id=ctx.user_id)
     from app.models.user import User
 
     user = await session.get(User, member.user_id)
