@@ -129,6 +129,36 @@ export interface ApiError {
   detail: string | { msg: string }[];
 }
 
+// ------------------------------------------------------------------ staff
+export interface StaffInviteOut {
+  id: string;
+  code: string;
+  role: string;
+  email: string | null;
+  used: boolean;
+}
+
+// --------------------------------------------------------------- classes
+export interface ClassSessionOut {
+  id: string;
+  title: string;
+  trainer_member_id: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  capacity: number;
+  booked_count: number;
+  trainer_checked_in: boolean;
+  cancelled: boolean;
+}
+
+export interface ClassSessionCreate {
+  title: string;
+  trainer_member_id?: string;
+  starts_at: string;
+  ends_at?: string;
+  capacity?: number;
+}
+
 // ---------------------------------------------------------------- payroll
 export interface PayrollEntry {
   id: string;

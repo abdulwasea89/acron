@@ -83,6 +83,29 @@ async def change_status(
     return member
 
 
+async def change_role(
+    session: AsyncSession, *, org_id: str, member_id: str, new_role: str, actor_id: str, actor_role: Role
+) -> OrganizationMember:
+    member = await _get_member(session, org_id, member_id)
+    if actor_role != Role.OWNER:
+        raise HTTPException(status_code=403, detail="Only owners can change roles.")
+    if member.role == Role.OWNER:
+        raise HTTPException(status_code=403, detail="Cannot change the owner's role.")
+    try:
+        parsed = Role(new_role)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid role: {new_role}")
+    if parsed not in {Role.MANAGER, Role.TRAINER, Role.FRONT_DESK, Role.MEMBER}:
+        raise HTTPException(status_code=422, detail="Invalid role.")
+    old_role = member.role
+    member.role = parsed
+    session.add(member)
+    await record_audit(session, action="member.role_changed", organization_id=org_id, actor_user_id=actor_id,
+                       entity_type="member", entity_id=member.id,
+                       metadata={"old_role": old_role.value, "new_role": parsed.value})
+    return member
+
+
 # ------------------------------------------------------- approval queue
 async def approval_queue(session: AsyncSession, *, org_id: str) -> list[tuple[OrganizationMember, User]]:
     return await directory(session, org_id=org_id, status=MemberStatus.PENDING_APPROVAL)

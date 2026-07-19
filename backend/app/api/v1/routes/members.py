@@ -15,6 +15,7 @@ from app.schemas.members import (
     MemberInvite,
     MemberInviteOut,
     MemberStatusChange,
+    RoleChange,
 )
 from app.schemas.organizations import BulkImportResult
 from app.services import members_service as members
@@ -74,6 +75,21 @@ async def change_status(
 ):
     member = await members.change_status(session, org_id=ctx.org_id, member_id=member_id,
                                           action=data.action, reason=data.reason, actor_id=ctx.user_id)
+    from app.models.user import User
+
+    user = await session.get(User, member.user_id)
+    return _item(member, user)
+
+
+@router.patch("/{member_id}/role", response_model=MemberDirectoryItem)
+async def change_role(
+    member_id: str,
+    data: RoleChange,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    member = await members.change_role(session, org_id=ctx.org_id, member_id=member_id,
+                                        new_role=data.role, actor_id=ctx.user_id, actor_role=ctx.role)
     from app.models.user import User
 
     user = await session.get(User, member.user_id)

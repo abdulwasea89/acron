@@ -23,6 +23,10 @@ class MemberStatusChange(BaseModel):
     reason: str | None = None
 
 
+class RoleChange(BaseModel):
+    role: str
+
+
 class ApprovalDecision(BaseModel):
     approve: bool
     reason: str | None = None
