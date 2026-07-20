@@ -320,3 +320,32 @@ export interface ProfileOut {
   gender: string | null;
   photo_url: string | null;
 }
+
+// ------------------------------------------------------------------ audit
+export interface AuditLogOut {
+  id: string;
+  action: string;
+  actor_user_id: string | null;
+  actor_email: string | null;
+  actor_name: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  old_values: Record<string, unknown> | null;
+  new_values: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface AuditLogPage {
+  items: AuditLogOut[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface AuditActionGroup {
+  domain: string;
+  actions: string[];
+}
