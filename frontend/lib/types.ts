@@ -87,6 +87,10 @@ export interface MemberDirectoryItem {
   member_status: string;
   phone: string | null;
   profile_complete: boolean;
+  fixed_monthly_salary: number;
+  hourly_rate: number;
+  per_class_rate: number;
+  commission_rate: number;
 }
 
 export interface HeadlineMetrics {
@@ -131,6 +135,15 @@ export interface ApiError {
 }
 
 // ------------------------------------------------------------------ staff
+export interface ShiftOut {
+  id: string;
+  staff_member_id: string;
+  checked_in_at: string;
+  checked_out_at: string | null;
+  status: string;
+  hours: number;
+}
+
 export interface StaffInviteOut {
   id: string;
   code: string;

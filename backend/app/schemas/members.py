@@ -15,6 +15,10 @@ class MemberDirectoryItem(BaseModel):
     member_status: str
     phone: str | None
     profile_complete: bool
+    fixed_monthly_salary: float = 0.0
+    hourly_rate: float = 0.0
+    per_class_rate: float = 0.0
+    commission_rate: float = 0.0
 
 
 class MemberStatusChange(BaseModel):

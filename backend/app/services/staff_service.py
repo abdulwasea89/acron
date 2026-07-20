@@ -205,6 +205,18 @@ async def _staff_member(session: AsyncSession, org_id: str, user_id: str) -> Org
     return member
 
 
+async def get_current_shift(session: AsyncSession, *, org_id: str, user_id: str) -> Shift | None:
+    member = await _staff_member(session, org_id, user_id)
+    return (
+        await session.execute(
+            select(Shift).where(
+                Shift.staff_member_id == member.id,
+                Shift.status == ShiftStatus.CHECKED_IN,
+            ).order_by(Shift.checked_in_at.desc())
+        )
+    ).scalars().first()
+
+
 async def check_in(session: AsyncSession, *, org_id: str, user_id: str) -> Shift:
     member = await _staff_member(session, org_id, user_id)
     open_shift = (
@@ -226,6 +238,8 @@ async def check_in(session: AsyncSession, *, org_id: str, user_id: str) -> Shift
     await session.flush()
     await record_audit(session, action="shift.check_in", organization_id=org_id, actor_user_id=user_id,
                        entity_type="shift", entity_id=shift.id)
+    from app.realtime.events import publish
+    await publish(org_id, "shift.check_in", {"member_id": member.id, "shift_id": shift.id})
     return shift
 
 
@@ -250,6 +264,8 @@ async def check_out(session: AsyncSession, *, org_id: str, user_id: str) -> Shif
     session.add(shift)
     await record_audit(session, action="shift.check_out", organization_id=org_id, actor_user_id=user_id,
                        entity_type="shift", entity_id=shift.id, new_values={"hours": shift.hours})
+    from app.realtime.events import publish
+    await publish(org_id, "shift.check_out", {"member_id": member.id, "shift_id": shift.id, "hours": shift.hours})
     return shift
 
 

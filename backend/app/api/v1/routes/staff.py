@@ -108,6 +108,18 @@ async def set_compensation(
     return Message(message="Compensation updated.")
 
 
+@router.get("/shifts/current", response_model=ShiftOut | None)
+async def shift_current(
+    ctx: TenantContext = Depends(require_capability(Capability.CHECK_IN_SHIFT)),
+    session: AsyncSession = Depends(get_session),
+):
+    s = await staff.get_current_shift(session, org_id=ctx.org_id, user_id=ctx.user_id)
+    if s is None:
+        return None
+    return ShiftOut(id=s.id, staff_member_id=s.staff_member_id, checked_in_at=s.checked_in_at,
+                    checked_out_at=s.checked_out_at, status=s.status.value, hours=s.hours)
+
+
 @router.post("/shifts/check-in", response_model=ShiftOut, status_code=201)
 async def shift_check_in(
     ctx: TenantContext = Depends(require_capability(Capability.CHECK_IN_SHIFT)),

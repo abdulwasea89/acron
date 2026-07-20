@@ -76,10 +76,12 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
   hint?: string;
   error?: string;
+  prefix?: string;
+  suffix?: string;
 };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, hint, error, className, id, ...rest },
+  { label, hint, error, className, id, prefix, suffix, ...rest },
   ref,
 ) {
   return (
@@ -89,22 +91,33 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           {label}
         </span>
       )}
-      <input
-        ref={ref}
-        id={id}
-        className={cx(
-          "h-11 w-full rounded-xl border bg-[#f6f7f9] px-3.5 text-base sm:text-sm text-[var(--foreground)] dark:bg-[var(--background)]",
-          "transition duration-150",
-          "placeholder:text-[var(--muted)]",
-          error
-            ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--danger)]/20"
-            : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10 dark:border-[var(--border)] dark:focus:border-[var(--primary)] dark:focus:ring-[var(--primary)]/20",
-          "focus:outline-none",
-          "disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-[var(--surface)]",
-          className,
+      <div className="relative">
+        {prefix && (
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[var(--muted)]">{prefix}</span>
         )}
-        {...rest}
-      />
+        <input
+          ref={ref}
+          id={id}
+          className={cx(
+            "h-11 w-full rounded-xl border bg-[#f6f7f9] text-base sm:text-sm text-[var(--foreground)] dark:bg-[var(--background)]",
+            "transition duration-150",
+            "placeholder:text-[var(--muted)]",
+            prefix && "pl-7",
+            suffix && "pr-9",
+            !prefix && !suffix && "px-3.5",
+            error
+              ? "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-[var(--danger)]/20"
+              : "border-[#edf0f5] focus:border-neutral-950 focus:ring-2 focus:ring-neutral-950/10 dark:border-[var(--border)] dark:focus:border-[var(--primary)] dark:focus:ring-[var(--primary)]/20",
+            "focus:outline-none",
+            "disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-[var(--surface)]",
+            className,
+          )}
+          {...rest}
+        />
+        {suffix && (
+          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-[var(--muted)]">{suffix}</span>
+        )}
+      </div>
       {hint && !error && (
         <span className="mt-1.5 block text-xs text-[var(--muted)]">{hint}</span>
       )}

@@ -31,6 +31,10 @@ def _item(m, u) -> MemberDirectoryItem:
         display_name=m.display_name,
         role=m.role.value, member_status=m.member_status.value, phone=m.phone,
         profile_complete=m.profile_complete,
+        fixed_monthly_salary=m.fixed_monthly_salary,
+        hourly_rate=m.hourly_rate,
+        per_class_rate=m.per_class_rate,
+        commission_rate=m.commission_rate,
     )
 
 

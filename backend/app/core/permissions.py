@@ -44,7 +44,7 @@ _MATRIX: dict[Capability, set[Role]] = {
     Capability.LOG_CASH_PAYMENT: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
     Capability.UPLOAD_RECEIPT: {Role.MEMBER},
     Capability.BOOK_CLASSES: {Role.MEMBER},
-    Capability.CHECK_IN_SHIFT: {Role.TRAINER, Role.FRONT_DESK},
+    Capability.CHECK_IN_SHIFT: {Role.TRAINER, Role.FRONT_DESK, Role.MANAGER},
     Capability.VIEW_REVENUE_ANALYTICS: {Role.OWNER, Role.MANAGER},
     Capability.MANAGE_SETTINGS: {Role.OWNER},
     Capability.MANAGE_MEMBERS: {Role.OWNER, Role.MANAGER},

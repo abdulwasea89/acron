@@ -8,7 +8,7 @@ import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spin
 import { api, ApiError } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtimeEvent } from "@/components/Realtime";
-import type { StaffInviteOut, MemberDirectoryItem } from "@/lib/types";
+import type { StaffInviteOut, MemberDirectoryItem, ShiftOut } from "@/lib/types";
 
 const STAFF_ROLES = ["manager", "trainer", "front_desk"];
 
@@ -67,7 +67,21 @@ export default function StaffPage() {
   const [inviteRoleError, setInviteRoleError] = useState("");
   const [inviteRoleLoading, setInviteRoleLoading] = useState(false);
 
+  // Shift check-in/out
+  const [currentShift, setCurrentShift] = useState<ShiftOut | null>(null);
+  const [shiftLoading, setShiftLoading] = useState(false);
+  const [shiftError, setShiftError] = useState("");
+  const [shiftErrorTimer, setShiftErrorTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [shiftTime, setShiftTime] = useState("");
+
+  // Compensation
+  const [compMember, setCompMember] = useState<MemberDirectoryItem | null>(null);
+  const [compValues, setCompValues] = useState({ fixed_monthly_salary: 0, hourly_rate: 0, per_class_rate: 0, commission_rate: 0 });
+  const [compLoading, setCompLoading] = useState(false);
+  const [compError, setCompError] = useState("");
+
   const isOwner = currentUser?.role === "owner";
+  const isStaff = isOwner || currentUser?.role === "manager" || currentUser?.role === "trainer" || currentUser?.role === "front_desk";
 
   const load = useCallback(async () => {
     setError("");
@@ -91,6 +105,79 @@ export default function StaffPage() {
   }, [load]);
 
   useRealtimeEvent(["staff.changed", "member.status_changed"], load);
+
+  const loadShift = useCallback(async () => {
+    try {
+      const s = await api.get<ShiftOut | null>("/staff/shifts/current");
+      setCurrentShift(s);
+      if (s?.status === "checked_in") {
+        const dur = Date.now() - new Date(s.checked_in_at + "Z").getTime();
+        setShiftTime(formatDuration(dur));
+      } else {
+        setShiftTime("");
+      }
+    } catch {
+      // best-effort
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isStaff) return;
+    queueMicrotask(() => void loadShift());
+  }, [loadShift, isStaff]);
+
+  useEffect(() => {
+    if (!isStaff || currentShift?.status !== "checked_in") return;
+    const interval = setInterval(() => {
+      const dur = Date.now() - new Date(currentShift.checked_in_at + "Z").getTime();
+      setShiftTime(formatDuration(dur));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isStaff, currentShift?.status, currentShift?.checked_in_at]);
+
+  useRealtimeEvent(["shift.check_in", "shift.check_out"], loadShift);
+
+  function formatDuration(ms: number): string {
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+
+  async function handleCheckIn() {
+    setShiftLoading(true);
+    setShiftError("");
+    if (shiftErrorTimer) clearTimeout(shiftErrorTimer);
+    try {
+      const s = await api.post<ShiftOut>("/staff/shifts/check-in");
+      setCurrentShift(s);
+      setShiftTime("00:00:00");
+    } catch (e) {
+      const msg = (e as ApiError).message;
+      setShiftError(msg);
+      setShiftErrorTimer(setTimeout(() => setShiftError(""), 5000));
+    } finally {
+      setShiftLoading(false);
+    }
+  }
+
+  async function handleCheckOut() {
+    setShiftLoading(true);
+    setShiftError("");
+    if (shiftErrorTimer) clearTimeout(shiftErrorTimer);
+    try {
+      const s = await api.post<ShiftOut>("/staff/shifts/check-out");
+      setCurrentShift(s);
+      setShiftTime("");
+    } catch (e) {
+      const msg = (e as ApiError).message;
+      setShiftError(msg);
+      setShiftErrorTimer(setTimeout(() => setShiftError(""), 5000));
+    } finally {
+      setShiftLoading(false);
+    }
+  }
 
   const staff = (members ?? []).filter((m) => STAFF_ROLES.includes(m.role));
   const pendingInvites = invites.filter((i) => !i.used);
@@ -204,6 +291,26 @@ export default function StaffPage() {
       // best-effort
     } finally {
       setRevokeLoading(false);
+    }
+  }
+
+  async function saveCompensation() {
+    if (!compMember) return;
+    setCompError("");
+    setCompLoading(true);
+    try {
+      await api.patch(`/staff/${compMember.member_id}/compensation`, {
+        fixed_monthly_salary: compValues.fixed_monthly_salary || 0,
+        hourly_rate: compValues.hourly_rate || 0,
+        per_class_rate: compValues.per_class_rate || 0,
+        commission_rate: compValues.commission_rate || 0,
+      });
+      setCompMember(null);
+      load();
+    } catch (e) {
+      setCompError((e as ApiError).message);
+    } finally {
+      setCompLoading(false);
     }
   }
 
@@ -397,7 +504,7 @@ export default function StaffPage() {
       </Dialog>
 
       {/* Staff directory */}
-      <Card>
+      <Card className="mb-4">
         <CardHeader
           title="Active staff"
           subtitle={staff ? `${staff.length} staff member${staff.length === 1 ? "" : "s"}` : undefined}
@@ -419,6 +526,7 @@ export default function StaffPage() {
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Status</th>
+                  {isOwner && <th className="px-4 py-3">Rates</th>}
                   {isOwner && <th className="w-12 px-4 py-3" />}
                 </tr>
               </thead>
@@ -435,6 +543,23 @@ export default function StaffPage() {
                     <td className="px-4 py-3">
                       <Badge tone={s.member_status === "active" ? "success" : "neutral"}>{s.member_status}</Badge>
                     </td>
+                    {isOwner && (
+                      <td className="px-4 py-3 text-xs text-[var(--foreground-muted)]">
+                        {["trainer", "front_desk", "manager"].includes(s.role) ? (
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                            {s.fixed_monthly_salary > 0 && <span>${s.fixed_monthly_salary}/mo</span>}
+                            {s.hourly_rate > 0 && <span>${s.hourly_rate}/hr</span>}
+                            {s.per_class_rate > 0 && <span>${s.per_class_rate}/class</span>}
+                            {s.commission_rate > 0 && <span>{s.commission_rate * 100}% comm</span>}
+                            {s.fixed_monthly_salary === 0 && s.hourly_rate === 0 && s.per_class_rate === 0 && s.commission_rate === 0 && (
+                              <span className="text-[var(--muted)] italic">Not set</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[var(--muted)]">—</span>
+                        )}
+                      </td>
+                    )}
                     {isOwner && (
                       <td className="px-4 py-3">
                         <div className="flex justify-end">
@@ -488,6 +613,28 @@ export default function StaffPage() {
               </svg>
               Edit email
             </button>
+            {["trainer", "front_desk", "manager"].includes(menuMember.role) && (
+              <button
+                type="button"
+                onClick={() => {
+                  closeMenu();
+                  setCompMember(menuMember);
+                  setCompValues({
+                    fixed_monthly_salary: menuMember.fixed_monthly_salary || 0,
+                    hourly_rate: menuMember.hourly_rate || 0,
+                    per_class_rate: menuMember.per_class_rate || 0,
+                    commission_rate: menuMember.commission_rate || 0,
+                  });
+                  setCompError("");
+                }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--background)]"
+              >
+                <svg className="h-3.5 w-3.5 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Compensation
+              </button>
+            )}
             <hr className="border-t border-[var(--border)]" />
             <button
               type="button"
@@ -628,9 +775,143 @@ export default function StaffPage() {
         document.body,
       )}
 
+      {/* Shift check-in/out — only for operational staff */}
+      {(["trainer", "front_desk", "manager"].includes(currentUser?.role ?? "")) && (
+        <Card className={`mb-4 ${currentShift?.status === "checked_in" ? "border-[var(--success-border)]" : ""}`}>
+          <div className={`flex items-center gap-4 p-5 ${currentShift?.status === "checked_in" ? "bg-[var(--success-bg)]" : ""}`}>
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${currentShift?.status === "checked_in" ? "bg-[var(--success)]" : "bg-[var(--border-strong)]"}`}>
+              {currentShift?.status === "checked_in" ? (
+                <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9v6m3-3H9" />
+                </svg>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className={`inline-block h-2 w-2 rounded-full ${currentShift?.status === "checked_in" ? "bg-[var(--success)] shadow-[0_0_6px_var(--success)]" : "bg-[var(--muted)]"}`} />
+                <p className="font-medium text-[var(--foreground)]">
+                  {currentShift?.status === "checked_in" ? "On shift" : "Off duty"}
+                </p>
+              </div>
+              {currentShift?.status === "checked_in" ? (
+                <p className="mt-1 font-mono text-2xl font-bold tracking-tight text-[var(--foreground)]">{shiftTime}</p>
+              ) : (
+                <p className="mt-0.5 text-sm text-[var(--foreground-muted)]">Not checked in today</p>
+              )}
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              {currentShift?.status === "checked_in" ? (
+                <>
+                  <Button variant="danger" onClick={handleCheckOut} loading={shiftLoading} className="whitespace-nowrap">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                    </svg>
+                    Check out
+                  </Button>
+                  <p className="text-xs text-[var(--foreground-muted)]">
+                    Since {new Date(currentShift.checked_in_at + "Z").toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </>
+              ) : (
+                <Button onClick={handleCheckIn} loading={shiftLoading} className="whitespace-nowrap">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                  </svg>
+                  Check in
+                </Button>
+              )}
+            </div>
+          </div>
+          {shiftError && <div className="border-t border-[var(--border)] px-5 pb-4 pt-3"><Alert>{shiftError}</Alert></div>}
+        </Card>
+      )}
+
+      {/* Compensation dialog */}
+      <Dialog
+        open={!!compMember}
+        onClose={() => setCompMember(null)}
+        title="Compensation rates"
+        subtitle={`Set pay rates for ${compMember?.display_name || compMember?.full_name || compMember?.email}`}
+        className="max-w-xl"
+      >
+        <div className="space-y-5">
+          {compError && <Alert>{compError}</Alert>}
+
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Fixed pay</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Monthly salary"
+                type="number"
+                min="0"
+                step="0.01"
+                value={compValues.fixed_monthly_salary || ""}
+                onChange={(e) => setCompValues({ ...compValues, fixed_monthly_salary: parseFloat(e.target.value) || 0 })}
+                prefix="$"
+              />
+              <Input
+                label="Hourly rate"
+                type="number"
+                min="0"
+                step="0.01"
+                value={compValues.hourly_rate || ""}
+                onChange={(e) => setCompValues({ ...compValues, hourly_rate: parseFloat(e.target.value) || 0 })}
+                prefix="$"
+                suffix="/hr"
+              />
+            </div>
+          </div>
+
+          <hr className="border-[var(--border)]" />
+
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Variable pay</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Per-class rate"
+                type="number"
+                min="0"
+                step="0.01"
+                value={compValues.per_class_rate || ""}
+                onChange={(e) => setCompValues({ ...compValues, per_class_rate: parseFloat(e.target.value) || 0 })}
+                prefix="$"
+                suffix="/class"
+              />
+              <Input
+                label="Commission rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={compValues.commission_rate ? compValues.commission_rate * 100 : ""}
+                onChange={(e) => setCompValues({ ...compValues, commission_rate: (parseFloat(e.target.value) || 0) / 100 })}
+                suffix="%"
+              />
+            </div>
+          </div>
+
+          <p className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+            <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            Commission is a percentage of revenue from referred members (strict 12-month window).
+          </p>
+
+          <div className="flex gap-2 pt-2">
+            <Button onClick={saveCompensation} loading={compLoading}>Save changes</Button>
+            <Button variant="ghost" onClick={() => setCompMember(null)}>Cancel</Button>
+          </div>
+        </div>
+      </Dialog>
+
       {/* Pending invites (owner only) */}
       {isOwner && pendingInvites.length > 0 && (
-        <Card className="mt-4">
+        <Card>
           <CardHeader
             title="Pending invites"
             subtitle={`${pendingInvites.length} unredeemed invite${pendingInvites.length === 1 ? "" : "s"}`}
