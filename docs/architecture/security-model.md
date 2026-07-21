@@ -1,5 +1,7 @@
 # Security Model
 
+> Authentication, authorization, tenant isolation, and session management.
+
 ## Authentication
 - Passwords: 12+ chars, mixed case, numbers, symbols, checked against HIBP
 - JWT: 15-minute access token + 7-day refresh token
