@@ -1,3 +1,5 @@
+// Gym Operations Platform — shared enum definitions
+
 export enum MemberStatus {
   PENDING_PAYMENT = "pending_payment",
   PENDING_APPROVAL = "pending_approval",
