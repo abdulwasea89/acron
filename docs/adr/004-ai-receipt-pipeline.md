@@ -1,5 +1,7 @@
 # ADR 004: AI Receipt Verification Pipeline
 
+**Status:** Accepted
+
 ## Context
 Gyms in many countries operate heavily on cash. Members pay in cash, receive a paper receipt, but the gym owner may forget to log the payment. Members then upload their receipt photo as proof of payment. The system must verify the receipt is authentic and not a duplicate.
 

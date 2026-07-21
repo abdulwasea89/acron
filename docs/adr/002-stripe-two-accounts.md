@@ -1,5 +1,7 @@
 # ADR 002: Two Separate Stripe Accounts
 
+**Status:** Accepted
+
 ## Context
 The platform processes two kinds of payments: SaaS subscription fees from gym owners and member membership fees paid to gyms. These must never be commingled.
 

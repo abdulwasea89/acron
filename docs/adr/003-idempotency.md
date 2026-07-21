@@ -1,5 +1,7 @@
 # ADR 003: Idempotency on All State-Changing Operations
 
+**Status:** Accepted
+
 ## Context
 Payment systems have a critical failure mode: double-charging. A member taps "Pay", loses signal, taps again. Without protection, they get charged twice. This also applies to refunds, class bookings, member invitations, and payroll runs.
 

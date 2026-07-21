@@ -1,5 +1,7 @@
 # ADR 001: Multi-Tenancy via Organization Isolation
 
+**Status:** Accepted
+
 ## Context
 The platform serves multiple gyms. Each gym's data must be completely isolated from every other gym. A data breach at one gym must never leak another gym's members, payments, or plans.
 

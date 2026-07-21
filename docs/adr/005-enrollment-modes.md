@@ -1,5 +1,7 @@
 # ADR 005: Three Enrollment Modes
 
+**Status:** Accepted
+
 ## Context
 Different gyms have different onboarding preferences. Some want anyone to join freely, others want to vet prospects, and some want complete control over who joins.
 
