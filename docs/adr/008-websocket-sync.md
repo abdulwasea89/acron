@@ -1,5 +1,7 @@
 # ADR 008: WebSocket Real-Time Sync
 
+**Status:** Accepted
+
 ## Context
 An owner creates a membership plan on their laptop and expects to see it on their phone immediately. A trainer checks in for a shift and the owner should see it without refreshing. Polling would be wasteful and slow.
 
