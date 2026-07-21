@@ -1,5 +1,7 @@
 # ADR 006: Trainer Payroll Calculation Engine
 
+**Status:** Accepted
+
 ## Context
 Gyms pay trainers using multiple compensation methods: fixed salary, hourly wages, per-class rates, and commissions. These components stack per trainer. The system must calculate net pay, generate pay stubs, and track payment execution.
 
