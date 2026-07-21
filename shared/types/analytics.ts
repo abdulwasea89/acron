@@ -1,3 +1,5 @@
+// Gym Operations Platform — analytics type definitions
+
 export interface HeadlineMetrics {
   today_check_ins: number;
   today_revenue: number;

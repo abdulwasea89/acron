@@ -1,3 +1,5 @@
+// Gym Operations Platform — payment type definitions
+
 export interface Payment {
   id: string;
   organization_id: string;

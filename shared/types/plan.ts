@@ -1,3 +1,5 @@
+// Gym Operations Platform — plan type definitions
+
 export interface Plan {
   id: string;
   organization_id: string;

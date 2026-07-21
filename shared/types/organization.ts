@@ -1,3 +1,5 @@
+// Gym Operations Platform — organization type definitions
+
 export interface Organization {
   id: string;
   name: string;

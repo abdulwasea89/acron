@@ -1,3 +1,5 @@
+// Gym Operations Platform — payroll type definitions
+
 export interface CompensationRates {
   fixed_monthly_salary: number;
   hourly_rate: number;
