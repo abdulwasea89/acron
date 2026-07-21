@@ -1,5 +1,7 @@
 # ADR 007: Cash Payment Reconciliation
 
+**Status:** Accepted
+
 ## Context
 Front desk staff log cash payments from members throughout the day. At end of day, the system total must match the actual cash in the drawer. Discrepancies need to be tracked per staff member to detect theft or errors.
 
