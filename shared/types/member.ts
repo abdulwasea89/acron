@@ -1,3 +1,5 @@
+// Gym Operations Platform — member type definitions
+
 export interface Member {
   member_id: string;
   user_id: string;
