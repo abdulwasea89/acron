@@ -1,5 +1,7 @@
 # Development Setup
 
+> Prerequisites, quick start guide, commands, and code conventions.
+
 ## Prerequisites
 - Python 3.12+, Node.js 20+, pnpm
 - PostgreSQL 16, Redis 7
