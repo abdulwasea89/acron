@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { api, ApiError } from "@/lib/api";
 import { useRealtimeEvent } from "@/components/Realtime";
 import type { AuditLogOut, AuditLogPage, AuditActionGroup } from "@/lib/types";
@@ -45,9 +46,6 @@ export default function AuditPage() {
   // Dropdown data
   const [actionGroups, setActionGroups] = useState<AuditActionGroup[]>([]);
   const [entityTypes, setEntityTypes] = useState<string[]>([]);
-
-  // Expanded row
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = useCallback(async (p: number) => {
     setError("");
@@ -182,76 +180,56 @@ export default function AuditPage() {
             action={hasFilters ? <Button variant="ghost" onClick={handleResetFilters}>Clear filters</Button> : undefined}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="w-32 px-4 py-3">Time</th>
-                  <th className="px-4 py-3">Action</th>
-                  <th className="px-4 py-3">Actor</th>
-                  <th className="px-4 py-3">Entity</th>
-                  <th className="w-8 px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {logs.map((log) => (
-                  <tr key={log.id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--foreground-muted)]">
-                      {formatTime(log.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={actionColor(log.action)}>{actionShort(log.action)}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-[var(--foreground-muted)]">
-                      {log.actor_name || log.actor_email || log.actor_user_id || "System"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-[var(--foreground-muted)]">
+          <>
+            <div className="flex items-center gap-4 border-b border-[var(--border)] bg-[var(--background)]/30 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <span className="w-32 shrink-0">Time</span>
+              <span className="flex-1">Action</span>
+              <span className="flex-1">Actor</span>
+              <span className="flex-1">Entity</span>
+            </div>
+            <Accordion
+              multiple
+              key={page + actionFilter + search + entityType}
+            >
+              {logs.map((log) => (
+                <AccordionItem key={log.id} value={log.id}>
+                  <AccordionTrigger>
+                    <div className="flex flex-1 items-center gap-4 min-w-0">
+                      <span className="w-32 shrink-0 text-xs text-[var(--foreground-muted)] tabular-nums">
+                        {formatTime(log.created_at)}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <Badge tone={actionColor(log.action)}>{actionShort(log.action)}</Badge>
+                      </span>
+                      <span className="flex-1 min-w-0 truncate text-[var(--foreground-muted)]">
+                        {log.actor_name || log.actor_email || log.actor_user_id || "System"}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate text-[var(--foreground-muted)]">
                         {log.entity_type ? `${log.entity_type}` : "—"}
                         {log.entity_id && (
-                          <span className="ml-1 font-mono text-xs text-[var(--muted)]">{log.entity_id.slice(0, 8)}...</span>
+                          <span className="ml-1.5 font-mono text-[11px] text-[var(--muted)]">{log.entity_id.slice(0, 8)}…</span>
                         )}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {(log.old_values || log.new_values || log.metadata) && (
-                        <button
-                          type="button"
-                          onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                          className="flex h-6 w-6 items-center justify-center rounded text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
-                        >
-                          <svg className={`h-4 w-4 transition-transform ${expandedId === log.id ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M9 18l6-6-6-6" />
-                          </svg>
-                        </button>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-6">
+                        <JsonBlock label="Old values" data={log.old_values} />
+                        <JsonBlock label="New values" data={log.new_values} />
+                        <JsonBlock label="Metadata" data={log.metadata} />
+                      </div>
+                      {log.ip_address && (
+                        <p className="text-xs text-[var(--muted)]">
+                          <span className="font-medium text-[var(--foreground-muted)]">IP address:</span> {log.ip_address}
+                        </p>
                       )}
-                    </td>
-                  </tr>
-                ))}
-                {expandedId && logs.find((l) => l.id === expandedId) && (
-                  <tr key={`${expandedId}-detail`}>
-                    <td colSpan={5} className="border-t border-[var(--border)] bg-[var(--background)] px-4 py-0">
-                      {(() => {
-                        const log = logs.find((l) => l.id === expandedId)!;
-                        return (
-                          <div className="overflow-x-auto py-3 text-xs">
-                            <div className="flex gap-6">
-                              <JsonBlock label="Old values" data={log.old_values} />
-                              <JsonBlock label="New values" data={log.new_values} />
-                              <JsonBlock label="Metadata" data={log.metadata} />
-                            </div>
-                            {log.ip_address && (
-                              <p className="mt-2 text-[var(--muted)]">IP: {log.ip_address}</p>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </>
         )}
 
         {/* Pagination */}
