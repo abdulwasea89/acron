@@ -1,5 +1,7 @@
 # Core Data Model
 
+> Entities, relationships, and design rules for the Gym Operations Platform.
+
 ## Entities & Relationships
 
 ```
