@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr
 
 
@@ -15,6 +17,7 @@ class MemberDirectoryItem(BaseModel):
     member_status: str
     phone: str | None
     profile_complete: bool
+    created_at: datetime
     fixed_monthly_salary: float = 0.0
     hourly_rate: float = 0.0
     per_class_rate: float = 0.0

@@ -87,6 +87,7 @@ export interface MemberDirectoryItem {
   member_status: string;
   phone: string | null;
   profile_complete: boolean;
+  created_at: string;
   fixed_monthly_salary: number;
   hourly_rate: number;
   per_class_rate: number;
