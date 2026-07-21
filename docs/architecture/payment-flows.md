@@ -1,5 +1,7 @@
 # Payment Flows
 
+> Card, cash, receipt upload, and idempotency workflows.
+
 ## Card Payment (Online)
 1. Member selects plan → client generates idempotency key
 2. POST to backend with plan ID + idempotency key
