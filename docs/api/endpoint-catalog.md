@@ -1,5 +1,7 @@
 # API Endpoint Catalog
 
+> All REST endpoints organized by domain with HTTP methods and descriptions.
+
 ## Auth
 | Method | Path | Description |
 |--------|------|-------------|
