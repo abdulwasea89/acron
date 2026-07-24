@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { View, Text, TextInput, Pressable } from "@/tw";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { memberLoginSchema } from "@/lib/validations";
@@ -14,6 +15,7 @@ export default function LoginScreen() {
   const [orgCode, setOrgCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,12 +44,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const body: MemberLoginRequest = {
-        org_code: orgCode,
-        email,
-        password,
-        remember,
-      };
+      const body: MemberLoginRequest = { org_code: orgCode, email, password, remember };
 
       const res = orgCode
         ? await api.post<LoginResponse>("/auth/member-login", body)
@@ -91,120 +88,101 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1"
-    >
-      <ScrollView
-        className="flex-1 bg-white dark:bg-bg-dark"
-        contentContainerClassName="p-6 pt-20 flex-grow"
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Welcome back
-        </Text>
-        <Text className="text-muted mb-8">
-          Sign in to manage your gym
-        </Text>
-
-        {error && (
-          <View className="mb-4">
-            <Alert type="error" message={error} onDismiss={() => setError(null)} />
-          </View>
-        )}
-
-        <View className="gap-4">
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Gym Code
+    <AuthScreen
+      title="Welcome back"
+      description="Sign in to pick up where your gym left off."
+      back
+      onBack={() => router.push("/")}
+      footer={
+        <View className="items-center gap-4">
+          <Pressable onPress={() => router.push("/(auth)/magic-link")} className="active:opacity-60">
+            <Text className="text-[13px] font-semibold text-ink dark:text-paper">
+              Send a secure sign-in link instead
             </Text>
-            <TextInput
-              className="border border-border dark:border-border-dark bg-white dark:bg-bg-dark-secondary rounded-xl px-4 py-3.5 text-gray-900 dark:text-white text-base"
-              placeholder="e.g. IRON-PULS-3K9"
-              placeholderTextColor="#9ca3af"
-              value={orgCode}
-              onChangeText={(t) => { setOrgCode(t.toUpperCase()); setFieldErrors((p) => ({ ...p, org_code: "" })); }}
-              autoCapitalize="characters"
-            />
-          </View>
-
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Email
-            </Text>
-            <TextInput
-              className="border border-border dark:border-border-dark bg-white dark:bg-bg-dark-secondary rounded-xl px-4 py-3.5 text-gray-900 dark:text-white text-base"
-              placeholder="you@example.com"
-              placeholderTextColor="#9ca3af"
-              value={email}
-              onChangeText={(t) => { setEmail(t); setFieldErrors((p) => ({ ...p, email: "" })); }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            {fieldErrors.email && (
-              <Text className="text-sm text-danger">{fieldErrors.email}</Text>
-            )}
-          </View>
-
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Password
-            </Text>
-            <TextInput
-              className="border border-border dark:border-border-dark bg-white dark:bg-bg-dark-secondary rounded-xl px-4 py-3.5 text-gray-900 dark:text-white text-base"
-              placeholder="Your password"
-              placeholderTextColor="#9ca3af"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setFieldErrors((p) => ({ ...p, password: "" })); }}
-              secureTextEntry
-            />
-            {fieldErrors.password && (
-              <Text className="text-sm text-danger">{fieldErrors.password}</Text>
-            )}
-          </View>
-
-          <View className="flex-row items-center justify-between">
-            <Pressable
-              className="flex-row items-center gap-2"
-              onPress={() => setRemember(!remember)}
-            >
-              <View
-                className={`w-5 h-5 rounded border-2 items-center justify-center
-                  ${remember ? "bg-brand border-brand" : "border-gray-300 dark:border-gray-600"}`}
-              >
-                {remember && <Text className="text-white text-xs">✓</Text>}
-              </View>
-              <Text className="text-sm text-gray-600 dark:text-gray-400">Remember me</Text>
-            </Pressable>
-
-            <Pressable onPress={() => router.push("/(auth)/forgot-password")}>
-              <Text className="text-sm text-brand">Forgot password?</Text>
-            </Pressable>
-          </View>
-
-          <Button loading={loading} onPress={handleLogin}>
-            Sign In
-          </Button>
-        </View>
-
-        <View className="mt-auto pt-8 items-center gap-3">
-          <Pressable onPress={() => router.push("/(auth)/magic-link")}>
-            <Text className="text-brand text-sm">Sign in with magic link</Text>
           </Pressable>
-          <Pressable onPress={() => router.push("/(auth)/recover-codes")}>
-            <Text className="text-brand text-sm">Forgot your gym code?</Text>
-          </Pressable>
-          <Text className="text-sm text-muted">
-            Don't have an account?{" "}
+          <Text className="text-[13px] text-muted dark:text-muted-dark">
+            New to Gym Ops?{" "}
             <Text
-              className="text-brand font-semibold"
-              onPress={() => router.push("/")}
+              className="font-bold text-ink dark:text-paper"
+              onPress={() => router.push("/(auth)/register/step-1")}
             >
-              Go back
+              Create your gym
             </Text>
           </Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      }
+    >
+      {error && (
+        <View className="mb-5">
+          <Alert type="error" message={error} onDismiss={() => setError(null)} />
+        </View>
+      )}
+
+      <View className="gap-5">
+        <Input
+          label="Work email"
+          placeholder="you@yourgym.com"
+          value={email}
+          onChangeText={(t) => { setEmail(t); setFieldErrors((p) => ({ ...p, email: "" })); }}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          error={fieldErrors.email}
+        />
+
+        <View>
+          <View className="relative">
+            <Input
+              label="Password"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={(t) => { setPassword(t); setFieldErrors((p) => ({ ...p, password: "" })); }}
+              secureTextEntry={!showPassword}
+              error={fieldErrors.password}
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              hitSlop={8}
+              className="absolute right-3 top-[38px] px-1 active:opacity-60"
+            >
+              <Text className="text-[12px] font-bold text-muted dark:text-muted-dark">
+                {showPassword ? "Hide" : "Show"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <Input
+          label="Gym code"
+          placeholder="IRON-PULS-3K9"
+          hint="Leave blank to go to your last gym"
+          value={orgCode}
+          onChangeText={(t) => { setOrgCode(t.toUpperCase()); setFieldErrors((p) => ({ ...p, org_code: "" })); }}
+          autoCapitalize="characters"
+          error={fieldErrors.org_code}
+        />
+
+        <View className="flex-row items-center justify-between">
+          <Pressable onPress={() => router.push("/(auth)/recover-codes")} className="active:opacity-60">
+            <Text className="text-[13px] text-muted dark:text-muted-dark">
+              Don't remember your gym code?
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/(auth)/forgot-password")} className="active:opacity-60">
+            <Text className="text-[13px] text-muted dark:text-muted-dark">Forgot password?</Text>
+          </Pressable>
+        </View>
+
+        <Button loading={loading} onPress={handleLogin}>
+          Sign in
+        </Button>
+      </View>
+
+      {/* Divider */}
+      <View className="flex-row items-center gap-3 mt-7">
+        <View className="flex-1 h-px bg-border dark:bg-border-dark" />
+        <Text className="text-[12px] text-muted dark:text-muted-dark">or</Text>
+        <View className="flex-1 h-px bg-border dark:bg-border-dark" />
+      </View>
+    </AuthScreen>
   );
 }

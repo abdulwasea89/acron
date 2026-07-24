@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { ScrollView } from "react-native";
 import { View, Text } from "@/tw";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -62,7 +62,7 @@ export default function MfaEnroll() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-bg-dark">
+      <View className="flex-1 items-center justify-center bg-bg dark:bg-bg-dark">
         <Spinner />
       </View>
     );
@@ -70,44 +70,52 @@ export default function MfaEnroll() {
 
   if (status?.mfa_enabled) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-bg-dark p-6">
-        <Text className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          MFA Already Enabled
-        </Text>
-        <Text className="text-muted text-center mb-8">
-          Two-factor authentication is already active on your account.
-        </Text>
+      <AuthScreen
+        title="MFA already enabled"
+        description="Two-factor authentication is already active on your account."
+        back
+      >
         <Button variant="secondary" onPress={() => router.back()}>
-          Go Back
+          Go back
         </Button>
-      </View>
+      </AuthScreen>
     );
   }
 
   if (enrollData) {
     return (
-      <ScrollView
-        className="flex-1 bg-white dark:bg-bg-dark"
-        contentContainerClassName="p-6 pt-20 pb-12"
+      <AuthScreen
+        title="Scan or enter the code"
+        description="Add this to your authenticator app, then enter the 6-digit code to confirm."
+        back
+        onBack={() => setEnrollData(null)}
+        footer={
+          <View className="flex-row gap-3">
+            <Button variant="secondary" className="flex-1" onPress={() => setEnrollData(null)}>
+              Back
+            </Button>
+            <Button
+              className="flex-1"
+              loading={confirming}
+              disabled={code.length !== 6}
+              onPress={handleConfirm}
+            >
+              Enable MFA
+            </Button>
+          </View>
+        }
       >
-        <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Setup MFA
-        </Text>
-        <Text className="text-muted mb-6">
-          Scan this code in your authenticator app or enter it manually
-        </Text>
-
         {error && (
-          <View className="mb-4">
+          <View className="mb-5">
             <Alert type="error" message={error} onDismiss={() => setError(null)} />
           </View>
         )}
 
-        <View className="bg-gray-50 dark:bg-bg-dark-secondary rounded-2xl p-5 mb-6">
-          <Text className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all mb-3">
+        <View className="bg-bg-secondary dark:bg-surface-dark-2 rounded-2xl p-5 mb-6 border border-border dark:border-border-dark">
+          <Text className="text-[12px] font-mono text-muted dark:text-muted-dark mb-3">
             {enrollData.otpauth_uri}
           </Text>
-          <Text className="text-sm font-mono text-gray-900 dark:text-white">
+          <Text className="text-[13px] font-mono text-ink dark:text-paper">
             Secret: {enrollData.secret}
           </Text>
         </View>
@@ -120,53 +128,28 @@ export default function MfaEnroll() {
           keyboardType="number-pad"
           maxLength={6}
         />
-
-        <View className="flex-row gap-3 mt-6">
-          <Button
-            variant="secondary"
-            className="flex-1"
-            onPress={() => setEnrollData(null)}
-          >
-            Back
-          </Button>
-          <Button
-            className="flex-1"
-            loading={confirming}
-            disabled={code.length !== 6}
-            onPress={handleConfirm}
-          >
-            Enable MFA
-          </Button>
-        </View>
-      </ScrollView>
+      </AuthScreen>
     );
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-white dark:bg-bg-dark"
-      contentContainerClassName="p-6 pt-20 pb-12"
+    <AuthScreen
+      title="Two-factor auth"
+      description="Add an extra layer of security to your account."
+      back
+      footer={
+        <Button variant="ghost" onPress={() => router.back()}>
+          Maybe later
+        </Button>
+      }
     >
-      <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        Two-Factor Authentication
-      </Text>
-      <Text className="text-muted mb-8">
-        Add an extra layer of security to your account.
-      </Text>
-
       {error && (
-        <View className="mb-4">
+        <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
       )}
 
-      <Button onPress={handleEnroll}>
-        Set Up MFA
-      </Button>
-
-      <Button variant="ghost" onPress={() => router.back()} className="mt-4">
-        Maybe Later
-      </Button>
-    </ScrollView>
+      <Button onPress={handleEnroll}>Set up MFA</Button>
+    </AuthScreen>
   );
 }

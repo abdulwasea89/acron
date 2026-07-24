@@ -2,27 +2,55 @@
 @import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css";
 
+/*
+  Monochrome editorial palette — mirrors the web portal (frontend/app/globals.css).
+  No blue brand color. Light mode = near-black ink on off-white paper.
+  Dark mode = off-white paper on true black. The primary action is INVERTED:
+  dark button in light mode, light button in dark mode.
+*/
 @theme {
-  --color-brand: #208AEF;
-  --color-brand-dark: #1a6fbf;
-  --color-brand-light: #4da6ff;
-  --color-success: #22c55e;
-  --color-success-dark: #16a34a;
-  --color-warning: #eab308;
-  --color-warning-dark: #ca8a04;
-  --color-danger: #ef4444;
-  --color-danger-dark: #dc2626;
-  --color-muted: #6b7280;
+  /* Inverted action pair — the heart of the look */
+  --color-ink: #0a0a0a;         /* near-black: primary in light mode */
+  --color-ink-soft: #262626;    /* pressed/hover ink */
+  --color-paper: #fafafa;       /* off-white: primary in dark mode */
+  --color-paper-soft: #e5e5e5;  /* pressed/hover paper */
 
-  --color-bg: #ffffff;
-  --color-bg-secondary: #f3f4f6;
-  --color-bg-dark: #111827;
-  --color-bg-dark-secondary: #1f2937;
-  --color-border: #e5e7eb;
-  --color-border-dark: #374151;
+  /* Backwards-compat alias: `brand` now means ink (never blue again) */
+  --color-brand: #0a0a0a;
+  --color-brand-dark: #262626;
+  --color-brand-light: #fafafa;
+
+  /* Surfaces */
+  --color-bg: #ffffff;              /* light page */
+  --color-bg-secondary: #f6f7f9;    /* light inset / input fill */
+  --color-bg-dark: #000000;         /* dark page — true black */
+  --color-bg-dark-secondary: #0a0a0a;   /* dark surface */
+  --color-surface-dark-2: #141414;  /* dark input fill / raised */
+
+  /* Borders */
+  --color-border: #edf0f5;
+  --color-border-strong: #e2e8f0;
+  --color-border-dark: #1f1f1f;
+  --color-border-strong-dark: #2e2e2e;
+
+  /* Text */
+  --color-muted: #64748b;        /* light muted */
+  --color-muted-dark: #a1a1a1;   /* dark muted */
+
+  /* Semantic (matched to web tokens, muted—not neon) */
+  --color-success: #059669;
+  --color-success-dark: #4ade80;
+  --color-warning: #d97706;
+  --color-warning-dark: #fbbf24;
+  --color-danger: #dc2626;
+  --color-danger-dark: #f87171;
+  --color-info: #0284c7;
+  --color-info-dark: #60a5fa;
 }
 
-/* Platform-specific font families */
+/* Platform-specific font families.
+   `serif` (Georgia on iOS, Noto/Droid Serif on Android) is the display face —
+   it matches the web's Georgia headings. Used via `font-serif`. */
 @media android {
   :root {
     --font-mono: monospace;
@@ -35,7 +63,7 @@
 @media ios {
   :root {
     --font-mono: ui-monospace;
-    --font-serif: ui-serif;
+    --font-serif: Georgia;
     --font-sans: system-ui;
     --font-rounded: ui-rounded;
   }

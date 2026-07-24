@@ -5,6 +5,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useColorScheme } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useAuthStore } from "@/stores/auth-store";
 import { useOrgStore } from "@/stores/org-store";
@@ -42,15 +43,15 @@ export default function RootLayout() {
   }, [isHydrated, isLoading]);
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style={isDark ? "light" : "dark"} />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: isDark ? "#000000" : "#ffffff" } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(member)" />
         <Stack.Screen name="(staff)" />
         <Stack.Screen name="(admin)" />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

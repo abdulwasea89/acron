@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { View, Text, TextInput, Pressable } from "@/tw";
+import { useColorScheme } from "react-native";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { api, ApiError } from "@/lib/api";
@@ -11,6 +12,7 @@ import type { SignupStartOut } from "@/types/api";
 
 export default function OrgCodeScreen() {
   const { setOrg } = useJoinStore();
+  const isDark = useColorScheme() === "dark";
   const [orgCode, setOrgCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,63 +54,51 @@ export default function OrgCodeScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1"
-    >
-      <ScrollView
-        className="flex-1 bg-white dark:bg-bg-dark"
-        contentContainerClassName="p-6 pt-20 flex-grow"
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Join a Gym
-        </Text>
-        <Text className="text-muted mb-8">
-          Enter the gym code from your gym owner
-        </Text>
-
-        {error && (
-          <View className="mb-4">
-            <Alert type="error" message={error} onDismiss={() => setError(null)} />
-          </View>
-        )}
-
-        <View className="gap-4">
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Gym Code
-            </Text>
-            <TextInput
-              className="border border-border dark:border-border-dark bg-white dark:bg-bg-dark-secondary rounded-xl px-4 py-4 text-gray-900 dark:text-white text-xl text-center tracking-[4px]"
-              placeholder="IRON-PULS-3K9"
-              placeholderTextColor="#9ca3af"
-              value={orgCode}
-              onChangeText={(t) => { setOrgCode(t.toUpperCase()); setFieldError(""); }}
-              autoCapitalize="characters"
-            />
-            {fieldError && (
-              <Text className="text-sm text-danger">{fieldError}</Text>
-            )}
-          </View>
-
-          <Button loading={loading} onPress={handleSubmit}>
-            Find Gym
-          </Button>
-        </View>
-
-        <View className="mt-auto pt-12 items-center">
-          <Text className="text-sm text-muted">
+    <AuthScreen
+      title="Enter your gym code"
+      description="Ask your gym owner for the code — it looks like IRON-PULS-3K9."
+      back
+      footer={
+        <View className="items-center">
+          <Text className="text-[13px] text-muted dark:text-muted-dark">
             Have an invite code?{" "}
             <Text
-              className="text-brand font-semibold"
+              className="font-bold text-ink dark:text-paper"
               onPress={() => router.push("/(auth)/redeem")}
             >
               Redeem it
             </Text>
           </Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      }
+    >
+      {error && (
+        <View className="mb-5">
+          <Alert type="error" message={error} onDismiss={() => setError(null)} />
+        </View>
+      )}
+
+      <View className="gap-5">
+        <View className="gap-2">
+          <Text className="text-[13px] font-semibold text-ink dark:text-paper">Gym code</Text>
+          <TextInput
+            className="border border-border dark:border-border-dark bg-bg-secondary dark:bg-surface-dark-2
+              rounded-xl px-4 py-5 text-ink dark:text-paper text-[22px] text-center tracking-[3px] font-semibold"
+            placeholder="IRON-PULS-3K9"
+            placeholderTextColor={isDark ? "#6e6e6e" : "#94a3b8"}
+            value={orgCode}
+            onChangeText={(t) => { setOrgCode(t.toUpperCase()); setFieldError(""); }}
+            autoCapitalize="characters"
+          />
+          {fieldError ? (
+            <Text className="text-[12px] text-danger dark:text-danger-dark">{fieldError}</Text>
+          ) : null}
+        </View>
+
+        <Button loading={loading} onPress={handleSubmit}>
+          Find gym
+        </Button>
+      </View>
+    </AuthScreen>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ScrollView } from "react-native";
 import { View, Text } from "@/tw";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -64,34 +64,40 @@ export default function PaymentScreen() {
   };
 
   return (
-    <ScrollView
-      className="flex-1 bg-white dark:bg-bg-dark"
-      contentContainerClassName="p-6 pt-16 pb-12"
+    <AuthScreen
+      title="Start your subscription"
+      description="Your first month is charged immediately. Cancel anytime."
+      back
+      footer={
+        <View className="flex-row gap-3">
+          <Button variant="secondary" className="flex-1" onPress={() => router.back()}>
+            Back
+          </Button>
+          <Button className="flex-1" loading={loading} onPress={handlePay}>
+            Pay {TIER_PRICES[selectedTier]}
+          </Button>
+        </View>
+      }
     >
-      <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-        Payment
-      </Text>
-      <Text className="text-muted mb-6">Step 4 of 5 — Start your subscription</Text>
-
       {error && (
-        <View className="mb-4">
+        <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
       )}
 
-      <View className="bg-gray-50 dark:bg-bg-dark-secondary rounded-2xl p-5 mb-6 gap-2">
+      <View className="bg-bg-secondary dark:bg-surface-dark-2 rounded-2xl p-5 mb-6 gap-2 border border-border dark:border-border-dark">
         <View className="flex-row justify-between">
-          <Text className="text-gray-700 dark:text-gray-300">Gym</Text>
-          <Text className="font-semibold text-gray-900 dark:text-white">{gymDetails.name}</Text>
+          <Text className="text-[14px] text-muted dark:text-muted-dark">Gym</Text>
+          <Text className="text-[14px] font-semibold text-ink dark:text-paper">{gymDetails.name}</Text>
         </View>
         <View className="flex-row justify-between">
-          <Text className="text-gray-700 dark:text-gray-300">Plan</Text>
-          <Text className="font-semibold text-gray-900 dark:text-white capitalize">{selectedTier}</Text>
+          <Text className="text-[14px] text-muted dark:text-muted-dark">Plan</Text>
+          <Text className="text-[14px] font-semibold text-ink dark:text-paper capitalize">{selectedTier}</Text>
         </View>
         <View className="border-t border-border dark:border-border-dark my-2" />
         <View className="flex-row justify-between">
-          <Text className="text-lg font-bold text-gray-900 dark:text-white">Total</Text>
-          <Text className="text-lg font-bold text-gray-900 dark:text-white">
+          <Text className="text-[16px] font-bold text-ink dark:text-paper">Total</Text>
+          <Text className="text-[16px] font-bold text-ink dark:text-paper">
             {TIER_PRICES[selectedTier]}
           </Text>
         </View>
@@ -99,13 +105,12 @@ export default function PaymentScreen() {
 
       <View className="gap-4">
         <Input
-          label="Card Number (stub)"
+          label="Card number (stub)"
           placeholder="4242 4242 4242 4242"
           value={paymentToken}
           onChangeText={setPaymentToken}
           keyboardType="default"
         />
-
         <View className="flex-row gap-3">
           <View className="flex-1">
             <Input label="Expiry" placeholder="MM/YY" />
@@ -116,26 +121,9 @@ export default function PaymentScreen() {
         </View>
       </View>
 
-      <Text className="text-xs text-muted mt-4 text-center">
+      <Text className="text-[12px] text-muted dark:text-muted-dark mt-4 text-center">
         Your first month will be charged immediately. You can cancel anytime.
       </Text>
-
-      <View className="flex-row gap-3 mt-8">
-        <Button
-          variant="secondary"
-          className="flex-1"
-          onPress={() => router.back()}
-        >
-          Back
-        </Button>
-        <Button
-          className="flex-1"
-          loading={loading}
-          onPress={handlePay}
-        >
-          Pay {TIER_PRICES[selectedTier]}
-        </Button>
-      </View>
-    </ScrollView>
+    </AuthScreen>
   );
 }

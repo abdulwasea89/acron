@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { View, Text } from "@/tw";
+import { View } from "@/tw";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -59,50 +59,38 @@ export default function SetPassword() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1"
+    <AuthScreen
+      title="Create a password"
+      description="At least 12 characters with mixed case, numbers, and symbols."
+      back
     >
-      <ScrollView
-        className="flex-1 bg-white dark:bg-bg-dark"
-        contentContainerClassName="p-6 pt-20 flex-grow"
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Create a password
-        </Text>
-        <Text className="text-muted mb-8">
-          Must be at least 12 characters with mixed case, numbers, and symbols
-        </Text>
-
-        {error && (
-          <View className="mb-4">
-            <Alert type="error" message={error} onDismiss={() => setError(null)} />
-          </View>
-        )}
-
-        <View className="gap-4">
-          <Input
-            label="Password"
-            placeholder="At least 12 characters"
-            value={password}
-            onChangeText={(t) => { setPassword(t); setFieldErrors((p) => ({ ...p, password: "" })); }}
-            secureTextEntry
-            error={fieldErrors.password}
-          />
-          <Input
-            label="Confirm Password"
-            placeholder="Repeat password"
-            value={confirmPassword}
-            onChangeText={(t) => { setConfirmPassword(t); setFieldErrors((p) => ({ ...p, confirm_password: "" })); }}
-            secureTextEntry
-            error={fieldErrors.confirm_password}
-          />
-          <Button loading={loading} onPress={handleSubmit}>
-            Continue
-          </Button>
+      {error && (
+        <View className="mb-5">
+          <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      )}
+
+      <View className="gap-5">
+        <Input
+          label="Password"
+          placeholder="At least 12 characters"
+          value={password}
+          onChangeText={(t) => { setPassword(t); setFieldErrors((p) => ({ ...p, password: "" })); }}
+          secureTextEntry
+          error={fieldErrors.password}
+        />
+        <Input
+          label="Confirm password"
+          placeholder="Repeat password"
+          value={confirmPassword}
+          onChangeText={(t) => { setConfirmPassword(t); setFieldErrors((p) => ({ ...p, confirm_password: "" })); }}
+          secureTextEntry
+          error={fieldErrors.confirm_password}
+        />
+        <Button loading={loading} onPress={handleSubmit}>
+          Continue
+        </Button>
+      </View>
+    </AuthScreen>
   );
 }

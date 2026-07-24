@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { View, Text, TextInput, Pressable } from "@/tw";
+import { View, Text, Pressable } from "@/tw";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -76,20 +76,11 @@ export default function RegisterStep1() {
     ) : null;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1"
+    <AuthScreen
+      title="Create your account"
+      description="Tell us about yourself — you'll set up your gym in the next steps."
+      back
     >
-      <ScrollView
-        className="flex-1 bg-white dark:bg-bg-dark"
-        contentContainerClassName="p-6 pt-16 pb-12"
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-          Create your account
-        </Text>
-        <Text className="text-muted mb-6">Step 1 of 5 — Owner details</Text>
-
         {error && (
           <View className="mb-4">
             <Alert type="error" message={error} onDismiss={() => setError(null)} />
@@ -182,21 +173,21 @@ export default function RegisterStep1() {
             error={fieldErrors.date_of_birth}
           />
 
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">Gender</Text>
+          <View className="gap-2">
+            <Text className="text-[13px] font-semibold text-ink dark:text-paper">Gender</Text>
             <View className="flex-row gap-3">
               {GENDER_OPTIONS.map((opt) => (
                 <Pressable
                   key={opt.value}
                   className={`flex-1 py-3.5 rounded-xl items-center border
                     ${form.gender === opt.value
-                      ? "bg-brand border-brand"
-                      : "border-border dark:border-border-dark"
+                      ? "bg-ink dark:bg-paper border-ink dark:border-paper"
+                      : "bg-bg-secondary dark:bg-surface-dark-2 border-border dark:border-border-dark"
                     }`}
                   onPress={() => update("gender", opt.value)}
                 >
                   <Text
-                    className={`font-medium ${form.gender === opt.value ? "text-white" : "text-gray-700 dark:text-gray-300"}`}
+                    className={`font-semibold text-[14px] ${form.gender === opt.value ? "text-paper dark:text-ink" : "text-ink dark:text-paper"}`}
                   >
                     {opt.label}
                   </Text>
@@ -226,7 +217,6 @@ export default function RegisterStep1() {
             Continue
           </Button>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </AuthScreen>
   );
 }

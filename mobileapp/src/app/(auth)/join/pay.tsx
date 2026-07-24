@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ScrollView } from "react-native";
 import { View, Text } from "@/tw";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { api, ApiError } from "@/lib/api";
@@ -62,38 +62,34 @@ export default function JoinPay() {
   };
 
   return (
-    <ScrollView
-      className="flex-1 bg-white dark:bg-bg-dark"
-      contentContainerClassName="p-6 pt-20 flex-grow"
+    <AuthScreen
+      title="Complete payment"
+      description="One secure charge activates your membership immediately."
+      back
+      footer={
+        <Button variant="secondary" onPress={() => router.back()}>
+          Back to plans
+        </Button>
+      }
     >
-      <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        Complete Payment
-      </Text>
-      <Text className="text-muted mb-2">{orgName}</Text>
-
       {error && (
-        <View className="mb-4">
+        <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
       )}
 
-      <View className="bg-gray-50 dark:bg-bg-dark-secondary rounded-2xl p-5 mb-6">
-        <Text className="font-semibold text-gray-900 dark:text-white mb-3">
-          Your membership will start immediately after payment
+      <View className="bg-bg-secondary dark:bg-surface-dark-2 rounded-2xl p-5 mb-6 border border-border dark:border-border-dark">
+        <Text className="font-semibold text-[15px] text-ink dark:text-paper mb-2">
+          Your membership starts immediately after payment
         </Text>
-        <Text className="text-sm text-muted">
-          Your card will be charged once. Idempotency protection prevents double charges.
+        <Text className="text-[13px] leading-[19px] text-muted dark:text-muted-dark">
+          Your card is charged once. Idempotency protection prevents double charges — tap Pay with confidence.
         </Text>
       </View>
 
-      <View className="gap-4">
-        <Button loading={loading} onPress={handlePay}>
-          Pay Now
-        </Button>
-        <Button variant="secondary" onPress={() => router.back()}>
-          Back to Plans
-        </Button>
-      </View>
-    </ScrollView>
+      <Button loading={loading} onPress={handlePay}>
+        Pay now
+      </Button>
+    </AuthScreen>
   );
 }

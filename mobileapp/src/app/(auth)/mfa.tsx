@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { View, Text, TextInput } from "@/tw";
+import { View, TextInput } from "@/tw";
+import { useColorScheme } from "react-native";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { api, ApiError } from "@/lib/api";
-import type { LoginResponse } from "@/types/api";
 
 export default function MfaScreen() {
+  const isDark = useColorScheme() === "dark";
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +20,6 @@ export default function MfaScreen() {
     try {
       // MFA code is sent along with the login request
       // (this screen is shown when login returned requires_mfa=true)
-      // The user needs to re-submit login with the mfa_code
       router.replace("/(auth)/login");
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
@@ -30,56 +30,39 @@ export default function MfaScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1"
-    >
-      <ScrollView
-        className="flex-1 bg-white dark:bg-bg-dark"
-        contentContainerClassName="p-6 pt-20 flex-grow"
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Two-Factor Auth
-        </Text>
-        <Text className="text-muted mb-8">
-          Enter the 6-digit code from your authenticator app.
-        </Text>
-
-        {error && (
-          <View className="mb-4">
-            <Alert type="error" message={error} onDismiss={() => setError(null)} />
-          </View>
-        )}
-
-        <View className="gap-4">
-          <TextInput
-            className="border border-border dark:border-border-dark bg-white dark:bg-bg-dark-secondary rounded-xl px-4 py-4 text-gray-900 dark:text-white text-2xl text-center tracking-[8px]"
-            placeholder="000000"
-            placeholderTextColor="#9ca3af"
-            value={code}
-            onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))}
-            keyboardType="number-pad"
-            maxLength={6}
-          />
-          <Button
-            loading={loading}
-            disabled={code.length !== 6}
-            onPress={handleVerify}
-          >
-            Verify
-          </Button>
-        </View>
-
-        <View className="mt-8 items-center gap-4">
+    <AuthScreen
+      title="Two-factor auth"
+      description="Enter the 6-digit code from your authenticator app to continue securely."
+      back
+      footer={
+        <View className="items-center gap-3">
           <Button variant="ghost" onPress={() => router.replace("/(auth)/recover-codes")}>
             Use recovery code
           </Button>
-          <Button variant="ghost" onPress={() => router.back()}>
-            Back
-          </Button>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      }
+    >
+      {error && (
+        <View className="mb-5">
+          <Alert type="error" message={error} onDismiss={() => setError(null)} />
+        </View>
+      )}
+
+      <View className="gap-5">
+        <TextInput
+          className="border border-border dark:border-border-dark bg-bg-secondary dark:bg-surface-dark-2
+            rounded-xl px-4 py-5 text-ink dark:text-paper text-[26px] text-center tracking-[8px] font-semibold"
+          placeholder="000000"
+          placeholderTextColor={isDark ? "#6e6e6e" : "#94a3b8"}
+          value={code}
+          onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))}
+          keyboardType="number-pad"
+          maxLength={6}
+        />
+        <Button loading={loading} disabled={code.length !== 6} onPress={handleVerify}>
+          Verify
+        </Button>
+      </View>
+    </AuthScreen>
   );
 }

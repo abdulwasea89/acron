@@ -1,32 +1,45 @@
 import React, { forwardRef } from "react";
+import { useColorScheme } from "react-native";
 import { TextInput, Text, View, TextInputProps } from "@/tw";
 
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
+  hint?: string;
 }
 
+/*
+  Filled, low-contrast inputs matching the web portal: a soft gray fill
+  (#f6f7f9 light / #141414 dark) with a hairline border. Label is a small
+  medium-weight caption. No blue anywhere.
+*/
 export const Input = forwardRef<typeof TextInput, InputProps>(
-  ({ label, error, className = "", ...props }, ref) => {
+  ({ label, error, hint, className = "", ...props }, ref) => {
+    const isDark = useColorScheme() === "dark";
     return (
-      <View className="gap-1.5">
+      <View className="gap-2">
         {label && (
-          <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <Text className="text-[13px] font-semibold text-ink dark:text-paper">
             {label}
           </Text>
         )}
         <TextInput
           ref={ref as any}
-          className={`border ${error ? "border-danger" : "border-border dark:border-border-dark"}
-            bg-white dark:bg-bg-dark-secondary rounded-xl px-4 py-3.5
-            text-gray-900 dark:text-white text-base
+          className={`border rounded-xl px-4 py-3.5 text-[15px]
+            ${error
+              ? "border-danger dark:border-danger-dark"
+              : "border-border dark:border-border-dark"}
+            bg-bg-secondary dark:bg-surface-dark-2
+            text-ink dark:text-paper
             ${className}`}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={isDark ? "#6e6e6e" : "#94a3b8"}
           {...props}
         />
-        {error && (
-          <Text className="text-sm text-danger">{error}</Text>
-        )}
+        {error ? (
+          <Text className="text-[12px] text-danger dark:text-danger-dark">{error}</Text>
+        ) : hint ? (
+          <Text className="text-[12px] text-muted dark:text-muted-dark">{hint}</Text>
+        ) : null}
       </View>
     );
   },

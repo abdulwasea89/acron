@@ -1,41 +1,46 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, Text, Pressable } from "@/tw";
 import { router } from "expo-router";
+import { Button } from "@/components/ui/button";
 
 export default function WelcomeScreen() {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View className="flex-1 bg-white dark:bg-bg-dark justify-center px-6">
-      <View className="items-center mb-12">
-        <Text className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+    <View
+      className="flex-1 bg-bg dark:bg-bg-dark px-6"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom + 24 }}
+    >
+      {/* Centered brand + tagline */}
+      <View className="flex-1 items-center justify-center">
+        <View className="w-16 h-16 rounded-2xl bg-ink dark:bg-paper items-center justify-center mb-5">
+          <Text className="text-[30px] font-bold text-paper dark:text-ink">G</Text>
+        </View>
+        <Text className="text-[28px] font-bold text-ink dark:text-paper tracking-tight">
           Gym Ops
         </Text>
-        <Text className="text-base text-muted text-center">
+        <Text className="text-[15px] text-muted dark:text-muted-dark mt-2 text-center">
           Your gym. Your members. One platform.
         </Text>
       </View>
 
-      <View className="gap-4">
-        <Pressable
-          className="bg-brand py-4 rounded-xl items-center active:opacity-80"
-          onPress={() => router.push("/(auth)/register/step-1")}
-        >
-          <Text className="text-white font-semibold text-lg">Register My Gym</Text>
-        </Pressable>
+      {/* Actions */}
+      <View className="gap-3">
+        <Button onPress={() => router.push("/(auth)/register/step-1")}>
+          Register My Gym
+        </Button>
+
+        <Button variant="secondary" onPress={() => router.push("/(auth)/register/org-code")}>
+          Join an Existing Gym
+        </Button>
 
         <Pressable
-          className="bg-white dark:bg-bg-dark-secondary py-4 rounded-xl items-center border border-border dark:border-border-dark active:opacity-80"
-          onPress={() => router.push("/(auth)/register/org-code")}
-        >
-          <Text className="text-gray-900 dark:text-white font-semibold text-lg">
-            Join an Existing Gym
-          </Text>
-        </Pressable>
-
-        <Pressable
-          className="py-4 items-center active:opacity-80"
+          className="py-3 items-center active:opacity-60"
           onPress={() => router.push("/(auth)/login")}
         >
-          <Text className="text-brand font-semibold text-base">
-            I already have an account
+          <Text className="text-[14px] text-muted dark:text-muted-dark">
+            Already have an account?{" "}
+            <Text className="font-semibold text-ink dark:text-paper">Sign in</Text>
           </Text>
         </Pressable>
       </View>

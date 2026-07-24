@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { View, Text } from "@/tw";
+import { View } from "@/tw";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -59,74 +59,62 @@ export default function RedeemInvite() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1"
+    <AuthScreen
+      title="Redeem your invite"
+      description="Enter your invite code, gym code, and set a password."
+      back
     >
-      <ScrollView
-        className="flex-1 bg-white dark:bg-bg-dark"
-        contentContainerClassName="p-6 pt-16 pb-12"
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Redeem Invite
-        </Text>
-        <Text className="text-muted mb-8">
-          Enter your invite code, gym code, and set a password.
-        </Text>
-
-        {error && (
-          <View className="mb-4">
-            <Alert type="error" message={error} onDismiss={() => setError(null)} />
-          </View>
-        )}
-
-        <View className="gap-4">
-          <Input
-            label="Gym Code"
-            placeholder="IRON-PULS-3K9"
-            value={form.org_code}
-            onChangeText={(t) => update("org_code", t.toUpperCase())}
-            autoCapitalize="characters"
-            error={fieldErrors.org_code}
-          />
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={form.email}
-            onChangeText={(t) => update("email", t)}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            error={fieldErrors.email}
-          />
-          <Input
-            label="Invite Code"
-            placeholder="Enter your invite code"
-            value={form.code}
-            onChangeText={(t) => update("code", t)}
-            error={fieldErrors.code}
-          />
-          <Input
-            label="Password"
-            placeholder="At least 12 characters"
-            value={form.password}
-            onChangeText={(t) => update("password", t)}
-            secureTextEntry
-            error={fieldErrors.password}
-          />
-          <Input
-            label="Confirm Password"
-            placeholder="Repeat password"
-            value={form.confirm_password}
-            onChangeText={(t) => update("confirm_password", t)}
-            secureTextEntry
-            error={fieldErrors.confirm_password}
-          />
-          <Button loading={loading} onPress={handleSubmit}>
-            Redeem Invite
-          </Button>
+      {error && (
+        <View className="mb-5">
+          <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      )}
+
+      <View className="gap-4">
+        <Input
+          label="Gym code"
+          placeholder="IRON-PULS-3K9"
+          value={form.org_code}
+          onChangeText={(t) => update("org_code", t.toUpperCase())}
+          autoCapitalize="characters"
+          error={fieldErrors.org_code}
+        />
+        <Input
+          label="Email"
+          placeholder="you@example.com"
+          value={form.email}
+          onChangeText={(t) => update("email", t)}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          error={fieldErrors.email}
+        />
+        <Input
+          label="Invite code"
+          placeholder="Enter your invite code"
+          value={form.code}
+          onChangeText={(t) => update("code", t)}
+          error={fieldErrors.code}
+        />
+        <Input
+          label="Password"
+          placeholder="At least 12 characters"
+          value={form.password}
+          onChangeText={(t) => update("password", t)}
+          secureTextEntry
+          error={fieldErrors.password}
+        />
+        <Input
+          label="Confirm password"
+          placeholder="Repeat password"
+          value={form.confirm_password}
+          onChangeText={(t) => update("confirm_password", t)}
+          secureTextEntry
+          error={fieldErrors.confirm_password}
+        />
+        <Button loading={loading} onPress={handleSubmit}>
+          Redeem invite
+        </Button>
+      </View>
+    </AuthScreen>
   );
 }

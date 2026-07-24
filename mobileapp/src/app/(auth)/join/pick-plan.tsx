@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { ScrollView } from "react-native";
 import { View, Text, Pressable } from "@/tw";
 import { router } from "expo-router";
+import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api";
@@ -44,80 +44,82 @@ export default function PickPlan() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-bg-dark">
+      <View className="flex-1 items-center justify-center bg-bg dark:bg-bg-dark">
         <Spinner />
       </View>
     );
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-white dark:bg-bg-dark"
-      contentContainerClassName="p-6 pt-16 pb-12"
+    <AuthScreen
+      title="Choose a plan"
+      description="Pick the membership that fits you. You can change it later."
+      back
+      footer={
+        <View className="flex-row gap-3">
+          <Button variant="secondary" className="flex-1" onPress={() => router.back()}>
+            Back
+          </Button>
+          <Button className="flex-1" disabled={!selected} onPress={handleContinue}>
+            Continue
+          </Button>
+        </View>
+      }
     >
-      <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-        Choose a plan
-      </Text>
-      <Text className="text-muted mb-2">{orgName}</Text>
-
-      <View className="gap-4 mt-6">
+      <View className="gap-4">
         {plans.map((plan) => {
           const isSelected = selected === plan.id;
           return (
             <Pressable
               key={plan.id}
-              className={`rounded-2xl p-5 border-2
+              className={`rounded-2xl p-5 border
                 ${isSelected
-                  ? "border-brand bg-blue-50 dark:bg-blue-900/10"
-                  : "border-border dark:border-border-dark"
-                }
-                ${plan.featured ? "shadow-md" : ""}`}
+                  ? "border-ink dark:border-paper bg-ink/[0.03] dark:bg-paper/[0.05]"
+                  : "border-border dark:border-border-dark bg-bg dark:bg-bg-dark-secondary"}`}
               onPress={() => setSelected(plan.id)}
             >
-              {plan.featured && (
-                <View className="bg-brand self-start px-3 py-1 rounded-full mb-2">
-                  <Text className="text-white text-xs font-bold">POPULAR</Text>
+              <View className="flex-row items-center justify-between">
+                {plan.featured ? (
+                  <View className="bg-ink dark:bg-paper self-start px-2.5 py-1 rounded-full">
+                    <Text className="text-paper dark:text-ink text-[10px] font-bold tracking-wide">
+                      POPULAR
+                    </Text>
+                  </View>
+                ) : (
+                  <View />
+                )}
+                <View
+                  className={`w-5 h-5 rounded-full border-2 items-center justify-center
+                    ${isSelected ? "border-ink dark:border-paper" : "border-border-strong dark:border-border-strong-dark"}`}
+                >
+                  {isSelected && <View className="w-2.5 h-2.5 rounded-full bg-ink dark:bg-paper" />}
                 </View>
-              )}
-              <View className="flex-row items-baseline gap-1">
-                <Text className="text-3xl font-bold text-gray-900 dark:text-white">
+              </View>
+
+              <View className="flex-row items-baseline gap-1 mt-3">
+                <Text className="text-[30px] font-bold text-ink dark:text-paper">
                   {plan.currency} {plan.price}
                 </Text>
-                <Text className="text-muted text-sm">
+                <Text className="text-muted dark:text-muted-dark text-[13px]">
                   {plan.billing_type === "recurring" ? "/month" : ""}
                 </Text>
               </View>
-              <Text className="text-lg font-semibold text-gray-900 dark:text-white mt-2">
+              <Text className="text-[16px] font-semibold text-ink dark:text-paper mt-2">
                 {plan.name}
               </Text>
               {plan.public_description && (
-                <Text className="text-sm text-muted mt-1">{plan.public_description}</Text>
+                <Text className="text-[13px] text-muted dark:text-muted-dark mt-1">
+                  {plan.public_description}
+                </Text>
               )}
             </Pressable>
           );
         })}
 
         {plans.length === 0 && !loading && (
-          <Text className="text-center text-muted">No plans available yet.</Text>
+          <Text className="text-center text-muted dark:text-muted-dark">No plans available yet.</Text>
         )}
       </View>
-
-      <View className="flex-row gap-3 mt-8">
-        <Button
-          variant="secondary"
-          className="flex-1"
-          onPress={() => router.back()}
-        >
-          Back
-        </Button>
-        <Button
-          className="flex-1"
-          disabled={!selected}
-          onPress={handleContinue}
-        >
-          Continue
-        </Button>
-      </View>
-    </ScrollView>
+    </AuthScreen>
   );
 }
