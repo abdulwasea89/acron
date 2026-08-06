@@ -28,6 +28,19 @@ class CashPaymentOut(BaseModel):
     receipt_pdf_url: str | None = None
 
 
+class CashMemberOut(BaseModel):
+    """Minimal member record for the cash-logging search box.
+
+    Deliberately excludes directory fields (salaries, rates, etc.) that
+    front-desk staff must not see.
+    """
+
+    member_id: str
+    full_name: str | None = None
+    email: str
+    member_status: str
+
+
 class ReconciliationRequest(BaseModel):
     business_date: date
     counted_total: float

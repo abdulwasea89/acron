@@ -28,7 +28,7 @@ def _to_out(p: MembershipPlan) -> PlanOut:
 
 @router.get("", response_model=list[PlanOut])
 async def list_plans(
-    ctx: TenantContext = Depends(require_capability(Capability.CREATE_EDIT_PLANS)),
+    ctx: TenantContext = Depends(require_capability(Capability.VIEW_PLANS)),
     session: AsyncSession = Depends(get_session),
 ):
     return [_to_out(p) for p in await plans.list_plans(session, org_id=ctx.org_id)]

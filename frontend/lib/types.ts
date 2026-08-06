@@ -94,6 +94,13 @@ export interface MemberDirectoryItem {
   commission_rate: number;
 }
 
+export interface CashMemberItem {
+  member_id: string;
+  full_name: string | null;
+  email: string;
+  member_status: string;
+}
+
 export interface HeadlineMetrics {
   today_check_ins: number;
   today_revenue: number;

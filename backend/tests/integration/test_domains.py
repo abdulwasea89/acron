@@ -105,6 +105,46 @@ async def test_cash_reconciliation_discrepancy(client):
     assert r.json()["discrepancy"] == 50.0  # system cash total 0, counted 50
 
 
+# ------------------------------------------------ cash member search (front desk)
+@pytest.mark.asyncio
+async def test_cash_member_search_allows_front_desk(client):
+    """Front-desk staff can search members for cash logging and list plans,
+    but still can't read the admin directory (which exposes salaries)."""
+
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+    await _signup_member(client, org_code, plan_id, "searchme@g.com")
+
+    r = await client.post("/api/v1/staff/invites", headers=headers,
+                          json={"role": "front_desk", "email": "fd@cash.com"})
+    invite_code = r.json()["code"]
+    r = await client.post("/api/v1/staff/invites/redeem", json={
+        "code": invite_code, "full_name": "Front Desk", "password": PASSWORD})
+    body = r.json()
+    th = {"Authorization": f"Bearer {body['access_token']}", "X-Organization-Id": body["organization_id"]}
+    assert body["role"] == "front_desk"
+
+    # Query-based search matches the member's email, scoped to role == member.
+    r = await client.get("/api/v1/cash/members", headers=th, params={"q": "searchme"})
+    assert r.status_code == 200, r.text
+    rows = r.json()
+    assert any(row["email"] == "searchme@g.com" for row in rows)
+
+    # Empty query returns all members (staff/front-desk themselves excluded).
+    r = await client.get("/api/v1/cash/members", headers=th)
+    assert r.status_code == 200, r.text
+    assert len(r.json()) == 1
+    assert all(row["member_status"] == "active" for row in r.json())
+
+    # Front-desk can list plans (VIEW_PLANS) needed by the cash form.
+    r = await client.get("/api/v1/plans", headers=th)
+    assert r.status_code == 200, r.text
+    assert any(p["id"] == plan_id for p in r.json())
+
+    # ...but the admin directory (with salary fields) stays owner/manager-only.
+    r = await client.get("/api/v1/members", headers=th)
+    assert r.status_code == 403
+
+
 # ------------------------------------------------------------------ receipts
 @pytest.mark.asyncio
 async def test_receipt_upload_auto_approves(client):

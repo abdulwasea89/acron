@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, CardHeader, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
-import type { CashPaymentOut, MemberDirectoryItem, PlanOut, ReconciliationOut } from "@/lib/types";
+import type { CashMemberItem, CashPaymentOut, PlanOut, ReconciliationOut } from "@/lib/types";
 
 function localDate() {
   const now = new Date();
@@ -49,21 +49,28 @@ function WorkflowStep({ number, title, hint }: { number: string; title: string; 
 
 /* ─── Member Combobox ─── */
 
-function MemberCombobox({ members, value, onChange }: { members: MemberDirectoryItem[]; value: string; onChange: (id: string) => void }) {
+function MemberCombobox({
+  members,
+  selected,
+  loading,
+  query,
+  onQueryChange,
+  error,
+  onChange,
+  onClear,
+}: {
+  members: CashMemberItem[];
+  selected: CashMemberItem | null;
+  loading: boolean;
+  query: string;
+  onQueryChange: (q: string) => void;
+  error: string;
+  onChange: (member: CashMemberItem) => void;
+  onClear: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const selected = members.find((m) => m.member_id === value);
-
-  const filtered = useMemo(
-    () => members.filter((m) => {
-      const q = query.toLowerCase();
-      const name = (m.full_name ?? "").toLowerCase();
-      return name.includes(q) || m.email.toLowerCase().includes(q);
-    }).slice(0, 30),
-    [members, query],
-  );
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -73,11 +80,7 @@ function MemberCombobox({ members, value, onChange }: { members: MemberDirectory
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  function select(member: MemberDirectoryItem) {
-    onChange(member.member_id);
-    setOpen(false);
-    setQuery("");
-  }
+  const trimmed = query.trim();
 
   if (selected) {
     return (
@@ -94,7 +97,7 @@ function MemberCombobox({ members, value, onChange }: { members: MemberDirectory
           </div>
           <button
             type="button"
-            onClick={() => { onChange(""); setQuery(""); }}
+            onClick={onClear}
             className="shrink-0 rounded-lg p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
             title="Change member"
           >
@@ -115,18 +118,30 @@ function MemberCombobox({ members, value, onChange }: { members: MemberDirectory
         type="text"
         required
         value={query}
-        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onChange={(e) => { onQueryChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         placeholder="Search member by name or email…"
         className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-light)]"
       />
-      {open && query.length > 0 && filtered.length > 0 && (
+      {open && trimmed.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-64 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
-          {filtered.map((m) => (
+          {loading && (
+            <p className="flex items-center gap-2 px-3.5 py-3 text-sm text-[var(--muted)]">
+              <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--muted)]" aria-hidden="true" />
+              Searching…
+            </p>
+          )}
+          {!loading && error && (
+            <p className="px-3.5 py-3 text-sm text-[var(--error)]">Couldn&rsquo;t search members: {error}</p>
+          )}
+          {!loading && !error && members.length === 0 && (
+            <p className="px-3.5 py-3 text-sm text-[var(--foreground-muted)]">No members match &ldquo;{trimmed}&rdquo;</p>
+          )}
+          {!loading && !error && members.map((m) => (
             <button
               key={m.member_id}
               type="button"
-              onClick={() => select(m)}
+              onClick={() => { onChange(m); setOpen(false); }}
               className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--background)]"
             >
               <Avatar name={m.full_name || m.email} size="sm" />
@@ -137,14 +152,6 @@ function MemberCombobox({ members, value, onChange }: { members: MemberDirectory
               <Badge tone={m.member_status === "active" ? "success" : "warning"}>{m.member_status}</Badge>
             </button>
           ))}
-          {filtered.length === 0 && (
-            <p className="px-3.5 py-3 text-sm text-[var(--muted)]">No members found</p>
-          )}
-        </div>
-      )}
-      {open && query.length > 0 && filtered.length === 0 && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 text-sm text-[var(--foreground-muted)] shadow-lg">
-          No members match &ldquo;{query}&rdquo;
         </div>
       )}
     </div>
@@ -256,9 +263,13 @@ function SuccessPanel({ result, onDismiss }: { result: CashPaymentOut; onDismiss
 /* ─── LogPayment ─── */
 
 function LogPayment() {
-  const [members, setMembers] = useState<MemberDirectoryItem[] | null>(null);
-  const [plans, setPlans] = useState<PlanOut[]>([]);
+  const [plans, setPlans] = useState<PlanOut[] | null>(null);
+  const [selected, setSelected] = useState<CashMemberItem | null>(null);
   const [memberId, setMemberId] = useState("");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<CashMemberItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [planId, setPlanId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
@@ -267,29 +278,42 @@ function LogPayment() {
   const [result, setResult] = useState<CashPaymentOut | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const memberOptions = useMemo(() => members?.filter((m) => m.role === "member") ?? [], [members]);
-  const selectedPlan = plans.find((p) => p.id === planId);
+  const selectedPlan = plans?.find((p) => p.id === planId) ?? null;
 
   useEffect(() => {
     async function load() {
       try {
-        const [m, p] = await Promise.all([
-          api.get<MemberDirectoryItem[]>("/members"),
-          api.get<PlanOut[]>("/plans"),
-        ]);
-        setMembers(m);
-        setPlans(p);
+        setPlans(await api.get<PlanOut[]>("/plans"));
       } catch (e) {
         setError((e as ApiError).message);
-        setMembers([]);
+        setPlans([]);
       }
     }
     void load();
   }, []);
 
+  // Debounced server-side member search (front-desk safe).
+  useEffect(() => {
+    const trimmed = query.trim();
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (!trimmed || cancelled) return;
+      setSearchLoading(true);
+      try {
+        const rows = await api.get<CashMemberItem[]>(`/cash/members?q=${encodeURIComponent(trimmed)}`);
+        if (!cancelled) { setResults(rows); setSearchError(""); }
+      } catch (e) {
+        if (!cancelled) setSearchError((e as ApiError).message);
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [query]);
+
   function selectPlan(id: string) {
     setPlanId(id);
-    const plan = plans.find((p) => p.id === id);
+    const plan = plans?.find((p) => p.id === id);
     if (plan) setAmount(String(plan.price));
   }
 
@@ -306,7 +330,8 @@ function LogPayment() {
         member_id: memberId, plan_id: planId, amount: amt, method, note: note.trim() || null,
       });
       setResult(out);
-      setMemberId(""); setPlanId(""); setAmount(""); setNote("");
+      setSelected(null); setMemberId(""); setQuery(""); setResults([]);
+      setPlanId(""); setAmount(""); setNote("");
     } catch (e) {
       setError((e as ApiError).message);
     } finally {
@@ -324,8 +349,8 @@ function LogPayment() {
         action={<Badge tone="info">Front desk</Badge>}
       />
 
-      {members === null ? (
-        <Spinner label="Loading members and plans…" />
+      {plans === null ? (
+        <Spinner label="Loading plans…" />
       ) : result ? (
         <div className="p-5 sm:p-6">
           <SuccessPanel result={result} onDismiss={() => setResult(null)} />
@@ -336,7 +361,16 @@ function LogPayment() {
 
           {/* Step 1: Find member */}
           <div>
-            <MemberCombobox members={memberOptions} value={memberId} onChange={setMemberId} />
+            <MemberCombobox
+              members={results}
+              selected={selected}
+              loading={searchLoading}
+              query={query}
+              onQueryChange={setQuery}
+              error={searchError}
+              onChange={(m) => { setSelected(m); setMemberId(m.member_id); }}
+              onClear={() => { setSelected(null); setMemberId(""); setQuery(""); setResults([]); }}
+            />
           </div>
 
           {/* Step 2: Pick plan */}

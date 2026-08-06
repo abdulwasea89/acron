@@ -22,6 +22,7 @@ from app.core.constants import (
     PaymentMethod,
     PaymentStatus,
     PlanBillingType,
+    Role,
     SubscriptionStatus,
 )
 from app.core.security import now_utc
@@ -139,6 +140,33 @@ async def log_cash_payment(
 
     await events.payment_recorded(org_id, payment_id=payment.id, member_id=member.id)
     return payment, member, pdf_url
+
+
+async def search_members(
+    session: AsyncSession, *, org_id: str, q: str | None = None, limit: int = 50,
+) -> list[tuple[OrganizationMember, User]]:
+    """Search members by name/email for the cash-logging box.
+
+    Scoped to ``role == member`` and the tenant. Gated by LOG_CASH_PAYMENT at the
+    route layer; returns only rows the caller's role may see.
+    """
+
+    stmt = (
+        select(OrganizationMember, User)
+        .join(User, User.id == OrganizationMember.user_id)
+        .where(
+            OrganizationMember.organization_id == org_id,
+            OrganizationMember.role == Role.MEMBER,
+        )
+    )
+    if q:
+        pattern = f"%{q.strip().lower()}%"
+        stmt = stmt.where(
+            User.full_name.ilike(pattern) | User.email.ilike(pattern)
+        )
+    stmt = stmt.order_by(User.full_name, User.email).limit(max(1, min(limit, 200)))
+    rows = (await session.execute(stmt)).all()
+    return [(m, u) for m, u in rows]
 
 
 async def _system_cash_total(session: AsyncSession, *, org_id: str, business_date: date) -> float:
