@@ -148,3 +148,104 @@ def render_invoice_pdf(
     objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>")
     objects.append(b"<< /Length %d >>\nstream\n%s\nendstream" % (len(content), content))
     return _build_pdf(objects)
+
+
+# ─── Cash / offline payment receipt PDF ───────────────────────────────────
+
+
+def render_receipt_pdf(
+    *,
+    gym_name: str,
+    gym_address: str | None,
+    receipt_no: str,
+    paid_at: str,
+    member_name: str,
+    member_email: str,
+    plan_name: str,
+    amount: float,
+    currency: str,
+    method: str,
+    logged_by: str,
+    valid_until: str | None = None,
+    note: str | None = None,
+) -> bytes:
+    """Render the proof-of-payment receipt handed to a member (Section 11.1)."""
+
+    lines: list[str] = []
+    y = 740
+
+    lines.append(_text_at(72, y, gym_name, font="/F2", size=18))
+    y -= 16
+    if gym_address:
+        lines.append(_text_at(72, y, gym_address, size=9))
+        y -= 14
+
+    y -= 20
+    lines.append(_text_at(72, y, "PAYMENT RECEIPT", font="/F2", size=16))
+    lines.append(_right_text(y, "PAID", size=12, font="/F2"))
+    y -= 18
+    lines.append(_text_at(72, y, f"Receipt #{receipt_no}", size=10))
+    y -= 14
+    lines.append(_text_at(72, y, f"Date: {paid_at}", size=10))
+
+    y -= 24
+    lines.append(_line(y))
+    y -= 20
+
+    lines.append(_text_at(72, y, "Received from", font="/F2", size=10))
+    y -= 16
+    lines.append(_text_at(72, y, member_name, size=10))
+    y -= 14
+    lines.append(_text_at(72, y, member_email, size=9))
+
+    y -= 24
+    lines.append(_line(y))
+    y -= 20
+
+    lines.append(_text_at(72, y, "Description", font="/F2", size=10))
+    lines.append(_right_text(y, "Amount", size=10, font="/F2"))
+    y -= 18
+    lines.append(_line(y))
+    y -= 16
+
+    lines.append(_text_at(72, y, plan_name, size=10))
+    lines.append(_right_text(y, f"{currency} {amount:.2f}", size=10))
+    y -= 18
+
+    lines.append(_text_at(72, y, f"Payment method: {method}", size=10))
+    y -= 18
+
+    lines.append(_line(y))
+    y -= 20
+
+    lines.append(_text_at(72, y, "Total paid", font="/F2", size=12))
+    lines.append(_right_text(y, f"{currency} {amount:.2f}", size=12, font="/F2"))
+    y -= 30
+
+    if valid_until:
+        lines.append(_text_at(72, y, f"Membership active until: {valid_until}", size=10))
+        y -= 16
+    if note:
+        lines.append(_text_at(72, y, f"Note: {note}", size=9))
+        y -= 16
+
+    y -= 14
+    lines.append(_text_at(72, y, f"Recorded by: {logged_by}", size=9))
+    y -= 14
+    lines.append(_text_at(72, y, "Keep this receipt as proof of payment.", size=9))
+    y -= 14
+    lines.append(_text_at(72, y, "Gym Operations Platform", size=8))
+
+    content = "\n".join(lines).encode("latin-1", "replace")
+
+    objects: list[bytes] = []
+    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+    objects.append(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
+    objects.append(
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>"
+    )
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>")
+    objects.append(b"<< /Length %d >>\nstream\n%s\nendstream" % (len(content), content))
+    return _build_pdf(objects)

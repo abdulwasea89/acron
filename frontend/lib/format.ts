@@ -12,6 +12,10 @@ export function titleCase(s: string): string {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function roleLabel(role: string): string {
+  return titleCase(role);
+}
+
 export type Tone = "neutral" | "success" | "danger" | "warning";
 
 const GYM_STATUS_LABELS: Record<string, string> = {

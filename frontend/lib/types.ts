@@ -99,6 +99,7 @@ export interface CashMemberItem {
   full_name: string | null;
   email: string;
   member_status: string;
+  role: string;
 }
 
 export interface HeadlineMetrics {

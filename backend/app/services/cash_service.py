@@ -22,7 +22,6 @@ from app.core.constants import (
     PaymentMethod,
     PaymentStatus,
     PlanBillingType,
-    Role,
     SubscriptionStatus,
 )
 from app.core.security import now_utc
@@ -37,7 +36,7 @@ from app.models.subscription import Subscription
 from app.models.user import User
 from app.schemas.cash import CashPaymentLog
 from app.services.audit_service import record_audit
-from app.utils.pdf import render_simple_pdf
+from app.utils.pdf import render_receipt_pdf
 
 # 3 discrepancies within 30 days triggers an owner alert (Section 11.2).
 DISCREPANCY_ALERT_THRESHOLD = 3
@@ -107,20 +106,11 @@ async def log_cash_payment(
         member.joined_at = now_utc()
     session.add(member)
 
-    # Receipt PDF (Section 11.1 step "Receipt PDF auto-generated").
+    # Receipt PDF (Section 11.1 step "Receipt PDF auto-generated"). The document
+    # is rendered on demand from the payment row rather than stored, so the
+    # download link stays valid without an object store in the loop.
     user = await session.get(User, member.user_id)
-    _pdf_bytes = render_simple_pdf(  # stub: would upload to object store
-        "Payment Receipt",
-        [
-            f"Member: {user.full_name or user.email if user else member.id}",
-            f"Plan: {plan.name}",
-            f"Amount: {plan.currency} {data.amount:.2f}",
-            f"Method: {data.method.value}",
-            f"Date: {now_utc().date().isoformat()}",
-            f"Logged by staff: {staff_user_id}",
-        ],
-    )
-    pdf_url = f"receipts/cash/{payment.id}.pdf"  # stub object-store key
+    pdf_url = f"/cash/payments/{payment.id}/receipt"
 
     await record_audit(session, action="cash.payment_logged", organization_id=org_id,
                        actor_user_id=staff_user_id, entity_type="payment", entity_id=payment.id,
@@ -142,22 +132,63 @@ async def log_cash_payment(
     return payment, member, pdf_url
 
 
+async def render_receipt(session: AsyncSession, *, org_id: str, payment_id: str) -> tuple[bytes, str]:
+    """Build the receipt PDF for an offline payment. Returns (pdf_bytes, filename)."""
+
+    payment = await session.get(Payment, payment_id)
+    if payment is None or payment.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Payment not found.")
+
+    member = await session.get(OrganizationMember, payment.member_id) if payment.member_id else None
+    user = await session.get(User, member.user_id) if member else None
+    plan = await session.get(MembershipPlan, payment.plan_id) if payment.plan_id else None
+    org = await session.get(Organization, org_id)
+
+    valid_until = None
+    if payment.subscription_id:
+        sub = await session.get(Subscription, payment.subscription_id)
+        if sub and sub.current_period_end:
+            valid_until = sub.current_period_end.date().isoformat()
+
+    logged_by = payment.logged_by or "—"
+    if payment.logged_by:
+        staff = await session.get(User, payment.logged_by)
+        if staff:
+            logged_by = staff.full_name or staff.email
+
+    paid_at = (payment.paid_at or payment.created_at)
+    pdf = render_receipt_pdf(
+        gym_name=org.name if org else "Gym",
+        gym_address=org.address if org else None,
+        receipt_no=payment.id[:12].upper(),
+        paid_at=paid_at.strftime("%d %b %Y") if paid_at else "—",
+        member_name=(user.full_name or user.email) if user else "Member",
+        member_email=user.email if user else "—",
+        plan_name=plan.name if plan else "Membership payment",
+        amount=payment.amount,
+        currency=payment.currency,
+        method=payment.method.value.replace("_", " ").title(),
+        logged_by=logged_by,
+        valid_until=valid_until,
+        note=payment.note,
+    )
+    return pdf, f"receipt-{payment.id[:12]}.pdf"
+
+
 async def search_members(
     session: AsyncSession, *, org_id: str, q: str | None = None, limit: int = 50,
 ) -> list[tuple[OrganizationMember, User]]:
-    """Search members by name/email for the cash-logging box.
+    """Search everyone in the org by name/email for the cash-logging box.
 
-    Scoped to ``role == member`` and the tenant. Gated by LOG_CASH_PAYMENT at the
-    route layer; returns only rows the caller's role may see.
+    Staff (trainers, front desk, managers) commonly hold their own membership at
+    the gym, so every tenant row is searchable — matching what the Members
+    directory shows. Gated by LOG_CASH_PAYMENT at the route layer.
     """
 
     stmt = (
         select(OrganizationMember, User)
         .join(User, User.id == OrganizationMember.user_id)
-        .where(
-            OrganizationMember.organization_id == org_id,
-            OrganizationMember.role == Role.MEMBER,
-        )
+        .where(OrganizationMember.organization_id == org_id)
     )
     if q:
         pattern = f"%{q.strip().lower()}%"

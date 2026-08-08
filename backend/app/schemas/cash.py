@@ -39,6 +39,7 @@ class CashMemberOut(BaseModel):
     full_name: str | None = None
     email: str
     member_status: str
+    role: str
 
 
 class ReconciliationRequest(BaseModel):

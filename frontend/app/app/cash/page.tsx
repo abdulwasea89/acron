@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Avatar, Badge, Button, Card, CardHeader, Input, Spinner } from "@/components/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { api, ApiError } from "@/lib/api";
-import { money } from "@/lib/format";
+import { money, roleLabel, titleCase } from "@/lib/format";
 import type { CashMemberItem, CashPaymentOut, PlanOut, ReconciliationOut } from "@/lib/types";
 
 function localDate() {
@@ -94,6 +102,7 @@ function MemberCombobox({
               <p className="truncate text-xs text-[var(--foreground-muted)]">{selected.email}</p>
             </div>
             <Badge tone={selected.member_status === "active" ? "success" : "warning"}>{selected.member_status}</Badge>
+            {selected.role !== "member" && <Badge tone="info">{roleLabel(selected.role)}</Badge>}
           </div>
           <button
             type="button"
@@ -120,7 +129,7 @@ function MemberCombobox({
         value={query}
         onChange={(e) => { onQueryChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="Search member by name or email…"
+        placeholder="Search by name or email…"
         className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-light)]"
       />
       {open && trimmed.length > 0 && (
@@ -135,7 +144,7 @@ function MemberCombobox({
             <p className="px-3.5 py-3 text-sm text-[var(--error)]">Couldn&rsquo;t search members: {error}</p>
           )}
           {!loading && !error && members.length === 0 && (
-            <p className="px-3.5 py-3 text-sm text-[var(--foreground-muted)]">No members match &ldquo;{trimmed}&rdquo;</p>
+            <p className="px-3.5 py-3 text-sm text-[var(--foreground-muted)]">Nobody in this gym matches &ldquo;{trimmed}&rdquo;</p>
           )}
           {!loading && !error && members.map((m) => (
             <button
@@ -149,6 +158,7 @@ function MemberCombobox({
                 <p className="truncate text-sm font-medium text-[var(--foreground)]">{m.full_name || m.email}</p>
                 <p className="truncate text-xs text-[var(--foreground-muted)]">{m.email}</p>
               </div>
+              {m.role !== "member" && <Badge tone="info">{roleLabel(m.role)}</Badge>}
               <Badge tone={m.member_status === "active" ? "success" : "warning"}>{m.member_status}</Badge>
             </button>
           ))}
@@ -193,69 +203,142 @@ function MethodCard({ value, selected, onSelect }: { value: string; selected: bo
   );
 }
 
-/* ─── Plan Card ─── */
+/* ─── Plan Select ─── */
 
-function PlanCard({ plan, selected, onSelect }: { plan: PlanOut; selected: boolean; onSelect: () => void }) {
+function PlanSelect({
+  plans,
+  value,
+  onChange,
+}: {
+  plans: PlanOut[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const selected = plans.find((p) => p.id === value) ?? null;
+
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`flex items-center justify-between gap-4 rounded-xl border-2 p-4 text-left transition-all ${
-        selected
-          ? "border-[var(--primary)] bg-[var(--primary-light)] shadow-sm"
-          : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--background)]"
-      }`}
-    >
-      <div className="min-w-0 flex-1">
-        <p className={`text-sm font-semibold ${selected ? "text-[var(--foreground)]" : "text-[var(--foreground)]"}`}>{plan.name}</p>
-        {plan.public_description && (
-          <p className="mt-0.5 truncate text-xs text-[var(--foreground-muted)]">{plan.public_description}</p>
-        )}
-      </div>
-      <div className="text-right shrink-0">
-        <p className={`text-base font-bold ${selected ? "text-[var(--primary)]" : "text-[var(--foreground)]"}`}>
-          {money(plan.price, plan.currency)}
-        </p>
-        <Badge tone="neutral">{plan.billing_type.replace(/_/g, " ")}</Badge>
-      </div>
-    </button>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label="Membership plan" className="h-auto px-4 py-3">
+        <SelectValue placeholder="Choose the plan this payment covers…">
+          {selected && (
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="truncate font-medium text-[var(--foreground)]">{selected.name}</span>
+              {selected.featured && <Badge tone="info">Featured</Badge>}
+              <span className="ml-auto shrink-0 pl-2 font-bold tabular-nums text-[var(--primary)]">
+                {money(selected.price, selected.currency)}
+              </span>
+            </span>
+          )}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {plans.map((plan) => (
+          <SelectItem key={plan.id} value={plan.id} label={plan.name} className="py-2.5">
+            <span className="flex items-center gap-3">
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="truncate font-medium text-[var(--foreground)]">{plan.name}</span>
+                  {plan.featured && <Badge tone="info">Featured</Badge>}
+                </span>
+                <span className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                  <Badge tone="neutral">{titleCase(plan.billing_type)}</Badge>
+                  {plan.public_description && <span className="truncate">{plan.public_description}</span>}
+                </span>
+              </span>
+              <span className="shrink-0 font-bold tabular-nums text-[var(--foreground)]">
+                {money(plan.price, plan.currency)}
+              </span>
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
 /* ─── Success Panel ─── */
 
-function SuccessPanel({ result, onDismiss }: { result: CashPaymentOut; onDismiss: () => void }) {
+function SuccessPanel({
+  result,
+  member,
+  plan,
+  method,
+  onDismiss,
+}: {
+  result: CashPaymentOut;
+  member: CashMemberItem | null;
+  plan: PlanOut | null;
+  method: string;
+  onDismiss: () => void;
+}) {
   return (
-    <div className="animate-fade-in rounded-xl border border-[var(--success-border)] bg-[var(--success-bg)] p-5 text-center">
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--success)]/10">
-        <svg className="h-6 w-6 text-[var(--success)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-      <p className="text-lg font-semibold text-[var(--foreground)]">Payment recorded</p>
-      <p className="mt-1 text-sm text-[var(--foreground-muted)]">
-        <span className="font-semibold text-[var(--foreground)]">{money(result.amount)}</span> logged · Membership is <span className="font-semibold text-[var(--success)] capitalize">{result.member_status}</span>
-      </p>
-      {result.receipt_pdf_url && (
-        <a
-          href={result.receipt_pdf_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--primary)] hover:underline"
-        >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    <div className="animate-fade-in">
+      <div className="rounded-2xl border border-[var(--success-border)] bg-[var(--success-bg)] p-5 text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--success)]/10">
+          <svg className="h-6 w-6 text-[var(--success)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Download receipt
-        </a>
-      )}
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="mt-4 text-xs font-medium text-[var(--muted)] underline underline-offset-2 hover:text-[var(--foreground)]"
-      >
-        Record another payment
-      </button>
+        </div>
+        <p className="text-lg font-semibold text-[var(--foreground)]">Payment recorded</p>
+        <p className="mt-1 text-sm text-[var(--foreground-muted)]">
+          The receipt has been emailed to the member.
+        </p>
+
+        <p className="mt-4 text-3xl font-bold tabular-nums text-[var(--foreground)]">
+          {money(result.amount, plan?.currency)}
+        </p>
+
+        <dl className="mt-5 space-y-2.5 border-t border-[var(--success-border)] pt-4 text-left text-sm">
+          {member && (
+            <ReceiptRow
+              label="Member"
+              value={
+                <span className="flex items-center justify-end gap-2 min-w-0">
+                  <Avatar name={member.full_name || member.email} size="sm" />
+                  <span className="truncate">{member.full_name || member.email}</span>
+                </span>
+              }
+            />
+          )}
+          {plan && <ReceiptRow label="Plan" value={plan.name} />}
+          <ReceiptRow label="Method" value={METHOD_LABELS[method] ?? titleCase(method)} />
+          <ReceiptRow
+            label="Membership"
+            value={<Badge tone="success">{titleCase(result.member_status)}</Badge>}
+          />
+          <ReceiptRow label="Receipt no." value={<span className="font-mono text-xs">{result.payment_id.slice(0, 12).toUpperCase()}</span>} />
+        </dl>
+      </div>
+
+      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-sm font-medium text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
+        >
+          Record another payment
+        </button>
+        {result.receipt_pdf_url && (
+          <a
+            href={`/api/download${result.receipt_pdf_url}`}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Download receipt
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReceiptRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className="shrink-0 text-[var(--foreground-muted)]">{label}</dt>
+      <dd className="min-w-0 truncate text-right font-medium text-[var(--foreground)]">{value}</dd>
     </div>
   );
 }
@@ -276,6 +359,8 @@ function LogPayment() {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<CashPaymentOut | null>(null);
+  // The form resets on success, so keep what was paid for alongside the result.
+  const [receipt, setReceipt] = useState<{ member: CashMemberItem | null; plan: PlanOut | null; method: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const selectedPlan = plans?.find((p) => p.id === planId) ?? null;
@@ -330,6 +415,7 @@ function LogPayment() {
         member_id: memberId, plan_id: planId, amount: amt, method, note: note.trim() || null,
       });
       setResult(out);
+      setReceipt({ member: selected, plan: selectedPlan, method });
       setSelected(null); setMemberId(""); setQuery(""); setResults([]);
       setPlanId(""); setAmount(""); setNote("");
     } catch (e) {
@@ -353,7 +439,13 @@ function LogPayment() {
         <Spinner label="Loading plans…" />
       ) : result ? (
         <div className="p-5 sm:p-6">
-          <SuccessPanel result={result} onDismiss={() => setResult(null)} />
+          <SuccessPanel
+            result={result}
+            member={receipt?.member ?? null}
+            plan={receipt?.plan ?? null}
+            method={receipt?.method ?? "cash"}
+            onDismiss={() => { setResult(null); setReceipt(null); }}
+          />
         </div>
       ) : (
         <form onSubmit={submit} className="grid gap-6 p-5 sm:p-6">
@@ -376,11 +468,25 @@ function LogPayment() {
           {/* Step 2: Pick plan */}
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">Membership plan</p>
-            <div className="grid gap-2.5">
-              {plans.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} selected={planId === plan.id} onSelect={() => selectPlan(plan.id)} />
-              ))}
-            </div>
+            {plans.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--background)] p-4 text-center">
+                <p className="text-sm font-medium text-[var(--foreground)]">No membership plans yet</p>
+                <p className="mt-1 text-xs text-[var(--foreground-muted)]">
+                  A payment has to be applied to a plan. Create one before logging cash.
+                </p>
+                <Link
+                  href="/app/plans"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:underline"
+                >
+                  Create a plan
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                </Link>
+              </div>
+            ) : (
+              <PlanSelect plans={plans} value={planId} onChange={selectPlan} />
+            )}
           </div>
 
           {/* Step 3: Amount + Method */}

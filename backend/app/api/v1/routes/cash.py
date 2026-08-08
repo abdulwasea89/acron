@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session, require_capability, require_writable_org
@@ -23,7 +24,7 @@ router = APIRouter()
 def _cash_member(m, u) -> CashMemberOut:
     return CashMemberOut(
         member_id=m.id, full_name=u.full_name, email=u.email,
-        member_status=m.member_status.value,
+        member_status=m.member_status.value, role=m.role.value,
     )
 
 
@@ -50,6 +51,23 @@ async def log_cash_payment(
         payment_id=payment.id, member_id=member.id, amount=payment.amount,
         method=payment.method.value, member_status=member.member_status.value,
         receipt_pdf_url=pdf_url,
+    )
+
+
+@router.get("/payments/{payment_id}/receipt")
+async def cash_payment_receipt(
+    payment_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.LOG_CASH_PAYMENT)),
+    session: AsyncSession = Depends(get_session),
+):
+    """Download the proof-of-payment receipt for an offline payment."""
+    pdf_bytes, filename = await cash.render_receipt(
+        session, org_id=ctx.org_id, payment_id=payment_id
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

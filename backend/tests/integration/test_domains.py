@@ -89,7 +89,38 @@ async def test_cash_payment_logging_activates_member(client):
         "member_id": member_id, "plan_id": plan_id, "amount": 149.0, "method": "cash"})
     assert r.status_code == 201, r.text
     assert r.json()["member_status"] == "active"
-    assert r.json()["receipt_pdf_url"]
+    receipt_url = r.json()["receipt_pdf_url"]
+    assert receipt_url
+
+    # The advertised receipt link resolves to a real PDF, not a dead stub key.
+    r = await client.get(f"/api/v1{receipt_url}", headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("application/pdf")
+    assert r.content.startswith(b"%PDF-")
+    assert b"PAYMENT RECEIPT" in r.content
+
+
+@pytest.mark.asyncio
+async def test_cash_receipt_is_tenant_scoped(client):
+    """A payment's receipt must not be readable from another org."""
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    email = "receiptscope@g.com"
+    await client.post("/api/v1/memberships/signup/request-email",
+                      json={"org_code": org_code, "email": email})
+    c = latest_code_for(email)
+    await client.post("/api/v1/memberships/signup/verify-email",
+                      json={"org_code": org_code, "email": email, "code": c})
+    r = await client.post("/api/v1/memberships/signup/set-password",
+                          json={"org_code": org_code, "email": email, "password": MEMBER_PWD})
+    member_id = r.json()["member_id"]
+
+    r = await client.post("/api/v1/cash/log", headers=headers, json={
+        "member_id": member_id, "plan_id": plan_id, "amount": 149.0, "method": "cash"})
+    payment_id = r.json()["payment_id"]
+
+    other_headers, *_ = await _provision_gym(client)
+    r = await client.get(f"/api/v1/cash/payments/{payment_id}/receipt", headers=other_headers)
+    assert r.status_code == 404, r.text
 
 
 @pytest.mark.asyncio
@@ -123,17 +154,22 @@ async def test_cash_member_search_allows_front_desk(client):
     th = {"Authorization": f"Bearer {body['access_token']}", "X-Organization-Id": body["organization_id"]}
     assert body["role"] == "front_desk"
 
-    # Query-based search matches the member's email, scoped to role == member.
+    # Query-based search matches the member's email.
     r = await client.get("/api/v1/cash/members", headers=th, params={"q": "searchme"})
     assert r.status_code == 200, r.text
     rows = r.json()
     assert any(row["email"] == "searchme@g.com" for row in rows)
 
-    # Empty query returns all members (staff/front-desk themselves excluded).
+    # Staff hold memberships too, so they're searchable and carry their role.
+    r = await client.get("/api/v1/cash/members", headers=th, params={"q": "fd@cash.com"})
+    assert r.status_code == 200, r.text
+    rows = r.json()
+    assert [row["role"] for row in rows] == ["front_desk"]
+
+    # Empty query returns everyone in the org: owner + member + front desk.
     r = await client.get("/api/v1/cash/members", headers=th)
     assert r.status_code == 200, r.text
-    assert len(r.json()) == 1
-    assert all(row["member_status"] == "active" for row in r.json())
+    assert {row["role"] for row in r.json()} == {"owner", "member", "front_desk"}
 
     # Front-desk can list plans (VIEW_PLANS) needed by the cash form.
     r = await client.get("/api/v1/plans", headers=th)
