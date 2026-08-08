@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { OfflineBanner, RealtimeProvider } from "@/components/Realtime";
+import { Onboarding } from "@/components/Onboarding";
 import { backend } from "@/lib/backend";
 import { isAuthenticated } from "@/lib/session";
 import type { OrganizationOut } from "@/lib/types";
@@ -27,6 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <div className="page-content">{children}</div>
           </div>
         </main>
+        <Onboarding />
       </div>
     </RealtimeProvider>
   );

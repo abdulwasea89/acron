@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Badge, Card, CardHeader, StatCard } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { money, titleCase } from "@/lib/format";
-import type { HeadlineMetrics, OrganizationOut, SaasStatusOut, SetupChecklist } from "@/lib/types";
+import type { HeadlineMetrics, SaasStatusOut, SetupChecklist } from "@/lib/types";
 
 async function safe<T>(p: Promise<T>): Promise<T | null> {
   try { return await p; } catch { return null; }
@@ -20,11 +20,10 @@ const CHECKLIST_LABELS: Record<keyof SetupChecklist, string> = {
 };
 
 export default async function DashboardPage() {
-  const [metrics, checklist, saas, org] = await Promise.all([
+  const [metrics, checklist, saas] = await Promise.all([
     safe(backend<HeadlineMetrics>("/analytics/headline")),
     safe(backend<SetupChecklist>("/organizations/me/checklist")),
     safe(backend<SaasStatusOut>("/saas-billing/status")),
-    safe(backend<OrganizationOut>("/organizations/me")),
   ]);
 
   const stats = [
@@ -89,13 +88,13 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="stats">
         {stats.map((s) => (
           <StatCard key={s.label} label={s.label} value={s.value} />
         ))}
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6" data-tour="checklist">
         <Card>
           <CardHeader
             title="Setup checklist"

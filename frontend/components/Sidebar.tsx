@@ -46,7 +46,7 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus }: { orgName: strin
       <MobileNavigation orgName={orgName} />
       <aside className="hidden lg:flex w-[260px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]">
       {/* Brand + Org Switcher */}
-      <div className="space-y-2 border-b border-[var(--border)] px-4 py-3">
+      <div className="space-y-2 border-b border-[var(--border)] px-4 py-3" data-tour="org">
         <OrgSwitcher currentOrgName={orgName} currentOrgCode={orgCode} currentOrgId={orgId} />
         <GymStatusToggle initialStatus={gymStatus} />
       </div>
@@ -59,6 +59,7 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus }: { orgName: strin
             <Link
               key={item.href}
               href={item.href}
+              data-tour={item.href === "/app" ? "nav-dashboard" : undefined}
               className={cx(
                 "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-150",
                   active
