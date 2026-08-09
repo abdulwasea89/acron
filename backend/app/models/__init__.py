@@ -8,6 +8,7 @@ from app.models.audit_log import AuditLog
 from app.models.cash import CashReconciliation
 from app.models.class_session import ClassBooking, ClassSession
 from app.models.idempotency_key import IdempotencyKey
+from app.models.member_trainer import MemberTrainer
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.payment import Payment
@@ -28,6 +29,7 @@ __all__ = [
     "ClassBooking",
     "ClassSession",
     "IdempotencyKey",
+    "MemberTrainer",
     "MembershipPlan",
     "Organization",
     "OrganizationMember",

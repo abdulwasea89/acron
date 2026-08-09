@@ -8,7 +8,7 @@ import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spin
 import { api, ApiError } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtimeEvent } from "@/components/Realtime";
-import type { StaffInviteOut, MemberDirectoryItem, ShiftOut } from "@/lib/types";
+import type { StaffInviteOut, MemberDirectoryItem, ShiftOut, ClientAssignment } from "@/lib/types";
 
 const STAFF_ROLES = ["manager", "trainer", "front_desk"];
 
@@ -80,6 +80,9 @@ export default function StaffPage() {
   const [compLoading, setCompLoading] = useState(false);
   const [compError, setCompError] = useState("");
 
+  // Trainer "my clients" view
+  const [myClients, setMyClients] = useState<ClientAssignment[] | null>(null);
+
   const isOwner = currentUser?.role === "owner";
   const isStaff = isOwner || currentUser?.role === "manager" || currentUser?.role === "trainer" || currentUser?.role === "front_desk";
 
@@ -125,6 +128,13 @@ export default function StaffPage() {
     if (!isStaff) return;
     queueMicrotask(() => void loadShift());
   }, [loadShift, isStaff]);
+
+  useEffect(() => {
+    if (currentUser?.role !== "trainer") return;
+    api.get<ClientAssignment[]>("/members/assigned-to-me")
+      .then(setMyClients)
+      .catch(() => setMyClients([]));
+  }, [currentUser?.role]);
 
   useEffect(() => {
     if (!isStaff || currentShift?.status !== "checked_in") return;
@@ -827,6 +837,47 @@ export default function StaffPage() {
             </div>
           </div>
           {shiftError && <div className="border-t border-[var(--border)] px-5 pb-4 pt-3"><Alert>{shiftError}</Alert></div>}
+        </Card>
+      )}
+
+      {/* Trainer: my clients */}
+      {currentUser?.role === "trainer" && (
+        <Card className="mb-4">
+          <CardHeader
+            title="My clients"
+            subtitle={myClients ? `${myClients.length} member${myClients.length === 1 ? "" : "s"} assigned to you` : undefined}
+          />
+          {myClients === null ? (
+            <Spinner label="Loading your clients..." />
+          ) : myClients.length === 0 ? (
+            <EmptyState
+              title="No clients yet"
+              hint="The gym owner or a manager can assign members to you from the Members page."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  <tr className="border-b border-[var(--border)]">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {myClients.map((c) => (
+                    <tr key={c.member_id} className="transition-colors hover:bg-[var(--background)]">
+                      <td className="px-4 py-3 font-medium text-[var(--foreground)]">{c.member_name || "—"}</td>
+                      <td className="px-4 py-3 text-[var(--foreground-muted)]">{c.member_email}</td>
+                      <td className="px-4 py-3">
+                        <Badge tone={c.member_status === "active" ? "success" : c.member_status === "grace" ? "warning" : "neutral"}>{c.member_status}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       )}
 

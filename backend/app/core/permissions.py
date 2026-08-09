@@ -28,6 +28,8 @@ class Capability(str, Enum):
     VIEW_REVENUE_ANALYTICS = "view_revenue_analytics"
     MANAGE_SETTINGS = "manage_settings"
     MANAGE_MEMBERS = "manage_members"
+    ASSIGN_TRAINERS = "assign_trainers"
+    VIEW_ASSIGNED_MEMBERS = "view_assigned_members"
     VIEW_AUDIT_LOG = "view_audit_log"
     VIEW_PLANS = "view_plans"
 
@@ -50,6 +52,8 @@ _MATRIX: dict[Capability, set[Role]] = {
     Capability.VIEW_REVENUE_ANALYTICS: {Role.OWNER, Role.MANAGER},
     Capability.MANAGE_SETTINGS: {Role.OWNER},
     Capability.MANAGE_MEMBERS: {Role.OWNER, Role.MANAGER},
+    Capability.ASSIGN_TRAINERS: {Role.OWNER, Role.MANAGER},
+    Capability.VIEW_ASSIGNED_MEMBERS: {Role.OWNER, Role.MANAGER, Role.TRAINER},
     Capability.VIEW_AUDIT_LOG: {Role.OWNER, Role.MANAGER},
     Capability.VIEW_PLANS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
 }

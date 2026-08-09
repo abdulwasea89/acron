@@ -4,28 +4,48 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
-from app.api.deps import get_session, require_capability
+from app.api.deps import get_session, require_capability, require_writable_org
 from app.core.constants import MemberStatus, Role
 from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
 from app.schemas.common import Message
 from app.schemas.members import (
     ApprovalDecision,
+    ClientAssignment,
     EmailUpdate,
+    MemberDetailOut,
     MemberDirectoryItem,
     MemberInvite,
     MemberInviteOut,
     MemberStatusChange,
+    MemberSubscriptionOut,
     RoleChange,
+    TrainerAssign,
+    TrainerAssignment,
 )
 from app.schemas.organizations import BulkImportResult
+from app.services import member_trainers_service as trainer_assign
 from app.services import members_service as members
+from app.models.membership import OrganizationMember
+from app.models.organization import Organization
 
 router = APIRouter()
 
 
-def _item(m, u) -> MemberDirectoryItem:
+async def _trainer_names(session: AsyncSession, org_id: str) -> dict[str, list[str]]:
+    """member_id -> sorted display names of its active trainers."""
+
+    rows = await trainer_assign.org_assignments(session, org_id=org_id)
+    names: dict[str, list[str]] = {}
+    for _mt, t, u in rows:
+        name = t.display_name or u.full_name or u.email
+        names.setdefault(_mt.member_id, []).append(name)
+    return {mid: sorted(ns) for mid, ns in names.items()}
+
+
+def _item(m, u, trainers: list[str] | None = None) -> MemberDirectoryItem:
     return MemberDirectoryItem(
         member_id=m.id, user_id=u.id, email=u.email, full_name=u.full_name,
         display_name=m.display_name,
@@ -36,7 +56,16 @@ def _item(m, u) -> MemberDirectoryItem:
         hourly_rate=m.hourly_rate,
         per_class_rate=m.per_class_rate,
         commission_rate=m.commission_rate,
+        assigned_trainers=trainers or [],
     )
+
+
+async def _item_with_trainers(
+    session: AsyncSession, org_id: str, member, user,
+) -> MemberDirectoryItem:
+    rows = await trainer_assign.list_for_member(session, org_id=org_id, member_id=member.id)
+    names = sorted((t.display_name or u.full_name or u.email) for _mt, t, u in rows)
+    return _item(member, user, trainers=names)
 
 
 @router.get("", response_model=list[MemberDirectoryItem])
@@ -47,7 +76,43 @@ async def list_directory(
     session: AsyncSession = Depends(get_session),
 ):
     rows = await members.directory(session, org_id=ctx.org_id, status=status, role=role)
-    return [_item(m, u) for m, u in rows]
+    names = await _trainer_names(session, ctx.org_id)
+    return [_item(m, u, trainers=names.get(m.id)) for m, u in rows]
+
+
+@router.get("/assigned-to-me", response_model=list[ClientAssignment])
+async def assigned_to_me(
+    ctx: TenantContext = Depends(require_capability(Capability.VIEW_ASSIGNED_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    """Trainers see the members assigned to them; admins see the whole roster."""
+
+    if ctx.role == Role.TRAINER:
+        membership = (
+            await session.execute(
+                select(OrganizationMember).where(
+                    OrganizationMember.organization_id == ctx.org_id,
+                    OrganizationMember.user_id == ctx.user_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if membership is None:
+            raise HTTPException(status_code=404, detail="Trainer not found.")
+        rows = await trainer_assign.clients_for_trainer(
+            session, org_id=ctx.org_id, trainer_member_id=membership.id)
+    else:
+        rows = await trainer_assign.all_clients(session, org_id=ctx.org_id)
+
+    result: list[ClientAssignment] = []
+    for mt, m, u in rows:
+        result.append(ClientAssignment(
+            member_id=mt.member_id,
+            member_name=m.display_name or u.full_name,
+            member_email=u.email,
+            member_status=m.member_status.value,
+            assigned_at=mt.assigned_at,
+        ))
+    return result
 
 
 @router.get("/approval-queue", response_model=list[MemberDirectoryItem])
@@ -56,7 +121,60 @@ async def approval_queue(
     session: AsyncSession = Depends(get_session),
 ):
     rows = await members.approval_queue(session, org_id=ctx.org_id)
-    return [_item(m, u) for m, u in rows]
+    names = await _trainer_names(session, ctx.org_id)
+    return [_item(m, u, trainers=names.get(m.id)) for m, u in rows]
+
+
+@router.get("/{member_id}", response_model=MemberDetailOut)
+async def member_detail(
+    member_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    data = await members.member_detail(session, org_id=ctx.org_id, member_id=member_id)
+    member, user = data["member"], data["user"]
+    sub = data["subscription"]
+    plan = data["plan"]
+
+    subscription = None
+    if sub is not None:
+        subscription = MemberSubscriptionOut(
+            subscription_id=sub.id,
+            plan_id=sub.plan_id,
+            plan_name=plan.name if plan else "Archived plan",
+            plan_price=plan.price if plan else sub.price_snapshot,
+            price_snapshot=sub.price_snapshot,
+            currency=sub.currency,
+            billing_type=plan.billing_type.value if plan else "recurring",
+            status=sub.status.value,
+            started_at=sub.started_at,
+            current_period_end=sub.current_period_end,
+            grace_until=sub.grace_until,
+            frozen_until=sub.frozen_until,
+            cancelled_at=sub.cancelled_at,
+            classes_remaining=sub.classes_remaining,
+        )
+
+    from app.api.v1.routes.payments import _to_out as payment_to_out
+
+    rows = await trainer_assign.list_for_member(session, org_id=ctx.org_id, member_id=member.id)
+    names = sorted((t.display_name or u.full_name or u.email) for _mt, t, u in rows)
+    trainer_assignments = [
+        TrainerAssignment(
+            member_id=mt.member_id, trainer_member_id=mt.trainer_member_id,
+            trainer_name=t.display_name or u.full_name or u.email,
+            assigned_at=mt.assigned_at, active=mt.active,
+        )
+        for mt, t, u in rows
+    ]
+
+    return MemberDetailOut(
+        member=_item(member, user, trainers=names),
+        subscription=subscription,
+        payments=[payment_to_out(p) for p in data["payments"]],
+        pending_payments=data["pending_payments"],
+        trainer_assignments=trainer_assignments,
+    )
 
 
 @router.post("/{member_id}/approval", response_model=MemberDirectoryItem)
@@ -71,7 +189,7 @@ async def decide_approval(
     from app.models.user import User
 
     user = await session.get(User, member.user_id)
-    return _item(member, user)
+    return await _item_with_trainers(session, ctx.org_id, member, user)
 
 
 @router.post("/{member_id}/status", response_model=MemberDirectoryItem)
@@ -86,7 +204,7 @@ async def change_status(
     from app.models.user import User
 
     user = await session.get(User, member.user_id)
-    return _item(member, user)
+    return await _item_with_trainers(session, ctx.org_id, member, user)
 
 
 @router.patch("/{member_id}/role", response_model=MemberDirectoryItem)
@@ -101,7 +219,7 @@ async def change_role(
     from app.models.user import User
 
     user = await session.get(User, member.user_id)
-    return _item(member, user)
+    return await _item_with_trainers(session, ctx.org_id, member, user)
 
 
 @router.patch("/{member_id}/email", response_model=MemberDirectoryItem)
@@ -116,7 +234,7 @@ async def change_email(
     from app.models.user import User
 
     user = await session.get(User, member.user_id)
-    return _item(member, user)
+    return await _item_with_trainers(session, ctx.org_id, member, user)
 
 
 @router.delete("/{member_id}", response_model=Message)
@@ -128,6 +246,60 @@ async def delete_member(
     await members.delete_member(session, org_id=ctx.org_id, member_id=member_id,
                                 actor_user_id=ctx.user_id, actor_role=ctx.role)
     return Message(message="Member deleted.")
+
+
+# ------------------------------------------------------------- trainer assignment
+@router.get("/{member_id}/trainers", response_model=list[TrainerAssignment])
+async def list_member_trainers(
+    member_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.ASSIGN_TRAINERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = await trainer_assign.list_for_member(session, org_id=ctx.org_id, member_id=member_id)
+    return [
+        TrainerAssignment(
+            member_id=mt.member_id, trainer_member_id=mt.trainer_member_id,
+            trainer_name=t.display_name or u.full_name or u.email,
+            assigned_at=mt.assigned_at, active=mt.active,
+        )
+        for mt, t, u in rows
+    ]
+
+
+@router.post("/{member_id}/trainers", response_model=TrainerAssignment, status_code=201)
+async def assign_trainer(
+    member_id: str,
+    data: TrainerAssign,
+    ctx: TenantContext = Depends(require_capability(Capability.ASSIGN_TRAINERS)),
+    org: Organization = Depends(require_writable_org),
+    session: AsyncSession = Depends(get_session),
+):
+    mt = await trainer_assign.assign(
+        session, org_id=ctx.org_id, member_id=member_id,
+        trainer_member_id=data.trainer_member_id, actor_user_id=ctx.user_id)
+    trainer = await session.get(OrganizationMember, mt.trainer_member_id)
+    from app.models.user import User
+
+    user = await session.get(User, trainer.user_id) if trainer else None
+    return TrainerAssignment(
+        member_id=mt.member_id, trainer_member_id=mt.trainer_member_id,
+        trainer_name=(trainer.display_name or user.full_name or user.email) if user else "—",
+        assigned_at=mt.assigned_at, active=mt.active,
+    )
+
+
+@router.delete("/{member_id}/trainers/{trainer_member_id}", response_model=Message)
+async def unassign_trainer(
+    member_id: str,
+    trainer_member_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.ASSIGN_TRAINERS)),
+    org: Organization = Depends(require_writable_org),
+    session: AsyncSession = Depends(get_session),
+):
+    await trainer_assign.unassign(
+        session, org_id=ctx.org_id, member_id=member_id,
+        trainer_member_id=trainer_member_id, actor_user_id=ctx.user_id)
+    return Message(message="Trainer unassigned.")
 
 
 def _invite_out(member, email: str, code: str) -> MemberInviteOut:

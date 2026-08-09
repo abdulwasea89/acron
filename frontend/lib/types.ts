@@ -92,6 +92,57 @@ export interface MemberDirectoryItem {
   hourly_rate: number;
   per_class_rate: number;
   commission_rate: number;
+  assigned_trainers: string[];
+}
+
+export interface MemberSubscriptionOut {
+  subscription_id: string;
+  plan_id: string;
+  plan_name: string;
+  plan_price: number;
+  price_snapshot: number;
+  currency: string;
+  billing_type: string;
+  status: string;
+  started_at: string;
+  current_period_end: string | null;
+  grace_until: string | null;
+  frozen_until: string | null;
+  cancelled_at: string | null;
+  classes_remaining: number | null;
+}
+
+export interface PendingPaymentItem {
+  kind: string;
+  label: string;
+  amount: number | null;
+  currency: string | null;
+  due_at: string | null;
+  payment_id: string | null;
+}
+
+export interface MemberDetailOut {
+  member: MemberDirectoryItem;
+  subscription: MemberSubscriptionOut | null;
+  payments: PaymentOut[];
+  pending_payments: PendingPaymentItem[];
+  trainer_assignments: TrainerAssignment[];
+}
+
+export interface TrainerAssignment {
+  member_id: string;
+  trainer_member_id: string;
+  trainer_name: string;
+  assigned_at: string;
+  active: boolean;
+}
+
+export interface ClientAssignment {
+  member_id: string;
+  member_name: string | null;
+  member_email: string;
+  member_status: string;
+  assigned_at: string;
 }
 
 export interface CashMemberItem {

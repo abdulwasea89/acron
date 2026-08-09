@@ -17,13 +17,18 @@ from sqlmodel import select
 
 from app.core.constants import (
     MemberStatus,
+    PaymentStatus,
     Role,
+    SubscriptionStatus,
     VerificationPurpose,
 )
 from app.core.security import hash_password
 from app.integrations.email import EmailDeliveryError, send_email, send_email_safe
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
+from app.models.payment import Payment
+from app.models.plan import MembershipPlan
+from app.models.subscription import Subscription
 from app.models.user import User
 from app.services import verification_service as verif
 from app.services.audit_service import record_audit
@@ -356,3 +361,99 @@ async def delete_member(
                        entity_type="member", entity_id=member.id,
                        metadata={"deleted_user_id": member.user_id, "deleted_role": member.role.value})
     await session.delete(member)
+
+
+# ------------------------------------------------------- member detail
+async def member_detail(
+    session: AsyncSession, *, org_id: str, member_id: str,
+) -> dict:
+    """Aggregate a member's detail for the web member profile page.
+
+    Returns the member + user, their latest subscription (joined with the plan),
+    full payment history, and derived pending payments (Section 9.3):
+      - ``first_payment``  — member is pending_payment; the plan isn't chosen
+        until payment, so the amount is unknown.
+      - ``renewal``        — latest subscription is grace/expired: the snapshot
+        price is still owed.
+      - ``pending_attempt`` / ``failed_attempt`` — payment rows not yet settled.
+    """
+
+    member = await _get_member(session, org_id, member_id)
+    user = await session.get(User, member.user_id)
+
+    subscription = (
+        await session.execute(
+            select(Subscription)
+            .where(
+                Subscription.organization_id == org_id,
+                Subscription.member_id == member.id,
+            )
+            .order_by(Subscription.created_at.desc())
+        )
+    ).scalars().first()
+    plan = None
+    if subscription is not None:
+        plan = await session.get(MembershipPlan, subscription.plan_id)
+
+    payments = (
+        await session.execute(
+            select(Payment)
+            .where(
+                Payment.organization_id == org_id,
+                Payment.member_id == member.id,
+            )
+            .order_by(Payment.created_at.desc())
+        )
+    ).scalars().all()
+
+    from app.schemas.members import PendingPaymentItem
+
+    pending: list[PendingPaymentItem] = []
+
+    if member.member_status == MemberStatus.PENDING_PAYMENT:
+        pending.append(PendingPaymentItem(
+            kind="first_payment",
+            label="First membership payment — awaiting payment",
+            amount=None,
+        ))
+
+    if subscription is not None and subscription.status in {
+        SubscriptionStatus.GRACE, SubscriptionStatus.EXPIRED,
+    }:
+        pending.append(PendingPaymentItem(
+            kind="renewal",
+            label=f"Renewal due — {plan.name if plan else 'membership plan'}",
+            amount=subscription.price_snapshot,
+            currency=subscription.currency,
+            due_at=subscription.current_period_end,
+            payment_id=subscription.id,
+        ))
+
+    for p in payments:
+        if p.status == PaymentStatus.FAILED:
+            pending.append(PendingPaymentItem(
+                kind="failed_attempt",
+                label="Failed payment attempt",
+                amount=p.amount,
+                currency=p.currency,
+                due_at=p.created_at,
+                payment_id=p.id,
+            ))
+        elif p.status == PaymentStatus.PENDING:
+            pending.append(PendingPaymentItem(
+                kind="pending_attempt",
+                label="Payment pending settlement",
+                amount=p.amount,
+                currency=p.currency,
+                due_at=p.created_at,
+                payment_id=p.id,
+            ))
+
+    return {
+        "member": member,
+        "user": user,
+        "subscription": subscription,
+        "plan": plan,
+        "payments": list(payments),
+        "pending_payments": pending,
+    }

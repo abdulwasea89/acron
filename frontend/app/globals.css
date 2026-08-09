@@ -677,27 +677,6 @@ body {
 }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* ── Onboarding tutorial animation ── */
-@keyframes tour-pop {
-  0% { opacity: 0; transform: translateY(14px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes tour-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes tour-pulse-ring {
-  0% { transform: scale(1); opacity: 0.6; }
-  70% { transform: scale(1.7); opacity: 0; }
-  100% { transform: scale(1.7); opacity: 0; }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .tour-pop { animation: tour-pop 380ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .tour-fade { animation: tour-fade 240ms ease-out both; }
-  .tour-pulse-ring { animation: tour-pulse-ring 2.4s ease-out infinite; }
-}
-
 /* Realtime: soft highlight on rows updated by a live event. */
 .rt-flash { animation: rt-flash 1.6s ease-out; }
 @keyframes rt-flash {

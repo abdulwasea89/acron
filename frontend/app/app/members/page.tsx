@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { statusTone, titleCase } from "@/lib/format";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -124,6 +125,12 @@ export default function MembersPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Assign trainer
+  const [assigningMember, setAssigningMember] = useState<MemberDirectoryItem | null>(null);
+  const [trainerChoice, setTrainerChoice] = useState("");
+  const [assignError, setAssignError] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
+
   const isOwner = currentUser?.role === "owner";
   const canManage = isOwner || currentUser?.role === "manager";
 
@@ -212,6 +219,38 @@ export default function MembersPage() {
   }
 
   const pending = (members ?? []).filter((m) => m.member_status === "pending_approval");
+
+  const trainerOptions = (members ?? []).filter((m) => m.role === "trainer");
+
+  async function assignTrainer() {
+    if (!assigningMember || !trainerChoice) return;
+    setAssignError("");
+    setAssignLoading(true);
+    try {
+      await api.post(`/members/${assigningMember.member_id}/trainers`, {
+        trainer_member_id: trainerChoice,
+      });
+      setAssigningMember(null);
+      setTrainerChoice("");
+      await load();
+    } catch (e) {
+      setAssignError((e as ApiError).message);
+    } finally {
+      setAssignLoading(false);
+    }
+  }
+
+  async function unassignTrainer(member: MemberDirectoryItem, trainerName: string) {
+    setError("");
+    const trainer = trainerOptions.find((t) => (t.display_name || t.full_name || t.email) === trainerName);
+    if (!trainer) return;
+    try {
+      await api.del(`/members/${member.member_id}/trainers/${trainer.member_id}`);
+      await load();
+    } catch (e) {
+      setError((e as ApiError).message);
+    }
+  }
 
   const filtered = ((tab === "approvals" ? pending : members ?? [])).filter((m) => {
     const q = query.toLowerCase();
@@ -344,6 +383,42 @@ export default function MembersPage() {
         </div>
       </Dialog>
 
+      {/* Assign trainer dialog */}
+      <Dialog
+        open={!!assigningMember}
+        onClose={() => setAssigningMember(null)}
+        title="Assign a trainer"
+        subtitle={`Choose a trainer for ${assigningMember?.display_name || assigningMember?.full_name || assigningMember?.email}`}
+      >
+        <div className="space-y-4">
+          {assignError && <Alert>{assignError}</Alert>}
+          <Select
+            label="Trainer"
+            value={trainerChoice}
+            onChange={(e) => setTrainerChoice(e.target.value)}
+            disabled={trainerOptions.length === 0}
+          >
+            <option value="">{trainerOptions.length === 0 ? "No trainers available" : "Select a trainer..."}</option>
+            {trainerOptions.map((t) => (
+              <option key={t.member_id} value={t.member_id}>
+                {t.display_name || t.full_name || t.email}
+              </option>
+            ))}
+          </Select>
+          <p className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+            <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            A member can have several trainers. Invite staff with the Trainer role to unlock this list.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <Button onClick={assignTrainer} loading={assignLoading} disabled={!trainerChoice}>Assign</Button>
+            <Button variant="ghost" onClick={() => setAssigningMember(null)}>Cancel</Button>
+          </div>
+        </div>
+      </Dialog>
+
       <Card>
         <CardHeader
           title="Member directory"
@@ -389,6 +464,7 @@ export default function MembersPage() {
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-6 py-3.5">Name</th>
                   <th className="px-6 py-3.5">Email</th>
+                  <th className="px-6 py-3.5">Trainer</th>
                   <th className="px-6 py-3.5">Role</th>
                   <th className="px-6 py-3.5">Status</th>
                   <th className="px-6 py-3.5 text-right">Actions</th>
@@ -405,13 +481,41 @@ export default function MembersPage() {
                           <Avatar name={m.display_name || m.full_name || m.email} size="sm" />
                           <div>
                             <div className="font-medium text-[var(--foreground)]">
-                              {m.display_name || m.full_name || "—"}
+                              <Link
+                                href={`/app/members/${m.member_id}`}
+                                className="transition-colors hover:text-[var(--primary)]"
+                              >
+                                {m.display_name || m.full_name || "—"}
+                              </Link>
                               {isRowSelf && <span className="ml-1.5 text-xs text-[var(--muted)]">(you)</span>}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[var(--foreground-muted)]">{m.email}</td>
+                      <td className="px-6 py-4">
+                        {m.assigned_trainers?.length ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {m.assigned_trainers.map((name) => (
+                              <span key={name} className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--background)] px-2 py-0.5 text-xs text-[var(--foreground)]">
+                                {name}
+                                {canManage && !isRowSelf && !isRowOwner && (
+                                  <button
+                                    type="button"
+                                    onClick={() => unassignTrainer(m, name)}
+                                    aria-label={`Unassign ${name}`}
+                                    className="text-[var(--muted)] transition-colors hover:text-[var(--danger)]"
+                                  >
+                                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-[var(--muted)]">—</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">{roleBadge(m.role)}</td>
                       <td className="px-6 py-4">
                         <Badge tone={statusTone(m.member_status)}>{titleCase(m.member_status)}</Badge>
@@ -428,6 +532,7 @@ export default function MembersPage() {
                                   a.push({ label: "Reject", onClick: () => act(m.member_id, "reject", "approval"), danger: true });
                                 } else {
                                   if (s === "active" || s === "grace") {
+                                    a.push({ label: "Assign trainer", onClick: () => { setTrainerChoice(""); setAssignError(""); setAssigningMember(m); } });
                                     a.push({ label: "Freeze", onClick: () => act(m.member_id, "freeze") });
                                     a.push({ label: "Ban", onClick: () => act(m.member_id, "ban"), danger: true });
                                   }

@@ -88,13 +88,13 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="stats">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <StatCard key={s.label} label={s.label} value={s.value} />
         ))}
       </div>
 
-      <div className="mt-6" data-tour="checklist">
+      <div className="mt-6">
         <Card>
           <CardHeader
             title="Setup checklist"
