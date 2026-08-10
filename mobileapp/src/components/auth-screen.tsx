@@ -1,8 +1,8 @@
 import React from "react";
-import { KeyboardAvoidingView, Platform } from "react-native";
+import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ScrollView, View, Text, Pressable } from "@/tw";
+import { KeyboardAvoidingView, ScrollView, View, Text, Pressable } from "@/tw";
 
 interface AuthScreenProps {
   title: string;

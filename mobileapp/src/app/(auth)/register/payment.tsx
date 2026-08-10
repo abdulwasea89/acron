@@ -54,7 +54,7 @@ export default function PaymentScreen() {
       );
 
       reset();
-      router.replace("/(admin)");
+      router.replace("/(admin)/dashboard");
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
       else setError("Payment failed. Please try again.");

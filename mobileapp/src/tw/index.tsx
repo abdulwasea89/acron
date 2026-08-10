@@ -9,6 +9,7 @@ import {
   ScrollView as RNScrollView,
   TouchableHighlight as RNTouchableHighlight,
   TextInput as RNTextInput,
+  KeyboardAvoidingView as RNKeyboardAvoidingView,
   StyleSheet,
 } from "react-native";
 
@@ -39,9 +40,22 @@ export type PressableProps = React.ComponentProps<typeof RNPressable> & { classN
 export const Pressable = (props: PressableProps) =>
   useCssElement(RNPressable, props, { className: "style" });
 
-export type TextInputProps = React.ComponentProps<typeof RNTextInput> & { className?: string };
+export type TextInputProps = React.ComponentProps<typeof RNTextInput> & {
+  className?: string;
+  ref?: React.Ref<RNTextInput>;
+};
 export const TextInput = (props: TextInputProps) =>
   useCssElement(RNTextInput, props, { className: "style" });
+
+export type KeyboardAvoidingViewProps = React.ComponentProps<typeof RNKeyboardAvoidingView> & {
+  className?: string;
+  contentContainerClassName?: string;
+};
+export const KeyboardAvoidingView = (props: KeyboardAvoidingViewProps) =>
+  useCssElement(RNKeyboardAvoidingView, props, {
+    className: "style",
+    contentContainerClassName: "contentContainerStyle",
+  });
 
 function XXTouchableHighlight(props: React.ComponentProps<typeof RNTouchableHighlight>) {
   const { underlayColor, ...style } = StyleSheet.flatten(props.style) || {};

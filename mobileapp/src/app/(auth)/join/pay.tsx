@@ -48,7 +48,7 @@ export default function JoinPay() {
       );
 
       reset();
-      router.replace("/(member)");
+      router.replace("/(member)/dashboard");
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.status === 409) setError("This payment is being processed. Please wait.");

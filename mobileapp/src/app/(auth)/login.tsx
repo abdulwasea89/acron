@@ -68,10 +68,9 @@ export default function LoginScreen() {
       }
 
       const role = res.user.role;
-      if (role === "member") router.replace("/(member)");
-      else if (role === "trainer" || role === "front_desk") router.replace("/(staff)");
-      else if (role === "owner" || role === "manager") router.replace("/(admin)");
-      else router.replace("/(member)");
+      if (role === "trainer" || role === "front_desk") router.replace("/(staff)/dashboard");
+      else if (role === "owner" || role === "manager") router.replace("/(admin)/dashboard");
+      else router.replace("/(member)/dashboard");
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.status === 401) setError("Invalid credentials. Please try again.");

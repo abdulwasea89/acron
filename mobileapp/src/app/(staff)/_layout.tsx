@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { View, Text } from "@/tw";
+import type { ColorValue } from "react-native";
 
 export default function StaffLayout() {
   return (
@@ -43,7 +44,7 @@ export default function StaffLayout() {
   );
 }
 
-function TabIcon({ label, color }: { label: string; color: string }) {
+function TabIcon({ label, color }: { label: string; color: ColorValue }) {
   return (
     <View className="w-6 h-6 items-center justify-center">
       <Text style={{ color, fontSize: 14, fontWeight: "600" }}>{label}</Text>
