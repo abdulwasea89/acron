@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text } from "@/tw";
+import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
@@ -85,19 +85,19 @@ export default function PaymentScreen() {
         </View>
       )}
 
-      <View className="bg-bg-secondary dark:bg-surface-dark-2 rounded-2xl p-5 mb-6 gap-2 border border-border dark:border-border-dark">
+      <View className="bg-surface-secondary rounded-2xl p-5 mb-6 gap-2 border border-border">
         <View className="flex-row justify-between">
-          <Text className="text-[14px] text-muted dark:text-muted-dark">Gym</Text>
-          <Text className="text-[14px] font-semibold text-ink dark:text-paper">{gymDetails.name}</Text>
+          <Text className="text-[14px] text-muted">Gym</Text>
+          <Text className="text-[14px] font-semibold text-foreground">{gymDetails.name}</Text>
         </View>
         <View className="flex-row justify-between">
-          <Text className="text-[14px] text-muted dark:text-muted-dark">Plan</Text>
-          <Text className="text-[14px] font-semibold text-ink dark:text-paper capitalize">{selectedTier}</Text>
+          <Text className="text-[14px] text-muted">Plan</Text>
+          <Text className="text-[14px] font-semibold text-foreground capitalize">{selectedTier}</Text>
         </View>
-        <View className="border-t border-border dark:border-border-dark my-2" />
+        <View className="border-t border-border my-2" />
         <View className="flex-row justify-between">
-          <Text className="text-[16px] font-bold text-ink dark:text-paper">Total</Text>
-          <Text className="text-[16px] font-bold text-ink dark:text-paper">
+          <Text className="text-[16px] font-bold text-foreground">Total</Text>
+          <Text className="text-[16px] font-bold text-foreground">
             {TIER_PRICES[selectedTier]}
           </Text>
         </View>
@@ -121,7 +121,7 @@ export default function PaymentScreen() {
         </View>
       </View>
 
-      <Text className="text-[12px] text-muted dark:text-muted-dark mt-4 text-center">
+      <Text className="text-[12px] text-muted mt-4 text-center">
         Your first month will be charged immediately. You can cancel anytime.
       </Text>
     </AuthScreen>

@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { useColorScheme } from "react-native";
-import { View, Text, TextInput, Pressable } from "@/tw";
+import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
+import { OtpInput } from "@/components/ui/otp-input";
 import { api, ApiError } from "@/lib/api";
 import { useJoinStore } from "@/stores/join-store";
 import type { Message } from "@/types/api";
 
 export default function JoinVerifyEmail() {
   const { orgCode, orgName, setEmail, setVerified } = useJoinStore();
-  const isDark = useColorScheme() === "dark";
   const [email, setEmailLocal] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
@@ -83,9 +82,9 @@ export default function JoinVerifyEmail() {
       footer={
         step === "code" ? (
           <View className="flex-row justify-center items-center">
-            <Text className="text-[13px] text-muted dark:text-muted-dark">Didn't receive it? </Text>
+            <Text className="text-[13px] text-muted">Didn't receive it? </Text>
             <Pressable onPress={handleResend} className="active:opacity-60">
-              <Text className="text-[13px] font-bold text-ink dark:text-paper">Resend</Text>
+              <Text className="text-[13px] font-bold text-foreground">Resend</Text>
             </Pressable>
           </View>
         ) : undefined
@@ -114,19 +113,10 @@ export default function JoinVerifyEmail() {
         </View>
       ) : (
         <View className="gap-5">
-          <TextInput
-            className="border border-border dark:border-border-dark bg-bg-secondary dark:bg-surface-dark-2
-              rounded-xl px-4 py-5 text-ink dark:text-paper text-[26px] text-center tracking-[8px] font-semibold"
-            placeholder="000000"
-            placeholderTextColor={isDark ? "#6e6e6e" : "#94a3b8"}
+          <OtpInput
             value={code}
-            onChangeText={(t) => {
-              const digits = t.replace(/\D/g, "").slice(0, 6);
-              setCode(digits);
-              if (digits.length === 6) handleVerify();
-            }}
-            keyboardType="number-pad"
-            maxLength={6}
+            onChange={setCode}
+            onComplete={() => handleVerify()}
           />
           <Button loading={loading} disabled={code.length !== 6} onPress={handleVerify}>
             Verify email

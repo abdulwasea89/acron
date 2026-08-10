@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable } from "@/tw";
+import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
@@ -95,14 +95,14 @@ export default function LoginScreen() {
       footer={
         <View className="items-center gap-4">
           <Pressable onPress={() => router.push("/(auth)/magic-link")} className="active:opacity-60">
-            <Text className="text-[13px] font-semibold text-ink dark:text-paper">
+            <Text className="text-[13px] font-semibold text-foreground">
               Send a secure sign-in link instead
             </Text>
           </Pressable>
-          <Text className="text-[13px] text-muted dark:text-muted-dark">
+          <Text className="text-[13px] text-muted">
             New to Gym Ops?{" "}
             <Text
-              className="font-bold text-ink dark:text-paper"
+              className="font-bold text-foreground"
               onPress={() => router.push("/(auth)/register/step-1")}
             >
               Create your gym
@@ -143,7 +143,7 @@ export default function LoginScreen() {
               hitSlop={8}
               className="absolute right-3 top-[38px] px-1 active:opacity-60"
             >
-              <Text className="text-[12px] font-bold text-muted dark:text-muted-dark">
+              <Text className="text-[12px] font-bold text-muted">
                 {showPassword ? "Hide" : "Show"}
               </Text>
             </Pressable>
@@ -162,12 +162,12 @@ export default function LoginScreen() {
 
         <View className="flex-row items-center justify-between">
           <Pressable onPress={() => router.push("/(auth)/recover-codes")} className="active:opacity-60">
-            <Text className="text-[13px] text-muted dark:text-muted-dark">
+            <Text className="text-[13px] text-muted">
               Don't remember your gym code?
             </Text>
           </Pressable>
           <Pressable onPress={() => router.push("/(auth)/forgot-password")} className="active:opacity-60">
-            <Text className="text-[13px] text-muted dark:text-muted-dark">Forgot password?</Text>
+            <Text className="text-[13px] text-muted">Forgot password?</Text>
           </Pressable>
         </View>
 
@@ -178,9 +178,9 @@ export default function LoginScreen() {
 
       {/* Divider */}
       <View className="flex-row items-center gap-3 mt-7">
-        <View className="flex-1 h-px bg-border dark:bg-border-dark" />
-        <Text className="text-[12px] text-muted dark:text-muted-dark">or</Text>
-        <View className="flex-1 h-px bg-border dark:bg-border-dark" />
+        <View className="flex-1 h-px bg-border" />
+        <Text className="text-[12px] text-muted">or</Text>
+        <View className="flex-1 h-px bg-border" />
       </View>
     </AuthScreen>
   );

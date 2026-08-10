@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable } from "@/tw";
-import { useColorScheme } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api";
 import { useJoinStore } from "@/stores/join-store";
 import { signupStartSchema } from "@/lib/validations";
@@ -12,7 +12,6 @@ import type { SignupStartOut } from "@/types/api";
 
 export default function OrgCodeScreen() {
   const { setOrg } = useJoinStore();
-  const isDark = useColorScheme() === "dark";
   const [orgCode, setOrgCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,10 +59,10 @@ export default function OrgCodeScreen() {
       back
       footer={
         <View className="items-center">
-          <Text className="text-[13px] text-muted dark:text-muted-dark">
+          <Text className="text-[13px] text-muted">
             Have an invite code?{" "}
             <Text
-              className="font-bold text-ink dark:text-paper"
+              className="font-bold text-foreground"
               onPress={() => router.push("/(auth)/redeem")}
             >
               Redeem it
@@ -79,21 +78,14 @@ export default function OrgCodeScreen() {
       )}
 
       <View className="gap-5">
-        <View className="gap-2">
-          <Text className="text-[13px] font-semibold text-ink dark:text-paper">Gym code</Text>
-          <TextInput
-            className="border border-border dark:border-border-dark bg-bg-secondary dark:bg-surface-dark-2
-              rounded-xl px-4 py-5 text-ink dark:text-paper text-[22px] text-center tracking-[3px] font-semibold"
-            placeholder="IRON-PULS-3K9"
-            placeholderTextColor={isDark ? "#6e6e6e" : "#94a3b8"}
-            value={orgCode}
-            onChangeText={(t) => { setOrgCode(t.toUpperCase()); setFieldError(""); }}
-            autoCapitalize="characters"
-          />
-          {fieldError ? (
-            <Text className="text-[12px] text-danger dark:text-danger-dark">{fieldError}</Text>
-          ) : null}
-        </View>
+        <Input
+          label="Gym code"
+          placeholder="IRON-PULS-3K9"
+          value={orgCode}
+          onChangeText={(t) => { setOrgCode(t.toUpperCase()); setFieldError(""); }}
+          autoCapitalize="characters"
+          error={fieldError}
+        />
 
         <Button loading={loading} onPress={handleSubmit}>
           Find gym

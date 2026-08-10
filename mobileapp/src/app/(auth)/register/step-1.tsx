@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Pressable } from "@/tw";
+import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
@@ -174,20 +174,20 @@ export default function RegisterStep1() {
           />
 
           <View className="gap-2">
-            <Text className="text-[13px] font-semibold text-ink dark:text-paper">Gender</Text>
+            <Text className="text-[13px] font-semibold text-foreground">Gender</Text>
             <View className="flex-row gap-3">
               {GENDER_OPTIONS.map((opt) => (
                 <Pressable
                   key={opt.value}
                   className={`flex-1 py-3.5 rounded-xl items-center border
                     ${form.gender === opt.value
-                      ? "bg-ink dark:bg-paper border-ink dark:border-paper"
-                      : "bg-bg-secondary dark:bg-surface-dark-2 border-border dark:border-border-dark"
+                      ? "bg-accent border-accent"
+                      : "bg-surface-secondary border-border"
                     }`}
                   onPress={() => update("gender", opt.value)}
                 >
                   <Text
-                    className={`font-semibold text-[14px] ${form.gender === opt.value ? "text-paper dark:text-ink" : "text-ink dark:text-paper"}`}
+                    className={`font-semibold text-[14px] ${form.gender === opt.value ? "text-accent-foreground" : "text-foreground"}`}
                   >
                     {opt.label}
                   </Text>

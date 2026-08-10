@@ -1,46 +1,62 @@
 import { Tabs } from "expo-router";
-import { View, Text } from "@/tw";
-import type { ColorValue } from "react-native";
+import { useColorScheme } from "react-native";
+import { TabIcon } from "@/components/tab-icon";
 
 export default function MemberLayout() {
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const active = isDark ? "#fafafa" : "#0a0a0a";
+  const inactive = isDark ? "#6e6e6e" : "#94a3b8";
+
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: active,
+        tabBarInactiveTintColor: inactive,
+        tabBarStyle: {
+          backgroundColor: isDark ? "#0a0a0a" : "#ffffff",
+          borderTopColor: isDark ? "#1f1f1f" : "#edf0f5",
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+      }}
+    >
       <Tabs.Screen
         name="dashboard"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <TabIcon label="H" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="house" android="home" color={color} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="classes"
         options={{
           title: "Classes",
-          tabBarIcon: ({ color }) => <TabIcon label="C" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="calendar" android="event" color={color} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="payments"
         options={{
           title: "Payments",
-          tabBarIcon: ({ color }) => <TabIcon label="P" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="creditcard" android="payments" color={color} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => <TabIcon label="M" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="person" android="person" color={color} focused={focused} />
+          ),
         }}
       />
     </Tabs>
-  );
-}
-
-function TabIcon({ label, color }: { label: string; color: ColorValue }) {
-  return (
-    <View className="w-6 h-6 items-center justify-center">
-      <Text style={{ color, fontSize: 14, fontWeight: "600" }}>{label}</Text>
-    </View>
   );
 }

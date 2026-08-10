@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Pressable } from "@/tw";
+import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
@@ -76,14 +76,14 @@ export default function TierScreen() {
               key={tier.id}
               className={`rounded-2xl p-5 border
                 ${isSelected
-                  ? "border-ink dark:border-paper bg-ink/[0.03] dark:bg-paper/[0.05]"
-                  : "border-border dark:border-border-dark bg-bg dark:bg-bg-dark-secondary"}`}
+                  ? "border-accent bg-accent/10"
+                  : "border-border bg-surface-secondary"}`}
               onPress={() => setSelected(tier.id)}
             >
               <View className="flex-row items-center justify-between">
                 {tier.featured ? (
-                  <View className="bg-ink dark:bg-paper self-start px-2.5 py-1 rounded-full">
-                    <Text className="text-paper dark:text-ink text-[10px] font-bold tracking-wide">
+                  <View className="bg-accent self-start px-2.5 py-1 rounded-full">
+                    <Text className="text-accent-foreground text-[10px] font-bold tracking-wide">
                       POPULAR
                     </Text>
                   </View>
@@ -93,25 +93,25 @@ export default function TierScreen() {
                 {/* Radio indicator */}
                 <View
                   className={`w-5 h-5 rounded-full border-2 items-center justify-center
-                    ${isSelected ? "border-ink dark:border-paper" : "border-border-strong dark:border-border-strong-dark"}`}
+                    ${isSelected ? "border-accent" : "border-separator"}`}
                 >
-                  {isSelected && <View className="w-2.5 h-2.5 rounded-full bg-ink dark:bg-paper" />}
+                  {isSelected && <View className="w-2.5 h-2.5 rounded-full bg-accent" />}
                 </View>
               </View>
 
               <View className="flex-row items-baseline gap-1 mt-3">
-                <Text className="text-[30px] font-bold text-ink dark:text-paper">{tier.price}</Text>
-                <Text className="text-muted dark:text-muted-dark text-[13px]">{tier.period}</Text>
+                <Text className="text-[30px] font-bold text-foreground">{tier.price}</Text>
+                <Text className="text-muted text-[13px]">{tier.period}</Text>
               </View>
-              <Text className="text-[16px] font-semibold text-ink dark:text-paper mt-1">
+              <Text className="text-[16px] font-semibold text-foreground mt-1">
                 {tier.name}
               </Text>
-              <Text className="text-[13px] text-muted dark:text-muted-dark mt-1">{tier.cap}</Text>
+              <Text className="text-[13px] text-muted mt-1">{tier.cap}</Text>
               <View className="mt-3 gap-2">
                 {tier.features.map((f) => (
                   <View key={f} className="flex-row items-center gap-2">
-                    <Text className="text-ink dark:text-paper text-[13px]">✓</Text>
-                    <Text className="text-[13px] text-muted dark:text-muted-dark">{f}</Text>
+                    <Text className="text-foreground text-[13px]">✓</Text>
+                    <Text className="text-[13px] text-muted">{f}</Text>
                   </View>
                 ))}
               </View>

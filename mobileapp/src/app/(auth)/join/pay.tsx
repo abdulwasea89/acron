@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text } from "@/tw";
+import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
@@ -78,11 +78,11 @@ export default function JoinPay() {
         </View>
       )}
 
-      <View className="bg-bg-secondary dark:bg-surface-dark-2 rounded-2xl p-5 mb-6 border border-border dark:border-border-dark">
-        <Text className="font-semibold text-[15px] text-ink dark:text-paper mb-2">
+      <View className="bg-surface-secondary rounded-2xl p-5 mb-6 border border-border">
+        <Text className="font-semibold text-[15px] text-foreground mb-2">
           Your membership starts immediately after payment
         </Text>
-        <Text className="text-[13px] leading-[19px] text-muted dark:text-muted-dark">
+        <Text className="text-[13px] leading-[19px] text-muted">
           Your card is charged once. Idempotency protection prevents double charges — tap Pay with confidence.
         </Text>
       </View>

@@ -1,27 +1,26 @@
 import React from "react";
-import { View, Text, ViewProps } from "@/tw";
+import { Card as HCard } from "heroui-native";
 
-interface CardProps extends ViewProps {
+type HCardProps = React.ComponentProps<typeof HCard>;
+
+interface CardProps extends HCardProps {
   title?: string;
   subtitle?: string;
 }
 
-export function Card({ title, subtitle, className = "", children, ...props }: CardProps) {
+/**
+ * Surface container with an optional heading. `title`/`subtitle` cover the
+ * common case; for richer layouts use HeroUI's compound parts directly
+ * (`Card.Header` / `Card.Body` / `Card.Footer`).
+ */
+export function Card({ title, subtitle, children, ...props }: CardProps) {
   return (
-    <View
-      className={`bg-bg dark:bg-bg-dark-secondary rounded-2xl p-5
-        border border-border dark:border-border-dark ${className}`}
-      {...props}
-    >
-      {title && (
-        <Text className="text-[16px] font-semibold text-ink dark:text-paper mb-1">
-          {title}
-        </Text>
-      )}
-      {subtitle && (
-        <Text className="text-[13px] text-muted dark:text-muted-dark mb-3">{subtitle}</Text>
-      )}
-      {children}
-    </View>
+    <HCard {...props}>
+      <HCard.Body>
+        {title && <HCard.Title>{title}</HCard.Title>}
+        {subtitle && <HCard.Description>{subtitle}</HCard.Description>}
+        {children}
+      </HCard.Body>
+    </HCard>
   );
 }
