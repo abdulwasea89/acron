@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View } from "@/tw";
+import { View } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";

@@ -1,74 +1,70 @@
 import React from "react";
-import { Pressable, Text, PressableProps } from "@/tw";
-import { ActivityIndicator } from "react-native";
-import { useColorScheme } from "react-native";
+import { Button as HButton, Spinner } from "heroui-native";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 
-interface ButtonProps extends PressableProps {
+type HButtonProps = React.ComponentProps<typeof HButton>;
+
+/*
+  HeroUI's Button is a discriminated union on `feedbackVariant`. We always
+  render the default `scale-highlight` branch, so narrow the props to exactly
+  that branch to keep the spread type-safe.
+*/
+type ScaleHighlightButtonProps = Extract<HButtonProps, {
+  feedbackVariant?: "scale-highlight";
+}>;
+
+interface ButtonProps
+  extends Omit<ScaleHighlightButtonProps, "variant" | "children"> {
   variant?: ButtonVariant;
   loading?: boolean;
   disabled?: boolean;
+  children?: React.ReactNode;
 }
 
 /*
-  Monochrome, matching the web portal. The primary action is INVERTED:
-  near-black button in light mode, off-white button in dark mode — the
-  same signature as the web "Sign in" button.
+  The primary action is the violet HeroUI default — `variant="primary"` needs
+  no per-theme branching.
+
+  Our `secondary` has always been a bordered transparent button, which is
+  HeroUI's `outline` rather than its `secondary` (a filled surface).
 */
-const variantStyles: Record<ButtonVariant, string> = {
-  primary: "bg-ink dark:bg-paper active:bg-ink-soft dark:active:bg-paper-soft",
-  secondary:
-    "bg-transparent border border-border-strong dark:border-border-strong-dark active:bg-bg-secondary dark:active:bg-surface-dark-2",
-  danger: "bg-danger dark:bg-danger-dark active:opacity-90",
-  ghost: "bg-transparent active:opacity-60",
+const variantMap: Record<ButtonVariant, NonNullable<HButtonProps["variant"]>> = {
+  primary: "primary",
+  secondary: "outline",
+  danger: "danger",
+  ghost: "ghost",
 };
 
-const textStyles: Record<ButtonVariant, string> = {
-  primary: "text-paper dark:text-ink",
-  secondary: "text-ink dark:text-paper",
-  danger: "text-white",
-  ghost: "text-ink dark:text-paper",
+/** Spinner tint per variant — filled buttons need the inverted foreground. */
+const spinnerColorMap: Record<ButtonVariant, string> = {
+  primary: "accent-foreground",
+  secondary: "foreground",
+  danger: "danger-foreground",
+  ghost: "foreground",
 };
 
 export function Button({
   variant = "primary",
   loading = false,
   disabled = false,
-  className = "",
   children,
   ...props
 }: ButtonProps) {
-  const isDark = useColorScheme() === "dark";
-
-  // Spinner color inverts with the primary button.
-  const spinnerColor =
-    variant === "primary"
-      ? isDark
-        ? "#0a0a0a"
-        : "#fafafa"
-      : variant === "danger"
-        ? "#fff"
-        : isDark
-          ? "#fafafa"
-          : "#0a0a0a";
-
   return (
-    <Pressable
-      className={`py-3.5 px-6 rounded-xl items-center justify-center flex-row
-        ${variantStyles[variant]}
-        ${disabled ? "opacity-40" : ""}
-        ${className}`}
-      disabled={disabled || loading}
+    <HButton
+      variant={variantMap[variant]}
+      feedbackVariant="scale-highlight"
+      isDisabled={disabled || loading}
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={spinnerColor} />
+        <Spinner color={spinnerColorMap[variant]} />
+      ) : typeof children === "string" ? (
+        <HButton.Label>{children}</HButton.Label>
       ) : (
-        <Text className={`font-semibold text-[15px] tracking-wide ${textStyles[variant]}`}>
-          {children}
-        </Text>
+        children
       )}
-    </Pressable>
+    </HButton>
   );
 }

@@ -1,4 +1,4 @@
-import { View, Text } from "@/tw";
+import { View, Text } from "react-native";
 
 export default function Screen_classes() {
   return (

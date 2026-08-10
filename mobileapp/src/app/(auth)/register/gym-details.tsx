@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text } from "@/tw";
+import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
@@ -111,10 +111,10 @@ export default function GymDetailsScreen() {
         />
 
         <View className="gap-2">
-          <Text className="text-[13px] font-semibold text-ink dark:text-paper">Accent color</Text>
+          <Text className="text-[13px] font-semibold text-foreground">Accent color</Text>
           <View className="flex-row items-center gap-3">
             <View
-              className="w-11 h-11 rounded-xl border border-border dark:border-border-dark"
+              className="w-11 h-11 rounded-xl border border-border"
               style={{ backgroundColor: form.accent_color }}
             />
             <Input

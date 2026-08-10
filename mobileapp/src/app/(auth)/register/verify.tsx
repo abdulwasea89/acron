@@ -1,22 +1,20 @@
-import { useState, useRef } from "react";
-import { TextInput as RNTextInput, useColorScheme } from "react-native";
-import { View, Text, TextInput, Pressable } from "@/tw";
+import { useState } from "react";
+import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { OtpInput } from "@/components/ui/otp-input";
 import { api, ApiError } from "@/lib/api";
 import { useRegisterStore } from "@/stores/register-store";
 import type { Message } from "@/types/api";
 
 export default function VerifyEmail() {
   const { email, setVerified } = useRegisterStore();
-  const isDark = useColorScheme() === "dark";
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<RNTextInput>(null);
 
   if (!email) {
     router.replace("/(auth)/register/step-1");
@@ -57,9 +55,9 @@ export default function VerifyEmail() {
       back
       footer={
         <View className="flex-row justify-center items-center">
-          <Text className="text-[13px] text-muted dark:text-muted-dark">Didn't receive it? </Text>
+          <Text className="text-[13px] text-muted">Didn't receive it? </Text>
           <Pressable onPress={handleResend} disabled={resending} className="active:opacity-60">
-            <Text className="text-[13px] font-bold text-ink dark:text-paper">
+            <Text className="text-[13px] font-bold text-foreground">
               {resending ? "Sending…" : "Resend code"}
             </Text>
           </Pressable>
@@ -73,21 +71,11 @@ export default function VerifyEmail() {
       )}
 
       <View className="gap-2">
-        <Text className="text-[13px] font-semibold text-ink dark:text-paper">Verification code</Text>
-        <TextInput
-          ref={inputRef}
-          className="border border-border dark:border-border-dark bg-bg-secondary dark:bg-surface-dark-2
-            rounded-xl px-4 py-5 text-ink dark:text-paper text-[26px] text-center tracking-[8px] font-semibold"
-          placeholder="000000"
-          placeholderTextColor={isDark ? "#6e6e6e" : "#94a3b8"}
+        <Text className="text-[13px] font-semibold text-foreground">Verification code</Text>
+        <OtpInput
           value={code}
-          onChangeText={(t) => {
-            const digits = t.replace(/\D/g, "").slice(0, 6);
-            setCode(digits);
-            if (digits.length === 6) handleVerify();
-          }}
-          keyboardType="number-pad"
-          maxLength={6}
+          onChange={setCode}
+          onComplete={() => handleVerify()}
         />
       </View>
 

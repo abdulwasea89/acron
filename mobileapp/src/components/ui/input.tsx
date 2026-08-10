@@ -1,8 +1,16 @@
 import React, { forwardRef } from "react";
-import { useColorScheme } from "react-native";
-import { TextInput, Text, View, TextInputProps } from "@/tw";
+import type { TextInput as RNTextInput } from "react-native";
+import {
+  Description,
+  FieldError,
+  Input as HInput,
+  Label,
+  TextField,
+} from "heroui-native";
 
-interface InputProps extends TextInputProps {
+type HInputProps = React.ComponentProps<typeof HInput>;
+
+interface InputProps extends HInputProps {
   label?: string;
   error?: string;
   hint?: string;
@@ -10,37 +18,26 @@ interface InputProps extends TextInputProps {
 
 /*
   Filled, low-contrast inputs matching the web portal: a soft gray fill
-  (#f6f7f9 light / #141414 dark) with a hairline border. Label is a small
-  medium-weight caption. No blue anywhere.
+  (#f6f7f9 light / #141414 dark) with a hairline border — driven by the
+  `--field-*` tokens in global.css, so no per-theme classes are needed here.
+
+  `error` doubles as the invalid flag: passing a message turns the field red
+  and renders it, which is how every calling screen already uses this.
 */
-export const Input = forwardRef<typeof TextInput, InputProps>(
-  ({ label, error, hint, className = "", ...props }, ref) => {
-    const isDark = useColorScheme() === "dark";
+export const Input = forwardRef<RNTextInput, InputProps>(
+  ({ label, error, hint, ...props }, ref) => {
+    const isInvalid = Boolean(error);
+
     return (
-      <View className="gap-2">
-        {label && (
-          <Text className="text-[13px] font-semibold text-ink dark:text-paper">
-            {label}
-          </Text>
-        )}
-        <TextInput
-          ref={ref as any}
-          className={`border rounded-xl px-4 py-3.5 text-[15px]
-            ${error
-              ? "border-danger dark:border-danger-dark"
-              : "border-border dark:border-border-dark"}
-            bg-bg-secondary dark:bg-surface-dark-2
-            text-ink dark:text-paper
-            ${className}`}
-          placeholderTextColor={isDark ? "#6e6e6e" : "#94a3b8"}
-          {...props}
-        />
+      <TextField isInvalid={isInvalid}>
+        {label && <Label>{label}</Label>}
+        <HInput ref={ref} {...props} />
         {error ? (
-          <Text className="text-[12px] text-danger dark:text-danger-dark">{error}</Text>
+          <FieldError>{error}</FieldError>
         ) : hint ? (
-          <Text className="text-[12px] text-muted dark:text-muted-dark">{hint}</Text>
+          <Description>{hint}</Description>
         ) : null}
-      </View>
+      </TextField>
     );
   },
 );

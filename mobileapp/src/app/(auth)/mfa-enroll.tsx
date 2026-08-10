@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, Text } from "@/tw";
+import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,7 @@ export default function MfaEnroll() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-bg dark:bg-bg-dark">
+      <View className="flex-1 items-center justify-center bg-background">
         <Spinner />
       </View>
     );
@@ -111,11 +111,11 @@ export default function MfaEnroll() {
           </View>
         )}
 
-        <View className="bg-bg-secondary dark:bg-surface-dark-2 rounded-2xl p-5 mb-6 border border-border dark:border-border-dark">
-          <Text className="text-[12px] font-mono text-muted dark:text-muted-dark mb-3">
+        <View className="bg-surface-secondary rounded-2xl p-5 mb-6 border border-border">
+          <Text className="text-[12px] font-mono text-muted mb-3">
             {enrollData.otpauth_uri}
           </Text>
-          <Text className="text-[13px] font-mono text-ink dark:text-paper">
+          <Text className="text-[13px] font-mono text-foreground">
             Secret: {enrollData.secret}
           </Text>
         </View>

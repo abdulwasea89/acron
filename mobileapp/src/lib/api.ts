@@ -2,7 +2,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useOrgStore } from "@/stores/org-store";
 import { generateIdempotencyKey, markIdempotencyDone } from "@/lib/idempotency";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 const PREFIX = "/api/v1";
 
 export class ApiError extends Error {

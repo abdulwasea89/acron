@@ -1,16 +1,8 @@
 import { Stack } from "expo-router";
-import { useColorScheme } from "react-native";
 
 export default function AuthLayout() {
-  const isDark = useColorScheme() === "dark";
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: "slide_from_right",
-        contentStyle: { backgroundColor: isDark ? "#000000" : "#ffffff" },
-      }}
-    >
+    <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
       <Stack.Screen name="login" />
       <Stack.Screen name="register/step-1" />
       <Stack.Screen name="register/verify" />

@@ -1,8 +1,9 @@
 import React from "react";
-import { Platform } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { KeyboardAvoidingView, ScrollView, View, Text, Pressable } from "@/tw";
+import { Button, Text } from "heroui-native";
+import { SymbolView } from "expo-symbols";
 
 interface AuthScreenProps {
   title: string;
@@ -22,9 +23,8 @@ interface AuthScreenProps {
 
 /**
  * Standard mobile auth screen: a safe-area-aware scroll view with a compact
- * native header (back chevron + bold sans-serif title + muted subtitle).
- * Monochrome to match the product, but sized and spaced like an app — not a
- * marketing page. Fixes the old status-bar collision from hard-coded padding.
+ * native header (back chevron + bold title + muted subtitle). Monochrome to
+ * match the product, but sized and spaced like an app — not a marketing page.
  */
 export function AuthScreen({
   title,
@@ -41,7 +41,7 @@ export function AuthScreen({
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-bg dark:bg-bg-dark"
+      className="flex-1 bg-background"
     >
       {/* Fixed top bar with back button */}
       <View
@@ -49,13 +49,24 @@ export function AuthScreen({
         className="px-5 pb-2 flex-row items-center"
       >
         {back && (
-          <Pressable
+          <Button
+            variant="ghost"
+            size="sm"
+            isIconOnly
             onPress={onBack ?? (() => router.back())}
-            hitSlop={12}
-            className="w-9 h-9 -ml-1 rounded-full items-center justify-center active:bg-bg-secondary dark:active:bg-surface-dark-2"
+            className="-ml-2"
           >
-            <Text className="text-[22px] leading-[22px] text-ink dark:text-paper">‹</Text>
-          </Pressable>
+            <SymbolView
+              name={{
+                ios: "chevron.left",
+                android: "chevron_left",
+                web: "chevron_left",
+              }}
+              size={20}
+              weight="semibold"
+              className="text-foreground"
+            />
+          </Button>
         )}
       </View>
 
@@ -68,11 +79,11 @@ export function AuthScreen({
       >
         {/* Header */}
         <View className="mb-6 mt-2">
-          <Text className="text-[26px] font-bold text-ink dark:text-paper tracking-tight">
+          <Text className="text-[26px] font-bold text-foreground tracking-tight">
             {title}
           </Text>
           {sub && (
-            <Text className="text-[14px] leading-[20px] text-muted dark:text-muted-dark mt-1.5">
+            <Text className="text-[14px] leading-[20px] text-muted mt-1.5">
               {sub}
             </Text>
           )}
