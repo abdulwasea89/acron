@@ -23,10 +23,10 @@ interface TabIconProps {
 }
 
 /** A confident glyph that still leaves the capsule room to breathe. */
-const ICON_SIZE = 30;
+const ICON_SIZE = 24;
 /** The icon's hit area. Sized to the touch target, not the glyph. */
-export const CELL_WIDTH = 40;
-export const CELL_HEIGHT = 36;
+export const CELL_WIDTH = 28;
+export const CELL_HEIGHT = 26;
 
 const CROSSFADE_MS = 180;
 

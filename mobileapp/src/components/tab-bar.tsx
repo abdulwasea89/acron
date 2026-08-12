@@ -25,7 +25,7 @@ import { getPalette } from "@/lib/theme";
  */
 
 /** Bar height, excluding the safe-area gap it floats above. */
-const BAR_HEIGHT = 62;
+const BAR_HEIGHT = 58;
 /** Clearance between the capsule and the home indicator / screen edge. */
 const FLOAT_GAP = 12;
 /** Inset from the left and right screen edges. */
