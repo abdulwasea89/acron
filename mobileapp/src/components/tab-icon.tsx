@@ -1,23 +1,18 @@
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import type { ColorValue } from "react-native";
-import type { SFSymbol } from "sf-symbols-typescript";
-import type { AndroidSymbol } from "expo-symbols";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
-import { Icon } from "@/components/icon";
+import { TabGlyphIcon } from "@/components/tab-icons";
+import type { TabGlyph } from "@/components/tab-icons";
 
 /**
- * A tab's symbol in both states. iOS gets the outline/filled SF Symbol pair
- * Apple uses in tab bars; Android has no fill axis exposed by `expo-symbols`,
- * so it leans on weight and tint instead (`mdActive` only when a real filled
- * glyph exists).
+ * A tab's symbol. Both states come from the project's bespoke glyph set —
+ * the outline and the accent-filled silhouette are stable across iOS, Android
+ * and web, so the tab bar carries the brand instead of the platform.
  */
 export interface TabSymbol {
-  sf: SFSymbol;
-  sfActive: SFSymbol;
-  md: AndroidSymbol;
-  mdActive?: AndroidSymbol;
+  glyph: TabGlyph;
 }
 
 interface TabIconProps {
@@ -27,11 +22,11 @@ interface TabIconProps {
   inactiveColor: ColorValue;
 }
 
-/** Slightly under the 25pt react-navigation default — reads lighter, less toy-like. */
-const ICON_SIZE = 21;
+/** A confident glyph that still leaves the capsule room to breathe. */
+const ICON_SIZE = 30;
 /** The icon's hit area. Sized to the touch target, not the glyph. */
-export const CELL_WIDTH = 46;
-export const CELL_HEIGHT = 34;
+export const CELL_WIDTH = 40;
+export const CELL_HEIGHT = 36;
 
 const CROSSFADE_MS = 180;
 
@@ -54,22 +49,10 @@ export function TabIcon({ symbol, focused, activeColor, inactiveColor }: TabIcon
   return (
     <View style={styles.box}>
       <Animated.View style={[styles.layer, inactiveStyle]}>
-        <Icon
-          name={symbol.sf}
-          android={symbol.md}
-          size={ICON_SIZE}
-          color={inactiveColor}
-          weight="regular"
-        />
+        <TabGlyphIcon name={symbol.glyph} active={false} size={ICON_SIZE} color={inactiveColor} />
       </Animated.View>
       <Animated.View style={[styles.layer, activeStyle]}>
-        <Icon
-          name={symbol.sfActive}
-          android={symbol.mdActive ?? symbol.md}
-          size={ICON_SIZE}
-          color={activeColor}
-          weight={symbol.mdActive ? "regular" : "semibold"}
-        />
+        <TabGlyphIcon name={symbol.glyph} active size={ICON_SIZE} color={activeColor} />
       </Animated.View>
     </View>
   );

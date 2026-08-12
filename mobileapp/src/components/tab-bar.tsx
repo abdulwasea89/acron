@@ -25,7 +25,7 @@ import { getPalette } from "@/lib/theme";
  */
 
 /** Bar height, excluding the safe-area gap it floats above. */
-const BAR_HEIGHT = 60;
+const BAR_HEIGHT = 62;
 /** Clearance between the capsule and the home indicator / screen edge. */
 const FLOAT_GAP = 12;
 /** Inset from the left and right screen edges. */
@@ -48,10 +48,14 @@ export function useTabBarInset() {
 
 export function useTabBarTheme() {
   const isDark = useColorScheme() === "dark";
+  const accent = getPalette(isDark).accent;
 
   return {
     isDark,
-    active: isDark ? "#ffffff" : "#0a0a0a",
+    // The selected tab fills + tints with the brand accent over the bar's
+    // white/dark material. The inactive glyph stays a muted gray so the
+    // brightness jump alone marks focus.
+    active: accent,
     inactive: isDark ? "rgba(235,235,245,0.50)" : "rgba(60,60,67,0.48)",
     /** Bright rim where light catches the edge of the bar. */
     rim: isDark ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.65)",

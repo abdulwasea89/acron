@@ -3,10 +3,10 @@ import type { TabSymbol } from "@/components/tab-icon";
 import { tabScreenLayout, useTabIcon, useTabScreenOptions } from "@/components/tab-bar";
 
 const SYMBOLS = {
-  dashboard: { sf: "house", sfActive: "house.fill", md: "home", mdActive: "home_filled" },
-  classes: { sf: "calendar", sfActive: "calendar", md: "calendar_month" },
-  payments: { sf: "creditcard", sfActive: "creditcard.fill", md: "credit_card" },
-  profile: { sf: "person", sfActive: "person.fill", md: "person" },
+  dashboard: { glyph: "house" },
+  classes: { glyph: "dumbbell" },
+  payments: { glyph: "credit-card" },
+  profile: { glyph: "person" },
 } satisfies Record<string, TabSymbol>;
 
 export default function MemberLayout() {
