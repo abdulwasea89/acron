@@ -1,12 +1,15 @@
 import React from "react";
 import { Pressable, View } from "react-native";
 import { Text } from "heroui-native";
+import type { AndroidSymbol } from "expo-symbols";
 import { Icon, type IconName } from "@/components/icon";
 
 interface ListRowProps {
   title: string;
   subtitle?: string;
   icon?: IconName;
+  /** Material Symbol name for Android/web. */
+  android?: AndroidSymbol;
   /** Right-side trailing content (badges, values). */
   trailing?: React.ReactNode;
   /** Chevron shown when pressable. */
@@ -23,6 +26,7 @@ export function ListRow({
   title,
   subtitle,
   icon,
+  android,
   trailing,
   chevron = false,
   onPress,
@@ -35,6 +39,7 @@ export function ListRow({
         <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-surface-tertiary">
           <Icon
             name={icon}
+            android={android}
             size={20}
             color={destructive ? undefined : undefined}
             className={destructive ? "text-danger" : "text-foreground"}

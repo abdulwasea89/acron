@@ -2,6 +2,7 @@ import React from "react";
 import { View } from "react-native";
 import { Card, Text } from "heroui-native";
 import { Icon, type IconName } from "@/components/icon";
+import type { AndroidSymbol } from "expo-symbols";
 
 type Tone = "accent" | "success" | "warning" | "danger" | "neutral";
 
@@ -25,12 +26,14 @@ interface StatCardProps {
   label: string;
   value: string | number;
   icon?: IconName;
+  /** Material Symbol name for Android/web when `icon` has no cross-platform pair. */
+  android?: AndroidSymbol;
   tone?: Tone;
   hint?: string;
 }
 
 /** Headline metric card — icon tile + big number + label. */
-export function StatCard({ label, value, icon, tone = "neutral", hint }: StatCardProps) {
+export function StatCard({ label, value, icon, android, tone = "neutral", hint }: StatCardProps) {
   return (
     <Card className="flex-1">
       <Card.Body>
@@ -39,7 +42,7 @@ export function StatCard({ label, value, icon, tone = "neutral", hint }: StatCar
             <View
               className={`h-9 w-9 items-center justify-center rounded-xl ${TONE_CLASS[tone]} ${TONE_FOREGROUND[tone]}`}
             >
-              <Icon name={icon} size={18} color="currentColor" />
+              <Icon name={icon} android={android} size={18} color="currentColor" />
             </View>
           )}
           <View className="gap-0.5">

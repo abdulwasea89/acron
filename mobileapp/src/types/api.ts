@@ -45,6 +45,7 @@ export interface HeadlineMetrics {
   active_members: number;
   today_revenue: number;
   today_check_ins: number;
+  pending_receipts: number;
   pending_approvals: number;
 }
 
@@ -59,66 +60,91 @@ export interface PlanOut {
   featured?: boolean;
 }
 
-export interface ClassSession {
+export interface ClassSessionOut {
   id: string;
   title: string;
-  trainer_id?: string;
-  trainer_name?: string;
-  start_time: string;
-  end_time: string;
+  trainer_member_id: string | null;
+  starts_at: string;
+  ends_at: string | null;
   capacity: number;
   booked_count: number;
-  status: string;
+  trainer_checked_in: boolean;
+  cancelled: boolean;
 }
 
 export interface PaymentOut {
   id: string;
+  organization_id: string;
   member_id: string;
-  member_name?: string;
-  amount: number;
+  plan_id: string | null;
+  subscription_id: string | null;
+  kind: "subscription" | "one_time" | "cash" | "refund";
   method: string;
   status: string;
+  amount: number;
+  tax_amount: number;
+  currency: string;
+  refunded_amount: number;
+  stripe_payment_intent_id: string | null;
+  idempotency_key: string | null;
+  paid_at: string | null;
   created_at: string;
 }
 
 export interface ReceiptReviewItem {
   id: string;
   member_id: string;
-  member_name: string;
-  amount: number;
-  confidence: number;
-  extracted_fields?: Record<string, unknown>;
-  image_url?: string;
+  plan_id: string | null;
   status: string;
-  flags?: string[];
-  created_at: string;
+  confidence_score: number | null;
+  extracted_amount: number | null;
+  extracted_date: string | null;
+  extracted_payer: string | null;
+  extracted_payee: string | null;
+  is_duplicate: boolean;
+  flags: string[];
+  original_image_url: string | null;
 }
 
-export interface StaffShiftCurrent {
-  is_checked_in: boolean;
-  checked_in_at?: string;
-  shift_id?: string;
+export interface ShiftOut {
+  id: string;
+  staff_member_id: string;
+  checked_in_at: string;
+  checked_out_at: string | null;
+  status: string;
+  hours: number;
 }
 
 export interface TaskOut {
   id: string;
   title: string;
-  description?: string;
-  assignee_id?: string;
-  assignee_name?: string;
-  due_date?: string;
-  status: string;
-  created_at: string;
+  description: string | null;
+  assignee_member_id: string | null;
+  deadline: string | null;
+  done: boolean;
 }
 
 export interface MemberDirectoryItem {
-  id: string;
+  member_id: string;
+  user_id: string;
   email: string;
-  full_name?: string;
+  full_name: string | null;
+  display_name: string | null;
   role: string;
   member_status: string;
-  phone?: string;
+  phone: string | null;
+  profile_complete: boolean;
   created_at: string;
+  assigned_trainers: string[];
+}
+
+/** `GET /auth/me` — identity + role within the active org. */
+export interface MeResponse {
+  user_id: string;
+  org_id: string;
+  role: string;
+  member_id: string | null;
+  member_status: string | null;
 }
 
 export interface ProfileOut {
