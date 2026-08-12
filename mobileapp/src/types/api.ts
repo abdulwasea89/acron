@@ -30,7 +30,7 @@ export interface LoginResponse {
   access_token: string;
   refresh_token: string;
   user: AuthUserResponse;
-  mfa_required?: boolean;
+  requires_mfa?: boolean;
 }
 
 export interface OrgSummaryResponse {

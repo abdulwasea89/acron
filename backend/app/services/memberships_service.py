@@ -399,6 +399,7 @@ async def pay_and_activate(
         return LoginResponse(
             access_token=access, refresh_token=refresh, organization_id=org.id,
             role=Role.MEMBER.value, member_status=member.member_status.value,
+            user=auth_service.login_user_payload(user, org.id, Role.MEMBER, member),
         )
 
     if org.stripe_connect_status != ConnectStatus.ACTIVE:
@@ -451,6 +452,7 @@ async def pay_and_activate(
     response = LoginResponse(
         access_token=access, refresh_token=refresh, organization_id=org.id,
         role=Role.MEMBER.value, member_status=MemberStatus.ACTIVE.value,
+        user=auth_service.login_user_payload(user, org.id, Role.MEMBER, member),
     )
     await idempotency_service.complete(session, claim.record, code=200,
                                        body=response.model_dump_json())

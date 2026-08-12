@@ -47,6 +47,20 @@ from app.services.audit_service import record_audit
 _VAGUE = "Invalid credentials."
 
 
+def login_user_payload(
+    user: User, org_id: str, role: Role, member: OrganizationMember | None = None
+) -> dict:
+    """Build the ``user`` object embedded in LoginResponse (used by mobile)."""
+    return {
+        "user_id": user.id,
+        "email": user.email,
+        "role": role.value,
+        "org_id": org_id,
+        "member_id": member.id if member else None,
+        "member_status": member.member_status.value if member and member.member_status else None,
+    }
+
+
 async def _get_user_by_email(session: AsyncSession, email: str) -> User | None:
     return (
         await session.execute(select(User).where(User.email == email.lower()))
@@ -309,6 +323,7 @@ async def login(
             return LoginResponse(
                 access_token="", refresh_token="", requires_mfa=True,
                 organization_id=target.organization_id, role=target.role.value,
+                user=login_user_payload(user, target.organization_id, target.role, target),
             )
 
     await _register_success(session, user)
@@ -326,6 +341,7 @@ async def login(
         member_status=target.member_status.value,
         # MFA challenge already satisfied here (we issued tokens) -> False.
         requires_mfa=False,
+        user=login_user_payload(user, target.organization_id, target.role, target),
     )
 
 
@@ -360,7 +376,8 @@ async def refresh_tokens(
     auth_session.last_activity_at = now_utc()
     session.add(auth_session)
     return LoginResponse(
-        access_token=access, refresh_token=refresh_token, organization_id=org_id, role=role.value
+        access_token=access, refresh_token=refresh_token, organization_id=org_id, role=role.value,
+        user=login_user_payload(user, org_id, role),
     )
 
 
@@ -460,6 +477,7 @@ async def verify_magic_link(
             return LoginResponse(
                 access_token="", refresh_token="", requires_mfa=True,
                 organization_id=target.organization_id, role=target.role.value,
+                user=login_user_payload(user, target.organization_id, target.role, target),
             )
 
     await _register_success(session, user)
@@ -473,6 +491,7 @@ async def verify_magic_link(
         access_token=access, refresh_token=refresh,
         organization_id=target.organization_id, role=target.role.value,
         member_status=target.member_status.value, requires_mfa=False,
+        user=login_user_payload(user, target.organization_id, target.role, target),
     )
 
 

@@ -1,70 +1,37 @@
 import { Tabs } from "expo-router";
-import { useColorScheme } from "react-native";
-import { TabIcon } from "@/components/tab-icon";
+import type { TabSymbol } from "@/components/tab-icon";
+import { tabScreenLayout, useTabIcon, useTabScreenOptions } from "@/components/tab-bar";
+
+const SYMBOLS = {
+  dashboard: { sf: "square.grid.2x2", sfActive: "square.grid.2x2.fill", md: "grid_view" },
+  approvals: { sf: "checkmark.seal", sfActive: "checkmark.seal.fill", md: "verified_user" },
+  gymStatus: { sf: "storefront", sfActive: "storefront.fill", md: "storefront" },
+  tasks: { sf: "checklist", sfActive: "checklist.checked", md: "task_alt" },
+  profile: { sf: "person", sfActive: "person.fill", md: "person" },
+} satisfies Record<string, TabSymbol>;
 
 export default function AdminLayout() {
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
-  const active = isDark ? "#fafafa" : "#0a0a0a";
-  const inactive = isDark ? "#6e6e6e" : "#94a3b8";
+  const screenOptions = useTabScreenOptions();
+  const icon = useTabIcon();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: active,
-        tabBarInactiveTintColor: inactive,
-        tabBarStyle: {
-          backgroundColor: isDark ? "#0a0a0a" : "#ffffff",
-          borderTopColor: isDark ? "#1f1f1f" : "#edf0f5",
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
-      }}
-    >
+    <Tabs screenOptions={screenOptions} screenLayout={tabScreenLayout}>
       <Tabs.Screen
         name="dashboard"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="square.grid.2x2" android="grid_view" color={color} focused={focused} />
-          ),
-        }}
+        options={{ title: "Home", tabBarIcon: icon(SYMBOLS.dashboard) }}
       />
       <Tabs.Screen
         name="approvals"
-        options={{
-          title: "Approve",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="checkmark.seal" android="verified_user" color={color} focused={focused} />
-          ),
-        }}
+        options={{ title: "Approve", tabBarIcon: icon(SYMBOLS.approvals) }}
       />
       <Tabs.Screen
         name="gym-status"
-        options={{
-          title: "Status",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="power" android="storefront" color={color} focused={focused} />
-          ),
-        }}
+        options={{ title: "Status", tabBarIcon: icon(SYMBOLS.gymStatus) }}
       />
-      <Tabs.Screen
-        name="tasks"
-        options={{
-          title: "Tasks",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="checklist" android="task_alt" color={color} focused={focused} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="tasks" options={{ title: "Tasks", tabBarIcon: icon(SYMBOLS.tasks) }} />
       <Tabs.Screen
         name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="person" android="person" color={color} focused={focused} />
-          ),
-        }}
+        options={{ title: "Profile", tabBarIcon: icon(SYMBOLS.profile) }}
       />
     </Tabs>
   );

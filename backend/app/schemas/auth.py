@@ -180,10 +180,22 @@ class PasswordResetConfirm(BaseModel):
     new_password: str
 
 
+class LoginUserOut(BaseModel):
+    """Authenticated user identity embedded in every token-bearing response."""
+
+    user_id: str
+    email: str
+    role: str
+    org_id: str
+    member_id: str | None = None
+    member_status: str | None = None
+
+
 class LoginResponse(TokenPair):
     member_status: str | None = None
     requires_mfa: bool = False
     organizations: list[dict] | None = None
+    user: LoginUserOut | None = None
 
 
 class SwitchOrgRequest(BaseModel):

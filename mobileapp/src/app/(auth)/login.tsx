@@ -62,7 +62,7 @@ export default function LoginScreen() {
         },
       );
 
-      if (res.mfa_required) {
+      if (res.requires_mfa) {
         router.replace("/(auth)/mfa");
         return;
       }
@@ -79,7 +79,8 @@ export default function LoginScreen() {
           router.replace("/(auth)/mfa");
         } else setError(e.message);
       } else {
-        setError("Network error. Check your connection.");
+        const cause = e instanceof Error ? e.message : String(e);
+        setError(`Network error. Check your connection. (${cause})`);
       }
     } finally {
       setLoading(false);

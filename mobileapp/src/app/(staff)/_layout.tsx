@@ -1,70 +1,34 @@
 import { Tabs } from "expo-router";
-import { useColorScheme } from "react-native";
-import { TabIcon } from "@/components/tab-icon";
+import type { TabSymbol } from "@/components/tab-icon";
+import { tabScreenLayout, useTabIcon, useTabScreenOptions } from "@/components/tab-bar";
+
+const SYMBOLS = {
+  dashboard: { sf: "square.grid.2x2", sfActive: "square.grid.2x2.fill", md: "grid_view" },
+  shift: { sf: "clock", sfActive: "clock.fill", md: "schedule" },
+  cashLog: { sf: "banknote", sfActive: "banknote.fill", md: "payments" },
+  receipts: { sf: "doc.text", sfActive: "doc.text.fill", md: "receipt_long" },
+  profile: { sf: "person", sfActive: "person.fill", md: "person" },
+} satisfies Record<string, TabSymbol>;
 
 export default function StaffLayout() {
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
-  const active = isDark ? "#fafafa" : "#0a0a0a";
-  const inactive = isDark ? "#6e6e6e" : "#94a3b8";
+  const screenOptions = useTabScreenOptions();
+  const icon = useTabIcon();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: active,
-        tabBarInactiveTintColor: inactive,
-        tabBarStyle: {
-          backgroundColor: isDark ? "#0a0a0a" : "#ffffff",
-          borderTopColor: isDark ? "#1f1f1f" : "#edf0f5",
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
-      }}
-    >
+    <Tabs screenOptions={screenOptions} screenLayout={tabScreenLayout}>
       <Tabs.Screen
         name="dashboard"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="square.grid.2x2" android="grid_view" color={color} focused={focused} />
-          ),
-        }}
+        options={{ title: "Home", tabBarIcon: icon(SYMBOLS.dashboard) }}
       />
-      <Tabs.Screen
-        name="shift"
-        options={{
-          title: "Shift",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="clock" android="schedule" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="cash-log"
-        options={{
-          title: "Cash",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="banknote" android="payments" color={color} focused={focused} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="shift" options={{ title: "Shift", tabBarIcon: icon(SYMBOLS.shift) }} />
+      <Tabs.Screen name="cash-log" options={{ title: "Cash", tabBarIcon: icon(SYMBOLS.cashLog) }} />
       <Tabs.Screen
         name="receipts"
-        options={{
-          title: "Receipts",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="doc.text" android="receipt_long" color={color} focused={focused} />
-          ),
-        }}
+        options={{ title: "Receipts", tabBarIcon: icon(SYMBOLS.receipts) }}
       />
       <Tabs.Screen
         name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="person" android="person" color={color} focused={focused} />
-          ),
-        }}
+        options={{ title: "Profile", tabBarIcon: icon(SYMBOLS.profile) }}
       />
     </Tabs>
   );

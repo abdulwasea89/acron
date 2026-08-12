@@ -4,6 +4,8 @@ import type { RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "heroui-native";
 
+import { useTabBarInset } from "@/components/tab-bar";
+
 interface AppScreenProps {
   /** Bold screen title. */
   title?: string;
@@ -34,6 +36,9 @@ export function AppScreen({
   refreshControl,
 }: AppScreenProps) {
   const insets = useSafeAreaInsets();
+  // The tab bar floats over the content, so it already covers the bottom inset.
+  const tabBarInset = useTabBarInset();
+  const bottomInset = tabBarInset || insets.bottom;
 
   return (
     <View className="flex-1 bg-background">
@@ -42,7 +47,7 @@ export function AppScreen({
         contentContainerClassName="px-5"
         contentContainerStyle={{
           paddingTop: insets.top + 8,
-          paddingBottom: noBottomInset ? 0 : insets.bottom + 24,
+          paddingBottom: noBottomInset ? 0 : bottomInset + 24,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

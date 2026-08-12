@@ -1,4 +1,5 @@
 import React from "react";
+import { useColorScheme } from "react-native";
 import { Button as HButton, Spinner } from "heroui-native";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
@@ -36,14 +37,6 @@ const variantMap: Record<ButtonVariant, NonNullable<HButtonProps["variant"]>> = 
   ghost: "ghost",
 };
 
-/** Spinner tint per variant — filled buttons need the inverted foreground. */
-const spinnerColorMap: Record<ButtonVariant, string> = {
-  primary: "accent-foreground",
-  secondary: "foreground",
-  danger: "danger-foreground",
-  ghost: "foreground",
-};
-
 export function Button({
   variant = "primary",
   loading = false,
@@ -51,6 +44,18 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+
+  /* Spinner tint per variant — filled buttons need the inverted (light) tint.
+     Uses concrete hex values: CSS token names like "accent-foreground" are not
+     valid SVG stopColors and break the HeroUI color parser. */
+  const spinnerColorMap: Record<ButtonVariant, string> = {
+    primary: "#ffffff",
+    secondary: isDark ? "#ffffff" : "#111111",
+    danger: "#ffffff",
+    ghost: isDark ? "#ffffff" : "#111111",
+  };
   return (
     <HButton
       variant={variantMap[variant]}

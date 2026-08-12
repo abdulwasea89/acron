@@ -23,6 +23,22 @@ interface RequestOptions {
   isFormData?: boolean;
 }
 
+const RETRY_DELAYS_MS = [600, 1600];
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      if (attempt >= RETRY_DELAYS_MS.length) throw err;
+      const delay = RETRY_DELAYS_MS[attempt];
+      attempt += 1;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 async function refreshTokens(): Promise<boolean> {
   const { refreshToken, setSession, clearSession } = useAuthStore.getState();
   const { activeOrg } = useOrgStore.getState();
@@ -68,7 +84,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const { accessToken, clearSession } = useAuthStore.getState();
   const { activeOrg } = useOrgStore.getState();
 
-  const headers: Record<string, string> = { ...extraHeaders };
+  const headers: Record<string, string> = {
+    "ngrok-skip-browser-warning": "true",
+    ...extraHeaders,
+  };
 
   if (accessToken) {
     headers["Authorization"] = `Bearer ${accessToken}`;
@@ -92,7 +111,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
   };
 
-  let res = await fetch(`${BASE_URL}${PREFIX}${path}`, fetchOptions);
+  let res = await fetchWithRetry(`${BASE_URL}${PREFIX}${path}`, fetchOptions);
 
   if (res.status === 401) {
     const refreshed = await refreshTokens();
@@ -102,7 +121,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
         headers["Authorization"] = `Bearer ${newToken}`;
       }
       fetchOptions.headers = headers;
-      res = await fetch(`${BASE_URL}${PREFIX}${path}`, fetchOptions);
+      res = await fetchWithRetry(`${BASE_URL}${PREFIX}${path}`, fetchOptions);
     } else {
       clearSession();
       throw new ApiError(401, "Session expired. Please log in again.");
