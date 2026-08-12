@@ -7,9 +7,9 @@ import { TabGlyphIcon } from "@/components/tab-icons";
 import type { TabGlyph } from "@/components/tab-icons";
 
 /**
- * A tab's symbol. Both states come from the project's bespoke glyph set —
- * the outline and the accent-filled silhouette are stable across iOS, Android
- * and web, so the tab bar carries the brand instead of the platform.
+ * A tab's symbol. Both states come from the shared Ionicons glyph set — the
+ * outline and filled families are stable across iOS, Android and web, so the
+ * tab bar carries the brand instead of diverging per platform.
  */
 export interface TabSymbol {
   glyph: TabGlyph;

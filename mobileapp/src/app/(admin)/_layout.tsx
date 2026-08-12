@@ -3,10 +3,10 @@ import type { TabSymbol } from "@/components/tab-icon";
 import { tabScreenLayout, useTabIcon, useTabScreenOptions } from "@/components/tab-bar";
 
 const SYMBOLS = {
-  dashboard: { glyph: "house" },
-  approvals: { glyph: "badge-check" },
+  dashboard: { glyph: "home" },
+  approvals: { glyph: "checkmark-circle" },
   gymStatus: { glyph: "storefront" },
-  tasks: { glyph: "checklist" },
+  tasks: { glyph: "checkbox" },
   profile: { glyph: "person" },
 } satisfies Record<string, TabSymbol>;
 

@@ -3,9 +3,9 @@ import type { TabSymbol } from "@/components/tab-icon";
 import { tabScreenLayout, useTabIcon, useTabScreenOptions } from "@/components/tab-bar";
 
 const SYMBOLS = {
-  dashboard: { glyph: "house" },
-  shift: { glyph: "clock" },
-  cashLog: { glyph: "banknote" },
+  dashboard: { glyph: "home" },
+  shift: { glyph: "time" },
+  cashLog: { glyph: "cash" },
   receipts: { glyph: "receipt" },
   profile: { glyph: "person" },
 } satisfies Record<string, TabSymbol>;
