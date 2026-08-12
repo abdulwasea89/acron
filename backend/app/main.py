@@ -48,6 +48,11 @@ app.add_middleware(
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 
+@app.get("/", include_in_schema=False)
+async def root() -> dict[str, str]:
+    return {"message": "Welcome to the API!"}
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Return clean JSON for unhandled errors — traceback goes to terminal only."""
