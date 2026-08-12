@@ -1,7 +1,10 @@
 __pycache__/
 *.py[cod]
 .env
+.env.local
+.env*.local
 .venv/
+.vercel/
 venv/
 .mypy_cache/
 .ruff_cache/
