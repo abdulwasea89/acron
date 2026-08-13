@@ -17,6 +17,7 @@ from app.schemas.classes import (
     BookingWithMember,
     ClassSessionCreate,
     ClassSessionOut,
+    MyBookingOut,
 )
 from app.schemas.common import Message
 from app.services import classes_service as classes
@@ -40,6 +41,23 @@ async def list_classes(
     session: AsyncSession = Depends(get_session),
 ):
     return [_to_out(c) for c in await classes.list_sessions(session, org_id=ctx.org_id)]
+
+
+@router.get("/my-bookings", response_model=list[MyBookingOut])
+async def my_bookings(
+    ctx: TenantContext = Depends(get_tenant),
+    session: AsyncSession = Depends(get_session),
+):
+    """A member's own bookings with their sessions (self-service)."""
+
+    member = await classes._member_for(session, ctx.org_id, ctx.user_id)
+    if member is None:
+        return []
+    rows = await classes.list_my_bookings(session, org_id=ctx.org_id, member_id=member.id)
+    return [
+        MyBookingOut(booking_id=r["booking_id"], status=r["status"], class_session=ClassSessionOut(**r["class_session"]))
+        for r in rows
+    ]
 
 
 @router.post("", response_model=ClassSessionOut, status_code=201)

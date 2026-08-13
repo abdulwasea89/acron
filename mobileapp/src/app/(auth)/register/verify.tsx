@@ -55,7 +55,7 @@ export default function VerifyEmail() {
       back
       footer={
         <View className="flex-row justify-center items-center">
-          <Text className="text-[13px] text-muted">Didn't receive it? </Text>
+          <Text className="text-[13px] text-muted">Didn&apos;t receive it? </Text>
           <Pressable onPress={handleResend} disabled={resending} className="active:opacity-60">
             <Text className="text-[13px] font-bold text-foreground">
               {resending ? "Sending…" : "Resend code"}

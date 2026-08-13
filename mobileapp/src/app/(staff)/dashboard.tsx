@@ -12,6 +12,7 @@ import { StatCard } from "@/components/stat-card";
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Stagger } from "@/components/motion";
 import { useGet } from "@/hooks/use-api";
 import { useOrgStore } from "@/stores/org-store";
 import { api } from "@/lib/api";
@@ -64,7 +65,7 @@ export default function Screen_dashboard() {
       ) : error ? (
         <DashboardError message={error} onRetry={refresh} />
       ) : (
-        <>
+        <Stagger gap={90}>
           <View className="mb-6">
             <ShiftCard shift={shift.data} onChanged={shift.refetch} />
           </View>
@@ -179,7 +180,7 @@ export default function Screen_dashboard() {
               </View>
             </SectionCard>
           ) : null}
-        </>
+        </Stagger>
       )}
     </AppScreen>
   );

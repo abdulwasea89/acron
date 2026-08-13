@@ -52,11 +52,12 @@ export interface HeadlineMetrics {
 export interface PlanOut {
   id: string;
   name: string;
-  description?: string;
+  public_description?: string | null;
   price: number;
+  currency?: string;
   billing_type: string;
-  visibility: string;
-  status: string;
+  visibility?: string;
+  status?: string;
   featured?: boolean;
 }
 
@@ -78,7 +79,7 @@ export interface PaymentOut {
   member_id: string;
   plan_id: string | null;
   subscription_id: string | null;
-  kind: "subscription" | "one_time" | "cash" | "refund";
+  kind: "saas_subscription" | "member_fee" | "trainer_payout" | "cash" | "refund";
   method: string;
   status: string;
   amount: number;
@@ -150,10 +151,25 @@ export interface MeResponse {
 export interface ProfileOut {
   full_name?: string;
   email: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  emergency_contact?: string;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  occupation?: string | null;
+  education?: string | null;
+  emergency_contact?: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  photo_url?: string | null;
+}
+
+export interface ProfileUpdateRequest {
+  full_name?: string;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  occupation?: string | null;
+  education?: string | null;
+  emergency_contact?: string | null;
 }
 
 export interface CashLogPayload {
@@ -388,4 +404,65 @@ export interface SessionInfo {
   last_activity_at?: string | null;
   revoked?: boolean;
   current?: boolean;
+}
+
+// --- Task (staff/admin) -----------------------------------------------
+export interface TaskCreateRequest {
+  title: string;
+  description?: string | null;
+  assignee_member_id?: string | null;
+  deadline?: string | null;
+}
+
+// --- My Bookings (member, GET /classes/my-bookings) -------------------
+export interface MyBookingOut {
+  booking_id: string;
+  status: string;
+  class_session: ClassSessionOut;
+}
+
+// --- Members approval (admin) -----------------------------------------
+export interface ApprovalDecisionRequest {
+  approve: boolean;
+  reason?: string | null;
+}
+
+// --- Cash (staff) ------------------------------------------------------
+export interface CashMemberOut {
+  member_id: string;
+  full_name: string | null;
+  email: string;
+  member_status: string;
+  role: string;
+}
+
+export interface CashPaymentOut {
+  payment_id: string;
+  member_id: string;
+  amount: number;
+  method: string;
+  member_status: string;
+  receipt_pdf_url: string | null;
+}
+
+export interface ReconciliationRequest {
+  business_date: string;
+  counted_total: number;
+  notes?: string | null;
+}
+
+export interface ReconciliationOut {
+  id: string;
+  business_date: string;
+  system_total: number;
+  counted_total: number;
+  discrepancy: number;
+  performed_by: string;
+  alert_triggered: boolean;
+}
+
+// --- Receipts (staff review) ------------------------------------------
+export interface ReceiptReviewActionRequest {
+  action: "approve" | "reject" | "request_info";
+  reason?: string | null;
 }

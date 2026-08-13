@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "@/lib/api";
 
@@ -26,22 +26,23 @@ export function useGet<T>(path: string | null): UseGetResult<T> {
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
-  const cancelledRef = useRef(false);
+  // React's "derived state during render" pattern: reset when the request
+  // key (path + refetch tick) changes, so the fetch effect never has to call
+  // setState synchronously. Completion updates happen in async callbacks only.
+  const requestKey = `${path ?? ""}|${tick}`;
+  const [prevRequest, setPrevRequest] = useState(requestKey);
+  if (requestKey !== prevRequest) {
+    setPrevRequest(requestKey);
+    setData(null);
+    setLoading(Boolean(path));
+    setForbidden(false);
+    setError(null);
+  }
 
   useEffect(() => {
-    if (!path) {
-      setData(null);
-      setLoading(false);
-      setForbidden(false);
-      setError(null);
-      return;
-    }
+    if (!path) return;
 
     let active = true;
-    cancelledRef.current = false;
-    setLoading(true);
-    setError(null);
-    setForbidden(false);
 
     import("@/lib/api")
       .then(({ api }) => api.get<T>(path))
@@ -51,7 +52,7 @@ export function useGet<T>(path: string | null): UseGetResult<T> {
         setLoading(false);
       })
       .catch((err) => {
-        if (!active || cancelledRef.current) return;
+        if (!active) return;
         if (err instanceof ApiError && err.status === 403) {
           setForbidden(true);
         } else {
@@ -64,7 +65,6 @@ export function useGet<T>(path: string | null): UseGetResult<T> {
 
     return () => {
       active = false;
-      cancelledRef.current = true;
     };
   }, [path, tick]);
 

@@ -6,12 +6,12 @@ import { router } from "expo-router";
 import { AppScreen } from "@/components/app-screen";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import { DashboardError } from "@/components/dashboard-states";
-import { ListRow } from "@/components/list-row";
 import { SectionCard } from "@/components/section-card";
 import { Icon } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { Stagger } from "@/components/motion";
 import { useGet } from "@/hooks/use-api";
 import { useOrgStore } from "@/stores/org-store";
 import { formatDay, formatTime, firstName, greeting } from "@/lib/format";
@@ -84,50 +84,52 @@ export default function Screen_dashboard() {
         <DashboardError message={error} onRetry={refresh} />
       ) : (
         <>
-          <View className="mb-6">
-            <MembershipBanner status={status} banner={banner} />
-          </View>
-
-          <SectionCard title="Today’s schedule" action={<Pressable onPress={goTo("/classes")} hitSlop={8}><Text type="body-sm" className="text-accent">See all</Text></Pressable>}>
-            {sessions.length === 0 ? (
-              <EmptyState
-                title="No classes coming up"
-                message="Browse the schedule and book your next session."
-                action={<Button variant="secondary" onPress={goTo("/classes")}>Browse classes</Button>}
-              />
-            ) : (
-              <View className="overflow-hidden rounded-2xl bg-surface">
-                {sessions.map((s, i) => (
-                  <Pressable key={s.id} onPress={goTo("/classes")} className="active:opacity-70">
-                    <View className="flex-row items-center py-3.5"
-                      style={i > 0 ? { borderTopWidth: 0.5, borderTopColor: "rgba(128,128,128,0.25)" } : undefined}>
-                      <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-surface-tertiary">
-                        <Icon name="figure.strengthtraining.traditional" android="fitness_center" size={20} className="text-accent" />
-                      </View>
-                      <View className="flex-1">
-                        <Text type="body" weight="medium" className="text-foreground">{s.title}</Text>
-                        <Text type="body-sm" color="muted" className="mt-0.5">
-                          {formatDay(s.starts_at)} · {formatTime(s.starts_at)} ·{" "}
-                          {Math.max(s.capacity - s.booked_count, 0)} spots left
-                        </Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </SectionCard>
-
-          <SectionCard title="Quick actions">
-            <View className="gap-3">
-              <Button variant="secondary" onPress={goTo("/classes")}>
-                Book a class
-              </Button>
-              <Button variant="secondary" onPress={goTo("/payments")}>
-                Payments & receipts
-              </Button>
+          <Stagger gap={80}>
+            <View className="mb-6">
+              <MembershipBanner status={status} banner={banner} />
             </View>
-          </SectionCard>
+
+            <SectionCard title="Today’s schedule" action={<Pressable onPress={goTo("/classes")} hitSlop={8}><Text type="body-sm" className="text-accent">See all</Text></Pressable>}>
+              {sessions.length === 0 ? (
+                <EmptyState
+                  title="No classes coming up"
+                  message="Browse the schedule and book your next session."
+                  action={<Button variant="secondary" onPress={goTo("/classes")}>Browse classes</Button>}
+                />
+              ) : (
+                <View className="overflow-hidden rounded-2xl bg-surface">
+                  {sessions.map((s, i) => (
+                    <Pressable key={s.id} onPress={goTo("/classes")} className="active:opacity-70">
+                      <View className="flex-row items-center py-3.5"
+                        style={i > 0 ? { borderTopWidth: 0.5, borderTopColor: "rgba(128,128,128,0.25)" } : undefined}>
+                        <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-surface-tertiary">
+                          <Icon name="figure.strengthtraining.traditional" android="fitness_center" size={20} className="text-accent" />
+                        </View>
+                        <View className="flex-1">
+                          <Text type="body" weight="medium" className="text-foreground">{s.title}</Text>
+                          <Text type="body-sm" color="muted" className="mt-0.5">
+                            {formatDay(s.starts_at)} · {formatTime(s.starts_at)} ·{" "}
+                            {Math.max(s.capacity - s.booked_count, 0)} spots left
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </SectionCard>
+
+            <SectionCard title="Quick actions">
+              <View className="gap-3">
+                <Button variant="secondary" onPress={goTo("/classes")}>
+                  Book a class
+                </Button>
+                <Button variant="secondary" onPress={goTo("/payments")}>
+                  Payments & receipts
+                </Button>
+              </View>
+            </SectionCard>
+          </Stagger>
         </>
       )}
     </AppScreen>

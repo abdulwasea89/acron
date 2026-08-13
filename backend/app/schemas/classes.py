@@ -49,3 +49,11 @@ class BookingWithMember(BaseModel):
     member_name: str | None
     member_email: str
     status: str
+
+
+class MyBookingOut(BaseModel):
+    """A member's booking joined with its session (self-service, member role)."""
+
+    booking_id: str
+    status: str
+    class_session: ClassSessionOut

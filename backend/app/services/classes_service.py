@@ -237,3 +237,36 @@ async def list_bookings(
             "status": b.status.value,
         })
     return result
+
+
+async def list_my_bookings(session: AsyncSession, *, org_id: str, member_id: str) -> list[dict]:
+    """A member's own bookings, joined with their sessions (self-service)."""
+
+    rows = (
+        await session.execute(
+            select(ClassBooking, ClassSession)
+            .join(ClassSession, ClassSession.id == ClassBooking.class_session_id)
+            .where(
+                ClassBooking.organization_id == org_id,
+                ClassBooking.member_id == member_id,
+            )
+        )
+    ).all()
+    result = []
+    for b, cs in rows:
+        result.append({
+            "booking_id": b.id,
+            "status": b.status.value,
+            "class_session": {
+                "id": cs.id,
+                "title": cs.title,
+                "trainer_member_id": cs.trainer_member_id,
+                "starts_at": cs.starts_at,
+                "ends_at": cs.ends_at,
+                "capacity": cs.capacity,
+                "booked_count": cs.booked_count,
+                "trainer_checked_in": cs.trainer_checked_in,
+                "cancelled": cs.cancelled,
+            },
+        })
+    return result

@@ -6,12 +6,14 @@ Idempotency-Key (Security Rule #2).
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
-from app.api.deps import get_session, require_capability
+from app.api.deps import get_session, get_tenant, require_capability
 from app.core.permissions import Capability
 from app.core.tenancy import IDEMPOTENCY_HEADER, TenantContext
+from app.models.membership import OrganizationMember
 from app.schemas.payments import PaymentOut, RefundOut, RefundRequest
 from app.services import payments_service as payments
 
@@ -24,6 +26,33 @@ def _to_out(p) -> PaymentOut:
         status=p.status.value, amount=p.amount, tax_amount=p.tax_amount, currency=p.currency,
         refunded_amount=p.refunded_amount, paid_at=p.paid_at, created_at=p.created_at,
     )
+
+
+async def _member_for(session: AsyncSession, org_id: str, user_id: str) -> OrganizationMember | None:
+    return (
+        await session.execute(
+            select(OrganizationMember).where(
+                OrganizationMember.organization_id == org_id,
+                OrganizationMember.user_id == user_id,
+            )
+        )
+    ).scalar_one_or_none()
+
+
+@router.get("/my", response_model=list[PaymentOut])
+async def my_payments(
+    ctx: TenantContext = Depends(get_tenant),
+    session: AsyncSession = Depends(get_session),
+):
+    """A member's own payment history (self-service, member role)."""
+
+    member = await _member_for(session, ctx.org_id, ctx.user_id)
+    if member is None:
+        raise HTTPException(status_code=404, detail="Membership not found.")
+    return [
+        _to_out(p)
+        for p in await payments.list_payments(session, org_id=ctx.org_id, member_id=member.id)
+    ]
 
 
 @router.get("", response_model=list[PaymentOut])

@@ -164,7 +164,7 @@ export default function LoginScreen() {
         <View className="flex-row items-center justify-between">
           <Pressable onPress={() => router.push("/(auth)/recover-codes")} className="active:opacity-60">
             <Text className="text-[13px] text-muted">
-              Don't remember your gym code?
+              Don&apos;t remember your gym code?
             </Text>
           </Pressable>
           <Pressable onPress={() => router.push("/(auth)/forgot-password")} className="active:opacity-60">

@@ -1,9 +1,6 @@
-import { View, Text } from "react-native";
+import React from "react";
+import { ProfileScreen } from "@/components/profile-screen";
 
-export default function Screen_profile() {
-  return (
-    <View className="flex-1 items-center justify-center bg-background">
-      <Text className="text-lg text-foreground">./(member)/profile</Text>
-    </View>
-  );
+export default function MemberProfileScreen() {
+  return <ProfileScreen />;
 }

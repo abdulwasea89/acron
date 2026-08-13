@@ -45,7 +45,7 @@ export function AuthScreen({
     >
       {/* Fixed top bar with back button */}
       <View
-        style={{ paddingTop: insets.top + 8 }}
+        style={{ paddingTop: insets.top + 24 }}
         className="px-5 pb-2 flex-row items-center"
       >
         {back && (

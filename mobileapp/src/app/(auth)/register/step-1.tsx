@@ -70,11 +70,6 @@ export default function RegisterStep1() {
     }
   };
 
-  const FieldError = ({ field }: { field: string }) =>
-    fieldErrors[field] ? (
-      <Text className="text-sm text-danger mt-1">{fieldErrors[field]}</Text>
-    ) : null;
-
   return (
     <AuthScreen
       title="Create your account"
@@ -194,7 +189,7 @@ export default function RegisterStep1() {
                 </Pressable>
               ))}
             </View>
-            <FieldError field="gender" />
+            <FieldError errors={fieldErrors} field="gender" />
           </View>
 
           <Input
@@ -219,4 +214,8 @@ export default function RegisterStep1() {
         </View>
     </AuthScreen>
   );
+}
+
+function FieldError({ errors, field }: { errors: Record<string, string>; field: string }) {
+  return errors[field] ? <Text className="mt-1 text-sm text-danger">{errors[field]}</Text> : null;
 }

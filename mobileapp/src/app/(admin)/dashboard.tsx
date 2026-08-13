@@ -10,6 +10,7 @@ import { SectionCard } from "@/components/section-card";
 import { StatCard } from "@/components/stat-card";
 import { Icon } from "@/components/icon";
 import { Badge } from "@/components/ui/badge";
+import { Stagger } from "@/components/motion";
 import { useGet } from "@/hooks/use-api";
 import { useOrgStore } from "@/stores/org-store";
 import { firstName, greeting, money } from "@/lib/format";
@@ -77,7 +78,7 @@ export default function Screen_dashboard() {
       ) : error ? (
         <DashboardError message={error} onRetry={refresh} />
       ) : (
-        <>
+        <Stagger gap={90}>
           {checklistData && !checklistComplete ? (
             <View className="mb-6 overflow-hidden rounded-3xl bg-surface p-4">
               <View className="flex-row items-center justify-between">
@@ -231,7 +232,7 @@ export default function Screen_dashboard() {
               </View>
             </SectionCard>
           ) : null}
-        </>
+        </Stagger>
       )}
     </AppScreen>
   );
