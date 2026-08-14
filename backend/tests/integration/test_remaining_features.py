@@ -287,3 +287,54 @@ async def test_realtime_broadcast_is_org_scoped():
     assert {"type": "plan.changed", "plan_id": "p1"} in ws.sent
     assert all(e.get("type") != "noise" for e in ws.sent)
     assert manager.connection_count("org-A") == 0
+
+
+@pytest.mark.asyncio
+async def test_duplicate_invite_rejected_and_constraint_enforced(client, db):
+    """A second invite for the same email must not create another membership.
+
+    Regression: there was no DB unique constraint on (organization_id, user_id),
+    so repeat/concurrent invites created duplicate rows that crashed login with
+    ``MultipleResultsFound``. This test pins both the API guard (409 on the
+    second invite) and the new unique constraint at the schema layer."""
+
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    from sqlmodel import select
+
+    from app.core.constants import MemberStatus, Role
+    from app.models.membership import OrganizationMember
+    from app.models.user import User
+
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+
+    r = await client.post("/api/v1/members/invite", headers=headers, json={"email": "dup@g.com"})
+    assert r.status_code == 201, r.text
+    r = await client.post("/api/v1/members/invite", headers=headers, json={"email": "dup@g.com"})
+    assert r.status_code == 409, r.text
+
+    user = (
+        await db.execute(select(User).where(User.email == "dup@g.com"))
+    ).scalar_one_or_none()
+    assert user is not None
+    rows = list(
+        (
+            await db.execute(
+                select(OrganizationMember).where(
+                    OrganizationMember.organization_id == org_id,
+                    OrganizationMember.user_id == user.id,
+                )
+            )
+        ).scalars()
+    )
+    assert len(rows) == 1
+
+    # The model-level constraint is enforced even in the in-memory test schema.
+    duplicate = OrganizationMember(
+        organization_id=org_id, user_id=user.id, role=Role.MEMBER,
+        member_status=MemberStatus.PENDING_ACTIVATION,
+    )
+    db.add(duplicate)
+    with pytest.raises(IntegrityError):
+        await db.flush()
+    await db.rollback()

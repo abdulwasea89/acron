@@ -12,6 +12,7 @@ import io
 import secrets
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -153,6 +154,20 @@ async def decide_approval(
             await send_email_safe(user.email, "Application declined",
                                   f"Your application was declined. Reason: {reason or 'not specified'}.")
     session.add(member)
+
+    # In-app alert for the applicant mirrors the email (Section 8.3).
+    if user is not None:
+        from app.core.constants import NotificationKind
+        from app.services.notifications_service import create_notification
+
+        await create_notification(
+            session, org_id=org_id, recipient_user_id=user.id, category=NotificationKind.APPROVAL,
+            title="Application approved" if approve else "Application declined",
+            body=("Your application was approved. You can now proceed to payment."
+                  if approve else
+                  f"Your application was declined. Reason: {reason or 'not specified'}."),
+            data={"member_id": member.id, "approve": approve},
+        )
     await record_audit(session, action=f"member.approval_{'approved' if approve else 'rejected'}",
                        organization_id=org_id, actor_user_id=actor_id, entity_type="member",
                        entity_id=member.id, metadata={"reason": reason})
@@ -216,7 +231,13 @@ async def invite_member(
         member_status=MemberStatus.PENDING_ACTIVATION,
     )
     session.add(member)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        # Lost the check-then-insert race (concurrent invite/signup): the unique
+        # (org, user) constraint caught it. Surface the same 409 the guard would.
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Already a member of this org.") from exc
 
     code = await verif.issue_link_token(
         session, email=email, purpose=VerificationPurpose.MEMBER_INVITE,
@@ -324,7 +345,14 @@ async def bulk_import_csv(
             member_status=MemberStatus.PENDING_ACTIVATION, phone=phone,
         )
         session.add(member)
-        await session.flush()
+        try:
+            # Savepoint so a duplicate insert (lost race against invite/signup)
+            # skips this row without aborting the rest of the import.
+            async with session.begin_nested():
+                await session.flush()
+        except IntegrityError:
+            skipped += 1
+            continue
         code = await verif.issue_link_token(
             session, email=email, purpose=VerificationPurpose.MEMBER_ACTIVATION,
             organization_id=org_id, user_id=user.id,

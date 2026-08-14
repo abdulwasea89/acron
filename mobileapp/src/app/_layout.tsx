@@ -13,11 +13,13 @@ import { HeroUINativeProvider } from "heroui-native";
 
 import { useAuthStore } from "@/stores/auth-store";
 import { useOrgStore } from "@/stores/org-store";
+import { useNotificationStore } from "@/stores/notification-store";
 import { api } from "@/lib/api";
+import { restartRealtime, stopRealtime } from "@/lib/realtime";
 import { cleanupStaleKeys } from "@/lib/idempotency";
 import { BlurTargetProvider } from "@/components/blur-target";
 import { getPalette } from "@/lib/theme";
-import type { OrgSummaryResponse } from "@/types/api";
+import type { OrgSummaryResponse, UnreadCountOut } from "@/types/api";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,8 +28,10 @@ export default function RootLayout() {
   const isDark = colorScheme === "dark";
   const palette = getPalette(isDark);
 
-  const { isHydrated, isLoading, clearSession, setSession } = useAuthStore();
+  const { isHydrated, isLoading, clearSession, setSession, accessToken } = useAuthStore();
   const { setOrgs, setActiveOrg } = useOrgStore();
+  const activeOrgId = useOrgStore((s) => s.activeOrg?.id);
+  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
 
   /**
    * React Navigation paints every screen with its own theme background before
@@ -74,6 +78,26 @@ export default function RootLayout() {
     init();
   }, [isHydrated, isLoading]);
 
+  /**
+   * Realtime + badge seeding. Once we have both a session and an active org,
+   * fetch the server-side unread count (server is the source of truth) and
+   * open the WebSocket so `notification.created` events bump the badge. On
+   * logout or org switch, tear the socket down and reset the badge.
+   */
+  useEffect(() => {
+    if (!accessToken || !activeOrgId) {
+      stopRealtime();
+      setUnreadCount(0);
+      return;
+    }
+    restartRealtime();
+    api.get<UnreadCountOut>("/notifications/unread-count").then(
+      (r) => setUnreadCount(r.count),
+      () => undefined,
+    );
+    return () => stopRealtime();
+  }, [accessToken, activeOrgId, setUnreadCount]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: palette.background }}>
       <HeroUINativeProvider>
@@ -93,6 +117,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(member)" />
                 <Stack.Screen name="(staff)" />
                 <Stack.Screen name="(admin)" />
+                <Stack.Screen name="notifications" options={{ animation: "slide_from_right" }} />
               </Stack>
             </BlurTargetProvider>
           </ThemeProvider>

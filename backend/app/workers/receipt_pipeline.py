@@ -256,12 +256,33 @@ async def process_receipt(
         receipt.spot_audit_selected = (seed % 20 == 0)
         await _activate_via_receipt(session, org=org, receipt=receipt,
                                     plan=matched_plan or plan)
+        # Let the member know it went through instantly.
+        if user is not None:
+            from app.core.constants import NotificationKind
+            from app.services.notifications_service import create_notification
+
+            await create_notification(
+                session, org_id=org.id, recipient_user_id=user.id,
+                category=NotificationKind.RECEIPT, title="Receipt approved",
+                body="Your payment receipt was approved; your membership is active.",
+                data={"receipt_id": receipt.id, "status": ReceiptStatus.AUTO_APPROVED.value},
+            )
     else:
         receipt.status = ReceiptStatus.PENDING_REVIEW
         if confidence < review:
             # Below the review floor: flag suspicious with reasons (Section 10.4).
             flags.append("low_confidence")
             receipt.flags_json = json.dumps(flags)
+        # Admin needs to look at this one — alert the owners (Sections 10.2/10.4).
+        from app.core.constants import NotificationKind
+        from app.services.notifications_service import notify_org_owners
+
+        await notify_org_owners(
+            session, org_id=org.id, category=NotificationKind.RECEIPT_REVIEW,
+            title="Receipt needs review",
+            body=f"A receipt needs your review ({round(confidence)}% confidence).",
+            data={"receipt_id": receipt.id, "confidence": confidence},
+        )
 
     session.add(receipt)
     await record_audit(session, action="receipt.processed", organization_id=org.id,

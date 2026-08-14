@@ -126,6 +126,17 @@ async def log_cash_payment(
                     f"Your payment of {plan.currency} {data.amount:.2f} has been recorded. "
                     f"Membership active until {end_str}.")
 
+    from app.core.constants import NotificationKind
+    from app.services.notifications_service import create_notification
+
+    await create_notification(
+        session, org_id=org_id, recipient_user_id=member.user_id, category=NotificationKind.PAYMENT,
+        title="Payment recorded",
+        body=f"Your payment of {plan.currency} {data.amount:.2f} was recorded. "
+             f"Membership active until {end_str}.",
+        data={"payment_id": payment.id, "amount": data.amount, "currency": plan.currency},
+    )
+
     from app.realtime import events
 
     await events.payment_recorded(org_id, payment_id=payment.id, member_id=member.id)

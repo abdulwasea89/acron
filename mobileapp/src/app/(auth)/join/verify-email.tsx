@@ -1,15 +1,25 @@
 import { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
-import { OtpInput } from "@/components/ui/otp-input";
+import { Field, FieldGroup } from "@/components/auth/field-group";
+import { CodeEntry } from "@/components/auth/code-entry";
 import { api, ApiError } from "@/lib/api";
 import { useJoinStore } from "@/stores/join-store";
+import { JOIN_FLOW, flowPosition } from "@/lib/flow";
 import type { Message } from "@/types/api";
 
+/**
+ * Email entry and code confirmation, as two sub-steps of one screen.
+ *
+ * They stay together because they're one idea — "prove this address is yours" —
+ * and splitting them across routes would make the back chevron mean "change my
+ * email" on one screen and "leave the flow" on the next. Here `onBack` returns
+ * to the address, which is what someone who mistyped it actually wants.
+ */
 export default function JoinVerifyEmail() {
   const { orgCode, orgName, setEmail, setVerified } = useJoinStore();
   const [email, setEmailLocal] = useState("");
@@ -17,7 +27,7 @@ export default function JoinVerifyEmail() {
   const [step, setStep] = useState<"email" | "code">("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [fieldError, setFieldError] = useState("");
 
   if (!orgCode) {
     router.replace("/(auth)/register/org-code");
@@ -26,9 +36,9 @@ export default function JoinVerifyEmail() {
 
   const handleRequestCode = async () => {
     setError(null);
-    setFieldErrors({});
+    setFieldError("");
     if (!email.includes("@")) {
-      setFieldErrors({ email: "Enter a valid email" });
+      setFieldError("Enter a valid email");
       return;
     }
 
@@ -45,17 +55,22 @@ export default function JoinVerifyEmail() {
     }
   };
 
-  const handleVerify = async () => {
-    if (code.length !== 6) return;
+  const handleVerify = async (value: string = code) => {
+    if (value.length !== 6) return;
     setError(null);
     setLoading(true);
     try {
-      await api.post<Message>("/memberships/signup/verify-email", { org_code: orgCode, email, code });
+      await api.post<Message>("/memberships/signup/verify-email", {
+        org_code: orgCode,
+        email,
+        code: value,
+      });
       setVerified();
       router.push("/(auth)/join/set-password");
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
       else setError("Network error. Please try again.");
+      setCode("");
     } finally {
       setLoading(false);
     }
@@ -65,63 +80,69 @@ export default function JoinVerifyEmail() {
     try {
       await api.post<Message>("/memberships/signup/request-email", { org_code: orgCode, email });
     } catch {
-      // Silent
+      // Silent — the response is identical either way, by design.
     }
   };
 
+  const onEmailStep = step === "email";
+
   return (
     <AuthScreen
-      title={step === "email" ? "Enter your email" : "Check your email"}
-      description={
-        step === "email"
-          ? "We'll send a 6-digit code to verify it's really you."
-          : `We sent a 6-digit code to ${email}.`
+      title={onEmailStep ? "Your email" : "Check your email"}
+      subtitle={
+        onEmailStep
+          ? `We'll send a code to confirm it's you joining ${orgName || "this gym"}.`
+          : "The code expires in 10 minutes."
       }
       back
-      onBack={() => (step === "code" ? setStep("email") : router.back())}
+      onBack={() => (onEmailStep ? router.back() : setStep("email"))}
+      progress={flowPosition(JOIN_FLOW, "/(auth)/join/verify-email")}
       footer={
-        step === "code" ? (
-          <View className="flex-row justify-center items-center">
-            <Text className="text-[13px] text-muted">Didn&apos;t receive it? </Text>
-            <Pressable onPress={handleResend} className="active:opacity-60">
-              <Text className="text-[13px] font-bold text-foreground">Resend</Text>
-            </Pressable>
-          </View>
-        ) : undefined
+        onEmailStep ? (
+          <Button loading={loading} onPress={handleRequestCode}>
+            Send code
+          </Button>
+        ) : (
+          <Button loading={loading} disabled={code.length !== 6} onPress={() => handleVerify()}>
+            Verify email
+          </Button>
+        )
       }
     >
-      {error && (
+      {error ? (
         <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
-      )}
+      ) : null}
 
-      {step === "email" ? (
-        <View className="gap-5">
-          <Input
+      {onEmailStep ? (
+        <FieldGroup>
+          <Field
             label="Email"
             placeholder="you@example.com"
             value={email}
-            onChangeText={(t) => { setEmailLocal(t); setFieldErrors({}); }}
+            onChangeText={(t) => {
+              setEmailLocal(t);
+              setFieldError("");
+            }}
             autoCapitalize="none"
+            autoComplete="email"
             keyboardType="email-address"
-            error={fieldErrors.email}
+            autoFocus
+            returnKeyType="go"
+            onSubmitEditing={handleRequestCode}
+            error={fieldError}
           />
-          <Button loading={loading} onPress={handleRequestCode}>
-            Send verification code
-          </Button>
-        </View>
+        </FieldGroup>
       ) : (
-        <View className="gap-5">
-          <OtpInput
-            value={code}
-            onChange={setCode}
-            onComplete={() => handleVerify()}
-          />
-          <Button loading={loading} disabled={code.length !== 6} onPress={handleVerify}>
-            Verify email
-          </Button>
-        </View>
+        <CodeEntry
+          value={code}
+          onChange={setCode}
+          onComplete={handleVerify}
+          destination={email}
+          onResend={handleResend}
+          invalid={Boolean(error)}
+        />
       )}
     </AuthScreen>
   );

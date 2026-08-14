@@ -41,3 +41,12 @@ async def check_in(org_id: str, *, member_id: str) -> None:
 
 async def sessions_changed(org_id: str) -> None:
     await publish(org_id, "sessions.changed")
+
+
+async def notification_created(org_id: str, *, user_id: str, notification_id: str) -> None:
+    """Per-recipient alert: only ``user_id``'s sockets get it."""
+
+    await manager.broadcast_user(org_id, user_id, {
+        "type": "notification.created",
+        "notification_id": notification_id,
+    })

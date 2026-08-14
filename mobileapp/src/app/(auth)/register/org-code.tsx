@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { Pressable, View, useColorScheme } from "react-native";
+import { Text } from "heroui-native";
 import { router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
+import { Field, FieldGroup } from "@/components/auth/field-group";
+import { Icon } from "@/components/icon";
 import { api, ApiError } from "@/lib/api";
 import { useJoinStore } from "@/stores/join-store";
 import { signupStartSchema } from "@/lib/validations";
+import { getPalette } from "@/lib/theme";
+import { JOIN_FLOW, flowPosition } from "@/lib/flow";
 import type { SignupStartOut } from "@/types/api";
 
 export default function OrgCodeScreen() {
@@ -16,6 +21,8 @@ export default function OrgCodeScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState("");
+  const isDark = useColorScheme() === "dark";
+  const p = getPalette(isDark);
 
   const handleSubmit = async () => {
     setError(null);
@@ -34,7 +41,7 @@ export default function OrgCodeScreen() {
       });
 
       if (!res.accepting_signups) {
-        setError("This gym is not accepting new signups right now.");
+        setError("This gym isn't accepting new members right now.");
         return;
       }
 
@@ -42,7 +49,7 @@ export default function OrgCodeScreen() {
       router.push("/(auth)/join/verify-email");
     } catch (e) {
       if (e instanceof ApiError) {
-        if (e.status === 404) setError("Gym not found. Check the code and try again.");
+        if (e.status === 404) setError("No gym found with that code. Check it and try again.");
         else setError(e.message);
       } else {
         setError("Network error. Check your connection.");
@@ -54,43 +61,59 @@ export default function OrgCodeScreen() {
 
   return (
     <AuthScreen
-      title="Enter your gym code"
-      description="Ask your gym owner for the code — it looks like IRON-PULS-3K9."
+      title="Find your gym"
+      subtitle="Your gym gave you a code when you signed up."
       back
+      progress={flowPosition(JOIN_FLOW, "/(auth)/register/org-code")}
       footer={
-        <View className="items-center">
-          <Text className="text-[13px] text-muted">
-            Have an invite code?{" "}
-            <Text
-              className="font-bold text-foreground"
-              onPress={() => router.push("/(auth)/redeem")}
-            >
-              Redeem it
+        <View className="gap-3">
+          <Button loading={loading} onPress={handleSubmit}>
+            Find gym
+          </Button>
+          <Pressable
+            onPress={() => router.push("/(auth)/redeem")}
+            hitSlop={8}
+            className="items-center py-1 active:opacity-60"
+          >
+            <Text type="body-sm" color="muted">
+              Got an invite instead? <Text className="font-semibold text-accent">Redeem it</Text>
             </Text>
-          </Text>
+          </Pressable>
         </View>
       }
     >
-      {error && (
+      {error ? (
         <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
-      )}
+      ) : null}
 
-      <View className="gap-5">
-        <Input
+      <View className="mb-6 items-center">
+        <View
+          className="h-14 w-14 items-center justify-center rounded-2xl"
+          style={{ backgroundColor: `${p.accent}1f` }}
+        >
+          <Icon name="building.2.fill" android="storefront" size={24} color={p.accent} />
+        </View>
+      </View>
+
+      <FieldGroup caption="It's on your welcome email or posted at the front desk — something like IRON-PULS-3K9.">
+        <Field
           label="Gym code"
           placeholder="IRON-PULS-3K9"
           value={orgCode}
-          onChangeText={(t) => { setOrgCode(t.toUpperCase()); setFieldError(""); }}
+          onChangeText={(t) => {
+            setOrgCode(t.toUpperCase());
+            setFieldError("");
+          }}
           autoCapitalize="characters"
+          autoCorrect={false}
+          autoFocus
+          returnKeyType="go"
+          onSubmitEditing={handleSubmit}
           error={fieldError}
         />
-
-        <Button loading={loading} onPress={handleSubmit}>
-          Find gym
-        </Button>
-      </View>
+      </FieldGroup>
     </AuthScreen>
   );
 }

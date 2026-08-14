@@ -209,6 +209,19 @@ class VerificationPurpose(str, Enum):
     MEMBER_ACTIVATION = "member_activation"
 
 
+class NotificationKind(str, Enum):
+    """In-app alert category (per-user notifications feed)."""
+
+    APPROVAL = "approval"          # signup/application awaiting decision
+    RECEIPT = "receipt"            # receipt pipeline outcome (member)
+    RECEIPT_REVIEW = "receipt_review"  # receipt awaiting admin review (owner/staff)
+    PAYMENT = "payment"            # payment recorded / refund
+    TASK = "task"                  # task assigned
+    MEMBERSHIP = "membership"      # membership expiry / grace / activation
+    CASH = "cash"                  # reconciliation / discrepancy alerts
+    SYSTEM = "system"              # platform / misc
+
+
 # SaaS tier -> member cap (None = unlimited). Mirrors Section 3.1.
 TIER_MEMBER_CAP: dict[SaasTier, int | None] = {
     SaasTier.STARTER: 25,

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlmodel import Field
+from sqlmodel import Field, UniqueConstraint
 
 from app.core.constants import MemberStatus, Role
 from app.models.base import TimestampModel, UUIDModel
@@ -17,6 +17,11 @@ from app.models.base import TimestampModel, UUIDModel
 
 class OrganizationMember(UUIDModel, TimestampModel, table=True):
     __tablename__ = "organization_members"
+    __table_args__ = (
+        # One membership per user per tenant (Security Rule #1). Guards the
+        # check-then-insert race in invite/signup/import paths.
+        UniqueConstraint("organization_id", "user_id", name="uq_organization_members_org_user"),
+    )
 
     organization_id: str = Field(index=True, foreign_key="organizations.id")
     user_id: str = Field(index=True, foreign_key="users.id")

@@ -22,8 +22,8 @@ from app.realtime import manager
 router = APIRouter()
 
 
-async def _authorize(token: str) -> str | None:
-    """Return the org_id the token is scoped to, or None if unauthorized."""
+async def _authorize(token: str) -> tuple[str, str] | None:
+    """Return (org_id, user_id) the token is scoped to, or None if unauthorized."""
 
     payload = safe_decode(token)
     if not payload or payload.get("type") != ACCESS:
@@ -43,18 +43,19 @@ async def _authorize(token: str) -> str | None:
         ).scalar_one_or_none()
     if membership is None or membership.banned:
         return None
-    return org_id
+    return org_id, user_id
 
 
 @router.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket, token: str = Query(default="")):
-    org_id = await _authorize(token)
-    if org_id is None:
+    authorized = await _authorize(token)
+    if authorized is None:
         # 1008 = policy violation (auth failure).
         await websocket.close(code=1008)
         return
+    org_id, user_id = authorized
 
-    await manager.connect(org_id, websocket)
+    await manager.connect(org_id, user_id, websocket)
     try:
         await websocket.send_json({"type": "connected", "organization_id": org_id})
         while True:
@@ -64,4 +65,4 @@ async def ws_endpoint(websocket: WebSocket, token: str = Query(default="")):
     except WebSocketDisconnect:
         pass
     finally:
-        await manager.disconnect(org_id, websocket)
+        await manager.disconnect(org_id, websocket, user_id=user_id)

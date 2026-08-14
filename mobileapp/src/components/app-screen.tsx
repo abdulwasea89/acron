@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "heroui-native";
 
 import { useTabBarInset } from "@/components/tab-bar";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface AppScreenProps {
   /** Bold screen title. */
@@ -13,6 +14,8 @@ interface AppScreenProps {
   subtitle?: string;
   /** Header actions rendered on the right of the title row. */
   headerRight?: React.ReactNode;
+  /** Hide the notifications bell (e.g. on the notifications screen itself). */
+  showNotifications?: boolean;
   /** Fixed footer pinned to the bottom of the scroll content. */
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -30,6 +33,7 @@ export function AppScreen({
   title,
   subtitle,
   headerRight,
+  showNotifications = true,
   footer,
   children,
   noBottomInset,
@@ -53,7 +57,7 @@ export function AppScreen({
         showsVerticalScrollIndicator={false}
         refreshControl={refreshControl}
       >
-        {(title || headerRight) && (
+        {(title || headerRight || showNotifications) && (
           <View className="mb-4 flex-row items-start justify-between gap-3">
             <View className="flex-1">
               {title && (
@@ -67,7 +71,12 @@ export function AppScreen({
                 </Text>
               )}
             </View>
-            {headerRight && <View className="flex-row items-center gap-2 pt-1">{headerRight}</View>}
+            {(showNotifications || headerRight) && (
+              <View className="flex-row items-center gap-2 pt-1">
+                {showNotifications ? <NotificationBell /> : null}
+                {headerRight}
+              </View>
+            )}
           </View>
         )}
 

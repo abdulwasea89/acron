@@ -252,12 +252,17 @@ async def _resolve_membership(
 
     membership = (
         await session.execute(
-            select(OrganizationMember).where(
+            select(OrganizationMember)
+            .where(
                 OrganizationMember.user_id == user.id,
                 OrganizationMember.organization_id == org.id,
             )
+            # One row per (org, user) is enforced by a unique constraint; this
+            # deterministic most-recent fallback keeps login from hard-crashing
+            # if a legacy duplicate ever slips through (MultipleResultsFound).
+            .order_by(OrganizationMember.created_at.desc())
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     if membership is None:
         raise HTTPException(status_code=401, detail=_VAGUE)
     return org, membership
@@ -672,12 +677,17 @@ async def switch_organization(
 
     membership = (
         await session.execute(
-            select(OrganizationMember).where(
+            select(OrganizationMember)
+            .where(
                 OrganizationMember.user_id == user.id,
                 OrganizationMember.organization_id == target_org_id,
             )
+            # One row per (org, user) is enforced by a unique constraint; this
+            # deterministic most-recent fallback keeps switch from hard-crashing
+            # if a legacy duplicate ever slips through (MultipleResultsFound).
+            .order_by(OrganizationMember.created_at.desc())
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     if membership is None or membership.banned or membership.member_status == MemberStatus.BANNED:
         raise HTTPException(status_code=403, detail="You don't have access to that organization.")
 

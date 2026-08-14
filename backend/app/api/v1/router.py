@@ -16,6 +16,7 @@ from app.api.v1.routes import (
     classes,
     members,
     memberships,
+    notifications,
     organizations,
     payments,
     payroll,
@@ -36,6 +37,7 @@ api_router.include_router(saas_billing.router, prefix="/saas-billing", tags=["sa
 api_router.include_router(plans.router, prefix="/plans", tags=["plans"])
 api_router.include_router(memberships.router, prefix="/memberships", tags=["memberships"])
 api_router.include_router(members.router, prefix="/members", tags=["members"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
 api_router.include_router(cash.router, prefix="/cash", tags=["cash"])
 api_router.include_router(receipts.router, prefix="/receipts", tags=["receipts"])

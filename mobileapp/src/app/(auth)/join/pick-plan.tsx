@@ -1,35 +1,57 @@
-import { useState, useEffect } from "react";
-import { View, Text, Pressable } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View } from "react-native";
 import { router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
-import { api } from "@/lib/api";
+import { EmptyState } from "@/components/empty-state";
+import { ChoiceCard } from "@/components/auth/choice-card";
+import { api, ApiError } from "@/lib/api";
 import { useJoinStore } from "@/stores/join-store";
+import { JOIN_FLOW, flowPosition } from "@/lib/flow";
 import type { PublicPlanOut } from "@/types/api";
 
+/** Billing type → the unit shown after the price. */
+const PERIOD: Record<string, string> = {
+  recurring: "/month",
+  one_time_pack: " pack",
+  drop_in: " drop-in",
+};
+
 export default function PickPlan() {
-  const { orgCode, orgName, selectedPlanId, setSelectedPlan } = useJoinStore();
+  const { orgCode, selectedPlanId, setSelectedPlan } = useJoinStore();
   const [plans, setPlans] = useState<PublicPlanOut[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(selectedPlanId ?? "");
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const data = await api.get<PublicPlanOut[]>(
-          `/memberships/signup/plans?org_code=${orgCode}`,
-        );
-        setPlans(data);
-        if (data.length > 0 && !selected) setSelected(data[0].id);
-      } catch {
-        // Error state
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.get<PublicPlanOut[]>(
+        `/memberships/signup/plans?org_code=${orgCode}`,
+      );
+      setPlans(data);
+      // Preselect the featured plan, or the first one. Landing on this screen
+      // with nothing selected makes Continue look broken.
+      if (data.length > 0) {
+        setSelected((current) => current || (data.find((p) => p.featured) ?? data[0]).id);
       }
-    };
-    fetch();
-  }, []);
+    } catch (e) {
+      setError(
+        e instanceof ApiError ? e.message : "Couldn't load plans. Check your connection.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [orgCode]);
+
+  useEffect(() => {
+    if (orgCode) load();
+  }, [orgCode, load]);
 
   if (!orgCode) {
     router.replace("/(auth)/register/org-code");
@@ -42,84 +64,60 @@ export default function PickPlan() {
     router.push("/(auth)/join/pay");
   };
 
-  if (loading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <Spinner />
-      </View>
-    );
-  }
-
   return (
     <AuthScreen
       title="Choose a plan"
-      description="Pick the membership that fits you. You can change it later."
+      subtitle="Pick what fits how often you train. You can switch later."
       back
+      progress={flowPosition(JOIN_FLOW, "/(auth)/join/pick-plan")}
       footer={
-        <View className="flex-row gap-3">
-          <Button variant="secondary" className="flex-1" onPress={() => router.back()}>
-            Back
-          </Button>
-          <Button className="flex-1" disabled={!selected} onPress={handleContinue}>
+        plans.length > 0 ? (
+          <Button disabled={!selected} onPress={handleContinue}>
             Continue
           </Button>
-        </View>
+        ) : undefined
       }
     >
-      <View className="gap-4">
-        {plans.map((plan) => {
-          const isSelected = selected === plan.id;
-          return (
-            <Pressable
+      {error ? (
+        <View className="mb-5">
+          <Alert type="error" message={error} onDismiss={() => setError(null)} />
+        </View>
+      ) : null}
+
+      {loading ? (
+        <View className="items-center py-16">
+          <Spinner />
+        </View>
+      ) : plans.length === 0 ? (
+        <EmptyState
+          title={error ? "Couldn't load plans" : "No plans yet"}
+          message={
+            error
+              ? "Something went wrong reaching your gym."
+              : "This gym hasn't published any membership plans. Check back soon."
+          }
+          action={
+            <Button variant="secondary" onPress={load}>
+              Try again
+            </Button>
+          }
+        />
+      ) : (
+        <View className="gap-3">
+          {plans.map((plan) => (
+            <ChoiceCard
               key={plan.id}
-              className={`rounded-2xl p-5 border
-                ${isSelected
-                  ? "border-accent bg-accent/10"
-                  : "border-border bg-surface-secondary"}`}
+              price={`${plan.currency} ${plan.price}`}
+              period={PERIOD[plan.billing_type] ?? ""}
+              name={plan.name}
+              detail={plan.public_description ?? undefined}
+              featured={plan.featured}
+              selected={selected === plan.id}
               onPress={() => setSelected(plan.id)}
-            >
-              <View className="flex-row items-center justify-between">
-                {plan.featured ? (
-                  <View className="bg-accent self-start px-2.5 py-1 rounded-full">
-                    <Text className="text-accent-foreground text-[10px] font-bold tracking-wide">
-                      POPULAR
-                    </Text>
-                  </View>
-                ) : (
-                  <View />
-                )}
-                <View
-                  className={`w-5 h-5 rounded-full border-2 items-center justify-center
-                    ${isSelected ? "border-accent" : "border-separator"}`}
-                >
-                  {isSelected && <View className="w-2.5 h-2.5 rounded-full bg-accent" />}
-                </View>
-              </View>
-
-              <View className="flex-row items-baseline gap-1 mt-3">
-                <Text className="text-[30px] font-bold text-foreground">
-                  {plan.currency} {plan.price}
-                </Text>
-                <Text className="text-muted text-[13px]">
-                  {plan.billing_type === "recurring" ? "/month" : ""}
-                </Text>
-              </View>
-              <Text className="text-[16px] font-semibold text-foreground mt-2">
-                {plan.name}
-              </Text>
-              {plan.public_description && (
-                <Text className="text-[13px] text-muted mt-1">
-                  {plan.public_description}
-                </Text>
-              )}
-            </Pressable>
-          );
-        })}
-
-        {plans.length === 0 && !loading && (
-          <Text className="text-center text-muted">No plans available yet.</Text>
-        )}
-      </View>
+            />
+          ))}
+        </View>
+      )}
     </AuthScreen>
   );
 }

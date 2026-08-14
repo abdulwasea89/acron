@@ -289,6 +289,22 @@ async def create_task(
     await session.flush()
     await record_audit(session, action="task.created", organization_id=org_id,
                        actor_user_id=actor_user_id, entity_type="task", entity_id=task.id)
+
+    # In-app alert to the assignee (Section 16.2). A task can only be assigned
+    # to an org member, so resolve the member's user before notifying.
+    if assignee is not None:
+        from app.core.constants import NotificationKind
+        from app.services.notifications_service import create_notification
+
+        assignee_member = await session.get(OrganizationMember, assignee)
+        if assignee_member is not None:
+            await create_notification(
+                session, org_id=org_id, recipient_user_id=assignee_member.user_id,
+                category=NotificationKind.TASK,
+                title="New task assigned",
+                body=data.description or data.title,
+                data={"task_id": task.id, "title": data.title},
+            )
     return task
 
 

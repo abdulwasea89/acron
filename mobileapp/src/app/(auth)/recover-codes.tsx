@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
+import { Field, FieldGroup } from "@/components/auth/field-group";
+import { SentConfirmation } from "@/components/auth/sent-confirmation";
 import { api } from "@/lib/api";
+import { emailSchema } from "@/lib/validations";
 import type { Message } from "@/types/api";
 
 export default function RecoverCodes() {
@@ -13,11 +16,18 @@ export default function RecoverCodes() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState("");
 
   const handleSubmit = async () => {
-    if (!email.includes("@")) { setError("Enter a valid email"); return; }
+    const parsed = emailSchema.safeParse(email);
+    if (!parsed.success) {
+      setFieldError(parsed.error.issues[0].message);
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setFieldError("");
     try {
       await api.post<Message>("/auth/recover-codes", { email });
       setSent(true);
@@ -30,40 +40,53 @@ export default function RecoverCodes() {
 
   if (sent) {
     return (
-      <AuthScreen
-        title="Check your email"
-        description="If an account exists with that email, your gym codes are on their way."
-      >
-        <Button onPress={() => router.replace("/(auth)/login")}>Back to sign in</Button>
+      <AuthScreen title="Codes sent" back onBack={() => router.replace("/(auth)/login")}>
+        <SentConfirmation
+          title="Check your email"
+          message={`If ${email} belongs to a member or staff account, we've sent a list of your gyms and their codes.`}
+          action={
+            <Button onPress={() => router.replace("/(auth)/login")}>Back to sign in</Button>
+          }
+        />
       </AuthScreen>
     );
   }
 
   return (
     <AuthScreen
-      title="Recover gym codes"
-      description="Enter your email and we'll send you a list of your gyms and their codes."
+      title="Find your gym code"
+      subtitle="We'll email you every gym you belong to, with its code."
       back
+      footer={
+        <Button loading={loading} onPress={handleSubmit}>
+          Email me my codes
+        </Button>
+      }
     >
-      {error && (
+      {error ? (
         <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
-      )}
+      ) : null}
 
-      <View className="gap-5">
-        <Input
+      <FieldGroup>
+        <Field
           label="Email"
           placeholder="you@example.com"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(t) => {
+            setEmail(t);
+            setFieldError("");
+          }}
           autoCapitalize="none"
+          autoComplete="email"
           keyboardType="email-address"
+          autoFocus
+          returnKeyType="go"
+          onSubmitEditing={handleSubmit}
+          error={fieldError}
         />
-        <Button loading={loading} onPress={handleSubmit}>
-          Send codes
-        </Button>
-      </View>
+      </FieldGroup>
     </AuthScreen>
   );
 }

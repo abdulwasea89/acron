@@ -18,6 +18,7 @@ from datetime import timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -232,9 +233,27 @@ async def set_password(
         member_status=initial_status,
     )
     session.add(member)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        # Concurrent signup/invite created the membership first. Roll back this
+        # request's pending work and report the conflict like the guard would.
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Already a member of this gym.") from exc
     await record_audit(session, action="member.signup_account_created", organization_id=org.id,
                        actor_user_id=user.id, entity_type="member", entity_id=member.id)
+    if initial_status == MemberStatus.PENDING_APPROVAL:
+        # Approved-enrollment gym: alert the owners there's a signup to decide
+        # on (Section 8.3). Best-effort fan-out.
+        from app.core.constants import NotificationKind
+        from app.services.notifications_service import notify_org_owners
+
+        await notify_org_owners(
+            session, org_id=org.id, category=NotificationKind.APPROVAL,
+            title="New signup awaiting approval",
+            body=f"{user.full_name or email} applied to join your gym and is waiting for approval.",
+            data={"member_id": member.id},
+        )
     return member
 
 
@@ -445,6 +464,16 @@ async def pay_and_activate(
                        metadata={"plan_id": plan.id, "amount": amount})
     await send_email(email, "Welcome!", f"Your membership at {org.name} is active.")
     await send_push(None, "Membership active", f"Welcome to {org.name}!")
+
+    from app.core.constants import NotificationKind
+    from app.services.notifications_service import create_notification
+
+    await create_notification(
+        session, org_id=org.id, recipient_user_id=user.id, category=NotificationKind.MEMBERSHIP,
+        title=f"Welcome to {org.name}!",
+        body=f"Your {plan.name} membership is active. Let's get started.",
+        data={"plan_id": plan.id, "amount": amount, "currency": plan.currency},
+    )
 
     access, refresh = await auth_service.create_session(
         session, user=user, org_id=org.id, role=Role.MEMBER, ip=ip

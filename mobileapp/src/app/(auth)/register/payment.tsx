@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { View, Text } from "react-native";
+import { View, useColorScheme } from "react-native";
+import { Text } from "heroui-native";
 import { router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
+import { Icon } from "@/components/icon";
 import { api, ApiError } from "@/lib/api";
 import { useRegisterStore } from "@/stores/register-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { getPalette } from "@/lib/theme";
+import { OWNER_FLOW, flowPosition } from "@/lib/flow";
 import type { RegisterGymResponse } from "@/types/api";
 
 const TIER_PRICES: Record<string, string> = {
@@ -16,12 +20,39 @@ const TIER_PRICES: Record<string, string> = {
   enterprise: "Custom",
 };
 
+/** One line of the order summary. */
+function SummaryRow({
+  label,
+  value,
+  emphasis,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <View className="flex-row items-center justify-between">
+      <Text type={emphasis ? "body" : "body-sm"} color={emphasis ? "default" : "muted"}>
+        {label}
+      </Text>
+      <Text
+        type={emphasis ? "body" : "body-sm"}
+        weight={emphasis ? "bold" : "medium"}
+        className="text-foreground"
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 export default function PaymentScreen() {
   const { email, gymDetails, selectedTier, reset } = useRegisterStore();
   const { setSession } = useAuthStore();
-  const [paymentToken, setPaymentToken] = useState("tok_stub");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isDark = useColorScheme() === "dark";
+  const p = getPalette(isDark);
 
   if (!email || !gymDetails || !selectedTier) {
     router.replace("/(auth)/register/step-1");
@@ -38,7 +69,9 @@ export default function PaymentScreen() {
           owner_email: email,
           details: gymDetails,
           tier: selectedTier,
-          payment_token: paymentToken,
+          // The card itself is collected by Stripe, not by this screen. Until
+          // that handoff exists the backend accepts its stub token.
+          payment_token: "tok_stub",
         },
         { idempotent: true },
       );
@@ -63,66 +96,47 @@ export default function PaymentScreen() {
     }
   };
 
+  const price = TIER_PRICES[selectedTier];
+
   return (
     <AuthScreen
-      title="Start your subscription"
-      description="Your first month is charged immediately. Cancel anytime."
+      title="Confirm and start"
+      subtitle="Your first month is charged today. Cancel anytime."
       back
+      progress={flowPosition(OWNER_FLOW, "/(auth)/register/payment")}
       footer={
-        <View className="flex-row gap-3">
-          <Button variant="secondary" className="flex-1" onPress={() => router.back()}>
-            Back
-          </Button>
-          <Button className="flex-1" loading={loading} onPress={handlePay}>
-            Pay {TIER_PRICES[selectedTier]}
-          </Button>
-        </View>
+        <Button loading={loading} onPress={handlePay}>
+          {`Start subscription · ${price}`}
+        </Button>
       }
     >
-      {error && (
+      {error ? (
         <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
-      )}
+      ) : null}
 
-      <View className="bg-surface-secondary rounded-2xl p-5 mb-6 gap-2 border border-border">
-        <View className="flex-row justify-between">
-          <Text className="text-[14px] text-muted">Gym</Text>
-          <Text className="text-[14px] font-semibold text-foreground">{gymDetails.name}</Text>
-        </View>
-        <View className="flex-row justify-between">
-          <Text className="text-[14px] text-muted">Plan</Text>
-          <Text className="text-[14px] font-semibold text-foreground capitalize">{selectedTier}</Text>
-        </View>
-        <View className="border-t border-border my-2" />
-        <View className="flex-row justify-between">
-          <Text className="text-[16px] font-bold text-foreground">Total</Text>
-          <Text className="text-[16px] font-bold text-foreground">
-            {TIER_PRICES[selectedTier]}
-          </Text>
-        </View>
-      </View>
-
-      <View className="gap-4">
-        <Input
-          label="Card number (stub)"
-          placeholder="4242 4242 4242 4242"
-          value={paymentToken}
-          onChangeText={setPaymentToken}
-          keyboardType="default"
+      <View className="gap-3 rounded-2xl bg-surface p-5">
+        <SummaryRow label="Gym" value={gymDetails.name} />
+        <SummaryRow
+          label="Plan"
+          value={selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)}
         />
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <Input label="Expiry" placeholder="MM/YY" />
-          </View>
-          <View className="flex-1">
-            <Input label="CVC" placeholder="123" />
-          </View>
-        </View>
+        <SummaryRow label="Billing" value="Monthly" />
+        <View className="my-1 h-px bg-border" />
+        <SummaryRow label="Due today" value={price} emphasis />
       </View>
 
-      <Text className="text-[12px] text-muted mt-4 text-center">
-        Your first month will be charged immediately. You can cancel anytime.
+      <View className="mt-5 flex-row items-start gap-3 rounded-2xl bg-surface p-4">
+        <Icon name="lock.fill" android="lock" size={17} color={p.muted} />
+        <Text type="body-sm" color="muted" className="flex-1">
+          Card details are entered on Stripe's secure page — this app never sees or stores your
+          card number.
+        </Text>
+      </View>
+
+      <Text type="body-xs" color="muted" className="mt-5 px-1 text-center">
+        By continuing you agree to be charged {price} today and every month until you cancel.
       </Text>
     </AuthScreen>
   );

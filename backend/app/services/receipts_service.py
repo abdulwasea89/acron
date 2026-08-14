@@ -186,3 +186,12 @@ async def _notify(session: AsyncSession, receipt: ReceiptUpload, subject: str, b
     user = await session.get(User, member.user_id)
     if user is not None:
         await send_email(user.email, subject, body)
+    # In-app alert mirrors the email (Sections 10.4/10.7).
+    from app.core.constants import NotificationKind
+    from app.services.notifications_service import create_notification
+
+    await create_notification(
+        session, org_id=receipt.organization_id, recipient_user_id=member.user_id,
+        category=NotificationKind.RECEIPT, title=subject, body=body,
+        data={"receipt_id": receipt.id, "status": receipt.status.value},
+    )

@@ -10,7 +10,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.core.constants import MemberStatus, SubscriptionStatus
+from app.core.constants import MemberStatus, NotificationKind, SubscriptionStatus
 from app.core.security import now_utc
 from app.integrations.email import send_email_safe as send_email
 from app.integrations.push import send_push
@@ -49,6 +49,17 @@ async def send_grace_reminders(session: AsyncSession, *, org_id: str) -> int:
             days_left = max(0, (sub.grace_until - now_utc()).days)
         await notify_member(session, member_id=sub.member_id, title="Payment due",
                             body=f"Your membership payment is due. {days_left} day(s) left.")
+        # In-app alert mirrors the email (Section 9.5).
+        member = await session.get(OrganizationMember, sub.member_id)
+        if member is not None:
+            from app.services.notifications_service import create_notification
+
+            await create_notification(
+                session, org_id=org_id, recipient_user_id=member.user_id,
+                category=NotificationKind.MEMBERSHIP, title="Payment due",
+                body=f"Your membership payment is due. {days_left} day(s) left.",
+                data={"subscription_id": sub.id},
+            )
         sent += 1
     return sent
 

@@ -1,221 +1,132 @@
-import { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { useRef, useState } from "react";
+import { TextInput, View } from "react-native";
 import { router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
-import { api, ApiError } from "@/lib/api";
+import { Field, FieldGroup } from "@/components/auth/field-group";
+import { PasswordStrength } from "@/components/auth/password-strength";
 import { useRegisterStore } from "@/stores/register-store";
-import { ownerSchema } from "@/lib/validations";
-import type { Message } from "@/types/api";
+import { emailSchema, nameSchema, passwordSchema } from "@/lib/validations";
+import { OWNER_FLOW, flowPosition } from "@/lib/flow";
 
-const GENDER_OPTIONS = [
-  { label: "Male", value: "male" },
-  { label: "Female", value: "female" },
-  { label: "Other", value: "other" },
-];
-
+/**
+ * Step 1 of the owner form: the credentials.
+ *
+ * Validated on this screen rather than at the end of the flow — learning on
+ * step 3 that your password was rejected on step 1 is what makes a long signup
+ * feel hostile.
+ */
 export default function RegisterStep1() {
-  const { setAccount } = useRegisterStore();
+  const { draft, patchDraft } = useRegisterStore();
   const [form, setForm] = useState({
-    full_name: "",
-    email: "",
-    password: "",
-    confirm_password: "",
-    cnic: "",
-    phone: "",
-    occupation: "",
-    education: "",
-    address: "",
-    date_of_birth: "",
-    gender: "" as string,
-    city: "",
-    emergency_contact: "",
+    full_name: draft.full_name,
+    email: draft.email,
+    password: draft.password,
+    confirm_password: draft.confirm_password,
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const update = (field: string, value: string) => {
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmRef = useRef<TextInput>(null);
+
+  const update = (field: keyof typeof form, value: string) => {
     setForm((p) => ({ ...p, [field]: value }));
-    setFieldErrors((p) => ({ ...p, [field]: "" }));
+    setErrors((p) => ({ ...p, [field]: "" }));
   };
 
-  const handleSubmit = async () => {
-    setError(null);
-    setFieldErrors({});
+  const handleContinue = () => {
+    const next: Record<string, string> = {};
 
-    const parse = ownerSchema.safeParse(form);
-    if (!parse.success) {
-      const errs: Record<string, string> = {};
-      for (const issue of parse.error.issues) {
-        const field = issue.path.join(".");
-        if (!errs[field]) errs[field] = issue.message;
-      }
-      setFieldErrors(errs);
+    const name = nameSchema.safeParse(form.full_name);
+    if (!name.success) next.full_name = name.error.issues[0].message;
+
+    const mail = emailSchema.safeParse(form.email);
+    if (!mail.success) next.email = mail.error.issues[0].message;
+
+    const pass = passwordSchema.safeParse(form.password);
+    if (!pass.success) next.password = pass.error.issues[0].message;
+    else if (form.password !== form.confirm_password) {
+      next.confirm_password = "Passwords do not match";
+    }
+
+    if (Object.keys(next).length > 0) {
+      setErrors(next);
       return;
     }
 
-    setLoading(true);
-    try {
-      await api.post<Message>("/auth/register", parse.data);
-      setAccount(parse.data.email, parse.data.full_name);
-      router.push("/(auth)/register/verify");
-    } catch (e) {
-      if (e instanceof ApiError) setError(e.message);
-      else setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    patchDraft(form);
+    router.push("/(auth)/register/step-2");
   };
 
   return (
     <AuthScreen
       title="Create your account"
-      description="Tell us about yourself — you'll set up your gym in the next steps."
+      subtitle="This is how you'll sign in to manage your gym."
       back
+      progress={flowPosition(OWNER_FLOW, "/(auth)/register/step-1")}
+      footer={<Button onPress={handleContinue}>Continue</Button>}
     >
-        {error && (
-          <View className="mb-4">
-            <Alert type="error" message={error} onDismiss={() => setError(null)} />
-          </View>
-        )}
+      <FieldGroup>
+        <Field
+          label="Full name"
+          placeholder="Alex Morgan"
+          value={form.full_name}
+          onChangeText={(t) => update("full_name", t)}
+          autoComplete="name"
+          returnKeyType="next"
+          onSubmitEditing={() => emailRef.current?.focus()}
+          submitBehavior="submit"
+          error={errors.full_name}
+        />
+        <Field
+          ref={emailRef}
+          label="Email"
+          placeholder="you@yourgym.com"
+          value={form.email}
+          onChangeText={(t) => update("email", t)}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          submitBehavior="submit"
+          error={errors.email}
+        />
+      </FieldGroup>
 
-        <View className="gap-4">
-          <Input
-            label="Full Name"
-            placeholder="John Doe"
-            value={form.full_name}
-            onChangeText={(t) => update("full_name", t)}
-            error={fieldErrors.full_name}
-          />
-
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={form.email}
-            onChangeText={(t) => update("email", t)}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            error={fieldErrors.email}
-          />
-
-          <Input
+      <View className="mt-6">
+        <FieldGroup>
+          <Field
+            ref={passwordRef}
             label="Password"
             placeholder="At least 12 characters"
             value={form.password}
             onChangeText={(t) => update("password", t)}
-            secureTextEntry
-            error={fieldErrors.password}
+            autoComplete="new-password"
+            secure
+            returnKeyType="next"
+            onSubmitEditing={() => confirmRef.current?.focus()}
+            submitBehavior="submit"
+            error={errors.password}
           />
-
-          <Input
-            label="Confirm Password"
-            placeholder="Repeat password"
+          <Field
+            ref={confirmRef}
+            label="Confirm password"
+            placeholder="Type it again"
             value={form.confirm_password}
             onChangeText={(t) => update("confirm_password", t)}
-            secureTextEntry
-            error={fieldErrors.confirm_password}
+            autoComplete="new-password"
+            secure
+            returnKeyType="go"
+            onSubmitEditing={handleContinue}
+            error={errors.confirm_password}
           />
+        </FieldGroup>
 
-          <Input
-            label="CNIC"
-            placeholder="42101-1234567-8"
-            value={form.cnic}
-            onChangeText={(t) => update("cnic", t)}
-            error={fieldErrors.cnic}
-          />
-
-          <Input
-            label="Phone"
-            placeholder="+1234567890"
-            value={form.phone}
-            onChangeText={(t) => update("phone", t)}
-            keyboardType="phone-pad"
-            error={fieldErrors.phone}
-          />
-
-          <Input
-            label="Occupation"
-            placeholder="e.g. Business Owner"
-            value={form.occupation}
-            onChangeText={(t) => update("occupation", t)}
-            error={fieldErrors.occupation}
-          />
-
-          <Input
-            label="Education"
-            placeholder="e.g. Bachelor's Degree"
-            value={form.education}
-            onChangeText={(t) => update("education", t)}
-            error={fieldErrors.education}
-          />
-
-          <Input
-            label="Address"
-            placeholder="Street, city, postal code"
-            value={form.address}
-            onChangeText={(t) => update("address", t)}
-            error={fieldErrors.address}
-          />
-
-          <Input
-            label="Date of Birth"
-            placeholder="YYYY-MM-DD"
-            value={form.date_of_birth}
-            onChangeText={(t) => update("date_of_birth", t)}
-            error={fieldErrors.date_of_birth}
-          />
-
-          <View className="gap-2">
-            <Text className="text-[13px] font-semibold text-foreground">Gender</Text>
-            <View className="flex-row gap-3">
-              {GENDER_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  className={`flex-1 py-3.5 rounded-xl items-center border
-                    ${form.gender === opt.value
-                      ? "bg-accent border-accent"
-                      : "bg-surface-secondary border-border"
-                    }`}
-                  onPress={() => update("gender", opt.value)}
-                >
-                  <Text
-                    className={`font-semibold text-[14px] ${form.gender === opt.value ? "text-accent-foreground" : "text-foreground"}`}
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <FieldError errors={fieldErrors} field="gender" />
-          </View>
-
-          <Input
-            label="City"
-            placeholder="Your city"
-            value={form.city}
-            onChangeText={(t) => update("city", t)}
-            error={fieldErrors.city}
-          />
-
-          <Input
-            label="Emergency Contact"
-            placeholder="Name and phone"
-            value={form.emergency_contact}
-            onChangeText={(t) => update("emergency_contact", t)}
-            error={fieldErrors.emergency_contact}
-          />
-
-          <Button loading={loading} onPress={handleSubmit} className="mt-4">
-            Continue
-          </Button>
-        </View>
+        <PasswordStrength value={form.password} />
+      </View>
     </AuthScreen>
   );
-}
-
-function FieldError({ errors, field }: { errors: Record<string, string>; field: string }) {
-  return errors[field] ? <Text className="mt-1 text-sm text-danger">{errors[field]}</Text> : null;
 }

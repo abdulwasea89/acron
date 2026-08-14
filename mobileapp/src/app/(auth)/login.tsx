@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { useRef, useState } from "react";
+import { Pressable, TextInput, View } from "react-native";
+import { Text } from "heroui-native";
 import { Redirect, router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
+import { Field, FieldGroup } from "@/components/auth/field-group";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { routeForRole } from "@/components/auth-guard";
@@ -16,15 +18,20 @@ export default function LoginScreen() {
   const [orgCode, setOrgCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const remember = false;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Return advances to the next field rather than dismissing the keyboard.
+  const passwordRef = useRef<TextInput>(null);
+  const orgCodeRef = useRef<TextInput>(null);
+
   if (isHydrated && accessToken && user) {
     return <Redirect href={routeForRole(user.role)} />;
   }
+
+  const clearError = (field: string) => setFieldErrors((p) => ({ ...p, [field]: "" }));
 
   const handleLogin = async () => {
     setError(null);
@@ -95,98 +102,114 @@ export default function LoginScreen() {
   return (
     <AuthScreen
       title="Welcome back"
-      description="Sign in to pick up where your gym left off."
+      subtitle="Sign in with your email, password, and gym code."
       back
       onBack={() => router.push("/")}
       footer={
-        <View className="items-center gap-4">
-          <Pressable onPress={() => router.push("/(auth)/magic-link")} className="active:opacity-60">
-            <Text className="text-[13px] font-semibold text-foreground">
-              Send a secure sign-in link instead
+        <View className="gap-3">
+          <Button loading={loading} onPress={handleLogin}>
+            Sign in
+          </Button>
+          <Pressable
+            onPress={() => router.push("/(auth)/register/step-1")}
+            hitSlop={8}
+            className="items-center py-1 active:opacity-60"
+          >
+            <Text type="body-sm" color="muted">
+              New here? <Text className="font-semibold text-accent">Register your gym</Text>
             </Text>
           </Pressable>
-          <Text className="text-[13px] text-muted">
-            New to Gym Ops?{" "}
-            <Text
-              className="font-bold text-foreground"
-              onPress={() => router.push("/(auth)/register/step-1")}
-            >
-              Create your gym
-            </Text>
-          </Text>
         </View>
       }
     >
-      {error && (
+      {error ? (
         <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
-      )}
+      ) : null}
 
-      <View className="gap-5">
-        <Input
-          label="Work email"
+      <FieldGroup caption="Your gym code is on your welcome email — it looks like IRON-PULS-3K9.">
+        <Field
+          label="Email"
           placeholder="you@yourgym.com"
           value={email}
-          onChangeText={(t) => { setEmail(t); setFieldErrors((p) => ({ ...p, email: "" })); }}
+          onChangeText={(t) => {
+            setEmail(t);
+            clearError("email");
+          }}
           autoCapitalize="none"
+          autoComplete="email"
           keyboardType="email-address"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          submitBehavior="submit"
           error={fieldErrors.email}
         />
 
-        <View>
-          <View className="relative">
-            <Input
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setFieldErrors((p) => ({ ...p, password: "" })); }}
-              secureTextEntry={!showPassword}
-              error={fieldErrors.password}
-            />
-            <Pressable
-              onPress={() => setShowPassword((v) => !v)}
-              hitSlop={8}
-              className="absolute right-3 top-[38px] px-1 active:opacity-60"
-            >
-              <Text className="text-[12px] font-bold text-muted">
-                {showPassword ? "Hide" : "Show"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <Input
-          label="Gym code"
-          placeholder="IRON-PULS-3K9"
-          hint="Leave blank to go to your last gym"
-          value={orgCode}
-          onChangeText={(t) => { setOrgCode(t.toUpperCase()); setFieldErrors((p) => ({ ...p, org_code: "" })); }}
-          autoCapitalize="characters"
-          error={fieldErrors.org_code}
+        <Field
+          ref={passwordRef}
+          label="Password"
+          placeholder="Your password"
+          value={password}
+          onChangeText={(t) => {
+            setPassword(t);
+            clearError("password");
+          }}
+          autoComplete="current-password"
+          secure
+          returnKeyType="next"
+          onSubmitEditing={() => orgCodeRef.current?.focus()}
+          submitBehavior="submit"
+          error={fieldErrors.password}
         />
 
-        <View className="flex-row items-center justify-between">
-          <Pressable onPress={() => router.push("/(auth)/recover-codes")} className="active:opacity-60">
-            <Text className="text-[13px] text-muted">
-              Don&apos;t remember your gym code?
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => router.push("/(auth)/forgot-password")} className="active:opacity-60">
-            <Text className="text-[13px] text-muted">Forgot password?</Text>
-          </Pressable>
-        </View>
+        <Field
+          ref={orgCodeRef}
+          label="Gym code"
+          placeholder="IRON-PULS-3K9"
+          value={orgCode}
+          onChangeText={(t) => {
+            setOrgCode(t.toUpperCase());
+            clearError("org_code");
+          }}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
+          error={fieldErrors.org_code}
+        />
+      </FieldGroup>
 
-        <Button loading={loading} onPress={handleLogin}>
-          Sign in
-        </Button>
-      </View>
+      <View className="mt-6 gap-4 px-1">
+        <Pressable
+          onPress={() => router.push("/(auth)/forgot-password")}
+          hitSlop={6}
+          className="active:opacity-60"
+        >
+          <Text type="body-sm" className="text-accent">
+            Forgot your password?
+          </Text>
+        </Pressable>
 
-      {/* Divider */}
-      <View className="flex-row items-center gap-3 mt-7">
-        <View className="flex-1 h-px bg-border" />
-        <Text className="text-[12px] text-muted">or</Text>
-        <View className="flex-1 h-px bg-border" />
+        <Pressable
+          onPress={() => router.push("/(auth)/recover-codes")}
+          hitSlop={6}
+          className="active:opacity-60"
+        >
+          <Text type="body-sm" className="text-accent">
+            Forgot your gym code?
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push("/(auth)/magic-link")}
+          hitSlop={6}
+          className="active:opacity-60"
+        >
+          <Text type="body-sm" className="text-accent">
+            Email me a sign-in link instead
+          </Text>
+        </Pressable>
       </View>
     </AuthScreen>
   );

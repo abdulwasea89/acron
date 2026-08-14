@@ -1,11 +1,14 @@
-import { useState } from "react";
-import { View, Text } from "react-native";
+import { useRef, useState } from "react";
+import { TextInput, View } from "react-native";
 import { router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Field, FieldGroup } from "@/components/auth/field-group";
+import { AccentPicker, DEFAULT_ACCENT } from "@/components/auth/accent-picker";
 import { useRegisterStore } from "@/stores/register-store";
 import { gymDetailsSchema } from "@/lib/validations";
+import { OWNER_FLOW, flowPosition } from "@/lib/flow";
 import type { GymDetails } from "@/types/api";
 
 export default function GymDetailsScreen() {
@@ -17,32 +20,39 @@ export default function GymDetailsScreen() {
     default_currency: gymDetails?.default_currency ?? "USD",
     address: gymDetails?.address ?? "",
     working_hours: gymDetails?.working_hours ?? "",
-    accent_color: gymDetails?.accent_color ?? "#0a0a0a",
+    accent_color: gymDetails?.accent_color ?? DEFAULT_ACCENT,
   });
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const update = (field: string, value: string) => {
+  const addressRef = useRef<TextInput>(null);
+  const hoursRef = useRef<TextInput>(null);
+  const countryRef = useRef<TextInput>(null);
+  const currencyRef = useRef<TextInput>(null);
+
+  const update = (field: keyof typeof form, value: string) => {
     setForm((p) => ({ ...p, [field]: value }));
-    setFieldErrors((p) => ({ ...p, [field]: "" }));
+    setErrors((p) => ({ ...p, [field]: "" }));
   };
 
   const handleContinue = () => {
     const data = {
       ...form,
       address: form.address || null,
-      accent_color: form.accent_color || null,
       working_hours: form.working_hours || null,
+      accent_color: form.accent_color || null,
     };
+
     const parse = gymDetailsSchema.safeParse(data);
     if (!parse.success) {
-      const errs: Record<string, string> = {};
+      const next: Record<string, string> = {};
       for (const issue of parse.error.issues) {
         const field = issue.path.join(".");
-        if (!errs[field]) errs[field] = issue.message;
+        if (!next[field]) next[field] = issue.message;
       }
-      setFieldErrors(errs);
+      setErrors(next);
       return;
     }
+
     setGymDetails(data as GymDetails);
     router.push("/(auth)/register/tier");
   };
@@ -50,82 +60,97 @@ export default function GymDetailsScreen() {
   return (
     <AuthScreen
       title="About your gym"
-      description="This sets your members' branding and billing defaults."
+      subtitle="Members see this name and these hours. You can change it all later."
       back
-      footer={
-        <View className="flex-row gap-3">
-          <Button variant="secondary" className="flex-1" onPress={() => router.back()}>
-            Back
-          </Button>
-          <Button className="flex-1" onPress={handleContinue}>
-            Continue
-          </Button>
-        </View>
-      }
+      progress={flowPosition(OWNER_FLOW, "/(auth)/register/gym-details")}
+      footer={<Button onPress={handleContinue}>Continue</Button>}
     >
-      <View className="gap-4">
-        <Input
+      <FieldGroup title="The basics">
+        <Field
           label="Gym name"
           placeholder="Iron Pulse Boxing"
           value={form.name}
           onChangeText={(t) => update("name", t)}
-          error={fieldErrors.name}
+          returnKeyType="next"
+          onSubmitEditing={() => addressRef.current?.focus()}
+          submitBehavior="submit"
+          error={errors.name}
         />
-        <Input
+        <Field
+          ref={addressRef}
           label="Address"
-          placeholder="Street, city, state"
+          placeholder="12 Gulberg Main Boulevard"
           value={form.address}
           onChangeText={(t) => update("address", t)}
-          error={fieldErrors.address}
+          autoComplete="street-address"
+          returnKeyType="next"
+          onSubmitEditing={() => hoursRef.current?.focus()}
+          submitBehavior="submit"
+          error={errors.address}
         />
-        <Input
-          label="Country"
-          placeholder="US"
-          value={form.country}
-          onChangeText={(t) => update("country", t.toUpperCase())}
-          autoCapitalize="characters"
-          maxLength={2}
-          error={fieldErrors.country}
-        />
-        <Input
-          label="Timezone"
-          placeholder="UTC"
-          value={form.timezone}
-          onChangeText={(t) => update("timezone", t)}
-          error={fieldErrors.timezone}
-        />
-        <Input
-          label="Currency"
-          placeholder="USD"
-          value={form.default_currency}
-          onChangeText={(t) => update("default_currency", t.toUpperCase())}
-          autoCapitalize="characters"
-          maxLength={3}
-          error={fieldErrors.default_currency}
-        />
-        <Input
+        <Field
+          ref={hoursRef}
           label="Working hours"
-          placeholder="e.g. Mon-Fri 5AM-10PM"
+          placeholder="Mon–Sat, 5AM–10PM"
           value={form.working_hours}
           onChangeText={(t) => update("working_hours", t)}
+          returnKeyType="next"
+          onSubmitEditing={() => countryRef.current?.focus()}
+          submitBehavior="submit"
+          error={errors.working_hours}
         />
+      </FieldGroup>
 
-        <View className="gap-2">
-          <Text className="text-[13px] font-semibold text-foreground">Accent color</Text>
-          <View className="flex-row items-center gap-3">
-            <View
-              className="w-11 h-11 rounded-xl border border-border"
-              style={{ backgroundColor: form.accent_color }}
-            />
-            <Input
-              placeholder="#0a0a0a"
-              value={form.accent_color}
-              onChangeText={(t) => update("accent_color", t)}
-              className="flex-1"
-              autoCapitalize="none"
-            />
-          </View>
-        </View>
+      <View className="mt-6">
+        <FieldGroup
+          title="Region"
+          caption="Sets your billing currency and how dates and times are shown."
+        >
+          <Field
+            ref={countryRef}
+            label="Country"
+            placeholder="PK"
+            value={form.country}
+            onChangeText={(t) => update("country", t.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={2}
+            returnKeyType="next"
+            onSubmitEditing={() => currencyRef.current?.focus()}
+            submitBehavior="submit"
+            error={errors.country}
+          />
+          <Field
+            ref={currencyRef}
+            label="Currency"
+            placeholder="USD"
+            value={form.default_currency}
+            onChangeText={(t) => update("default_currency", t.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={3}
+            returnKeyType="next"
+            error={errors.default_currency}
+          />
+          <Field
+            label="Timezone"
+            placeholder="UTC"
+            value={form.timezone}
+            onChangeText={(t) => update("timezone", t)}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="go"
+            onSubmitEditing={handleContinue}
+            error={errors.timezone}
+          />
+        </FieldGroup>
+      </View>
+
+      <View className="mt-6">
+        <AccentPicker
+          value={form.accent_color}
+          onChange={(v) => update("accent_color", v)}
+        />
       </View>
     </AuthScreen>
   );

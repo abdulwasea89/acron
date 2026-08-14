@@ -84,3 +84,18 @@ export function firstName(fullName?: string | null, fallback = "there"): string 
   if (!fullName) return fallback;
   return fullName.trim().split(/\s+/)[0];
 }
+
+/** Relative time like `just now` / `5m ago` / `3h ago` / `2d ago`. */
+export function timeAgo(input: string | Date | number): string {
+  const then = new Date(input).getTime();
+  if (Number.isNaN(then)) return "";
+  const secs = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (secs < 60) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDay(input);
+}

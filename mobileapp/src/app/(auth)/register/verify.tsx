@@ -1,19 +1,20 @@
 import { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
+
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { OtpInput } from "@/components/ui/otp-input";
+import { CodeEntry } from "@/components/auth/code-entry";
 import { api, ApiError } from "@/lib/api";
 import { useRegisterStore } from "@/stores/register-store";
+import { OWNER_FLOW, flowPosition } from "@/lib/flow";
 import type { Message } from "@/types/api";
 
 export default function VerifyEmail() {
   const { email, setVerified } = useRegisterStore();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!email) {
@@ -21,67 +22,59 @@ export default function VerifyEmail() {
     return null;
   }
 
-  const handleVerify = async () => {
-    if (code.length !== 6) return;
+  const handleVerify = async (value: string = code) => {
+    if (value.length !== 6) return;
     setError(null);
     setLoading(true);
     try {
-      await api.post<Message>("/auth/verify-email", { email, code });
+      await api.post<Message>("/auth/verify-email", { email, code: value });
       setVerified();
       router.push("/(auth)/register/gym-details");
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
       else setError("Network error. Please try again.");
+      // Clear on failure so the next attempt starts from an empty field rather
+      // than requiring six backspaces first.
+      setCode("");
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
-    setResending(true);
     try {
       await api.post<Message>("/auth/resend-code", { email });
     } catch {
-      // Silent — backend returns the same message for security
-    } finally {
-      setResending(false);
+      // Silent — the backend returns the same message either way, by design.
     }
   };
 
   return (
     <AuthScreen
       title="Check your email"
-      description={`We sent a 6-digit code to ${email}.`}
+      subtitle="The code expires in 10 minutes."
       back
+      progress={flowPosition(OWNER_FLOW, "/(auth)/register/verify")}
       footer={
-        <View className="flex-row justify-center items-center">
-          <Text className="text-[13px] text-muted">Didn&apos;t receive it? </Text>
-          <Pressable onPress={handleResend} disabled={resending} className="active:opacity-60">
-            <Text className="text-[13px] font-bold text-foreground">
-              {resending ? "Sending…" : "Resend code"}
-            </Text>
-          </Pressable>
-        </View>
+        <Button loading={loading} disabled={code.length !== 6} onPress={() => handleVerify()}>
+          Verify email
+        </Button>
       }
     >
-      {error && (
+      {error ? (
         <View className="mb-5">
           <Alert type="error" message={error} onDismiss={() => setError(null)} />
         </View>
-      )}
+      ) : null}
 
-      <View className="gap-2">
-        <Text className="text-[13px] font-semibold text-foreground">Verification code</Text>
-        <OtpInput
-          value={code}
-          onChange={setCode}
-          onComplete={() => handleVerify()}
-        />
-      </View>
-
-      <Button loading={loading} disabled={code.length !== 6} onPress={handleVerify} className="mt-6">
-        Verify email
-      </Button>
+      <CodeEntry
+        value={code}
+        onChange={setCode}
+        onComplete={handleVerify}
+        destination={email}
+        onResend={handleResend}
+        invalid={Boolean(error)}
+      />
     </AuthScreen>
   );
 }

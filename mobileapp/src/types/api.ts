@@ -466,3 +466,28 @@ export interface ReceiptReviewActionRequest {
   action: "approve" | "reject" | "request_info";
   reason?: string | null;
 }
+
+// --- Notifications --------------------------------------------------
+export type NotificationCategory =
+  | "approval"
+  | "receipt"
+  | "receipt_review"
+  | "payment"
+  | "task"
+  | "membership"
+  | "cash"
+  | "system";
+
+export interface NotificationOut {
+  id: string;
+  category: NotificationCategory;
+  title: string;
+  body: string;
+  data?: Record<string, unknown> | null;
+  read: boolean;
+  created_at: string;
+}
+
+export interface UnreadCountOut {
+  count: number;
+}

@@ -10,6 +10,7 @@ from app.models.class_session import ClassBooking, ClassSession
 from app.models.idempotency_key import IdempotencyKey
 from app.models.member_trainer import MemberTrainer
 from app.models.membership import OrganizationMember
+from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.payment import Payment
 from app.models.payroll import PayAdvance, PayrollEntry, PayrollRun
@@ -31,6 +32,7 @@ __all__ = [
     "IdempotencyKey",
     "MemberTrainer",
     "MembershipPlan",
+    "Notification",
     "Organization",
     "OrganizationMember",
     "PayAdvance",
