@@ -18,6 +18,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { Icon } from "@/components/icon";
+import { AmbientBackground } from "@/components/ambient-background";
 import { FlowProgress } from "@/components/auth/flow-progress";
 import { getPalette } from "@/lib/theme";
 import type { FlowPosition } from "@/lib/flow";
@@ -106,6 +107,7 @@ export function AuthScreen({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       className="flex-1 bg-background"
     >
+      <AmbientBackground />
       {/* Overlays the scroll view rather than sitting above it, so content
           passes under it and the title handoff has somewhere to land. */}
       <View

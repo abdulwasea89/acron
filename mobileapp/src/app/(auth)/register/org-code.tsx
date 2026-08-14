@@ -88,14 +88,6 @@ export default function OrgCodeScreen() {
         </View>
       ) : null}
 
-      <View className="mb-6 items-center">
-        <View
-          className="h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${p.accent}1f` }}
-        >
-          <Icon name="building.2.fill" android="storefront" size={24} color={p.accent} />
-        </View>
-      </View>
 
       <FieldGroup caption="It's on your welcome email or posted at the front desk — something like IRON-PULS-3K9.">
         <Field

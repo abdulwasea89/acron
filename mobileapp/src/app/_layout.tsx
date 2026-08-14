@@ -4,6 +4,8 @@ import { useEffect, useMemo } from "react";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useFonts } from "expo-font";
+import { Saira_800ExtraBold } from "@expo-google-fonts/saira";
 import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
 import { useColorScheme } from "react-native";
@@ -27,6 +29,13 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const palette = getPalette(isDark);
+
+  /* The brand display face — Saira ExtraBold (Omnibus-Type, via Google Fonts),
+     an athletic, slightly geometric sans used for the ACRON wordmark. Loaded
+     here so the splash holds until it's ready. */
+  const [fontsLoaded] = useFonts({
+    Saira: Saira_800ExtraBold,
+  });
 
   const { isHydrated, isLoading, clearSession, setSession, accessToken } = useAuthStore();
   const { setOrgs, setActiveOrg } = useOrgStore();
@@ -59,7 +68,7 @@ export default function RootLayout() {
   }, [palette.background]);
 
   useEffect(() => {
-    if (!isHydrated || isLoading) return;
+    if (!isHydrated || isLoading || !fontsLoaded) return;
 
     const init = async () => {
       try {
@@ -76,7 +85,7 @@ export default function RootLayout() {
       }
     };
     init();
-  }, [isHydrated, isLoading]);
+  }, [isHydrated, isLoading, fontsLoaded]);
 
   /**
    * Realtime + badge seeding. Once we have both a session and an active org,

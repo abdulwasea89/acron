@@ -1,13 +1,19 @@
-import { Pressable, View, useColorScheme } from "react-native";
+import { View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "heroui-native";
 import { router } from "expo-router";
-import Animated, { FadeIn, FadeInDown, useReducedMotion } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  useReducedMotion,
+} from "react-native-reanimated";
 
+import { AmbientBackground } from "@/components/ambient-background";
 import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/icon";
+import { PressableScale } from "@/components/motion";
 import { RedirectAuthedUser } from "@/components/auth-guard";
-import { getPalette } from "@/lib/theme";
+import { getPalette, spring } from "@/lib/theme";
 
 /**
  * The first screen anyone sees.
@@ -19,8 +25,7 @@ import { getPalette } from "@/lib/theme";
  */
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
-  const isDark = useColorScheme() === "dark";
-  const p = getPalette(isDark);
+  const p = getPalette(useColorScheme() === "dark");
   const reducedMotion = useReducedMotion();
 
   /* Content settles downward in sequence. Reduced motion keeps the sequencing
@@ -28,7 +33,22 @@ export default function WelcomeScreen() {
   const enter = (delay: number) =>
     reducedMotion
       ? FadeIn.delay(delay).duration(240)
-      : FadeInDown.delay(delay).duration(420).springify().damping(20).stiffness(180);
+      : FadeInDown.delay(delay)
+          .duration(420)
+          .springify()
+          .damping(spring.standard.damping)
+          .stiffness(spring.standard.stiffness);
+
+  /* The actions rise from the thumb zone while the message settles from the
+     top — motion hints at where each thing lives. */
+  const enterUp = (delay: number) =>
+    reducedMotion
+      ? FadeIn.delay(delay).duration(240)
+      : FadeInUp.delay(delay)
+          .duration(420)
+          .springify()
+          .damping(spring.standard.damping)
+          .stiffness(spring.standard.stiffness);
 
   return (
     <>
@@ -37,40 +57,45 @@ export default function WelcomeScreen() {
         className="flex-1 bg-background px-6"
         style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 20 }}
       >
-        <View className="flex-1 justify-center">
-          <Animated.View entering={enter(60)}>
-            <View
-              className="h-16 w-16 items-center justify-center rounded-3xl"
-              style={{ backgroundColor: p.accent }}
-            >
-              <Icon
-                name="figure.strengthtraining.traditional"
-                android="fitness_center"
-                size={30}
-                color="#ffffff"
-              />
-            </View>
-          </Animated.View>
+        <AmbientBackground />
 
+{/* Wordmark — the one piece of brand, set in Saira ExtraBold. Saira is a
+            geometric sans with a wide, athletic stance, so it takes a little
+            tracking without losing its shape. */}
+        <Animated.View entering={enter(60)} className="items-center">
+          <Text
+            style={{
+              fontFamily: "Saira",
+              fontSize: 20,
+              letterSpacing: 3,
+              color: p.foreground,
+            }}
+          >
+            ACRON
+          </Text>
+        </Animated.View>
+
+        <View className="flex-1 justify-center">
           <Animated.View entering={enter(140)}>
             <Text
               type="h1"
-              className="mt-7 text-foreground"
+              className="text-foreground"
               style={{ letterSpacing: -1, lineHeight: 44 }}
             >
-              Run your gym{"\n"}from anywhere.
+              Run your gym{"\n"}
+              <Text style={{ color: "#5780c2" }}>from anywhere.</Text>
             </Text>
           </Animated.View>
 
           <Animated.View entering={enter(220)}>
             <Text type="body" color="muted" className="mt-3.5 pr-4">
-              Members, payments, payroll, and check-ins — in one place, synced across every
+              Members, payments, payroll, and check-ins in one place, synced across every
               device.
             </Text>
           </Animated.View>
         </View>
 
-        <Animated.View entering={enter(300)} className="gap-3">
+        <Animated.View entering={enterUp(380)} className="gap-3">
           <Button onPress={() => router.push("/(auth)/register/step-1")}>
             Register my gym
           </Button>
@@ -79,16 +104,17 @@ export default function WelcomeScreen() {
             Join a gym
           </Button>
 
-          <Pressable
+          <PressableScale
+            scale={0.98}
             onPress={() => router.push("/(auth)/login")}
             hitSlop={8}
-            className="items-center py-3 active:opacity-60"
+            style={{ alignItems: "center", paddingVertical: 12 }}
           >
             <Text type="body-sm" color="muted">
               Already have an account?{" "}
               <Text className="font-semibold text-accent">Sign in</Text>
             </Text>
-          </Pressable>
+          </PressableScale>
         </Animated.View>
       </View>
     </>
