@@ -1,5 +1,5 @@
-import React from "react";
-import { Redirect, useRouter } from "expo-router";
+import type { ReactNode } from "react";
+import { Redirect } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
 import { useAuthStore, type UserRole } from "@/stores/auth-store";
@@ -24,7 +24,7 @@ export function routeForRole(role: UserRole | undefined | null): DashboardRoute 
  * - If there's no access token afterwards, bounce to the login screen.
  * - Otherwise render the children.
  */
-export function RequireAuth({ children }: { children: React.ReactNode }) {
+export function RequireAuth({ children }: { children: ReactNode }) {
   const accessToken = useAuthStore((s) => s.accessToken);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const isLoading = useAuthStore((s) => s.isLoading);
@@ -48,16 +48,12 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
  * Guard for the welcome screen (`/`): a hydrated session should never sit on
  * the "Register / Join / Sign in" landing. Bounces straight to the dashboard.
  */
-export function useRedirectAuthedUser() {
+export function RedirectAuthedUser() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
   const isHydrated = useAuthStore((s) => s.isHydrated);
-  const router = useRouter();
 
-  React.useEffect(() => {
-    if (!isHydrated) return;
-    if (accessToken && user) {
-      router.replace(routeForRole(user.role));
-    }
-  }, [isHydrated, accessToken, user, router]);
+  if (!isHydrated || !accessToken || !user) return null;
+
+  return <Redirect href={routeForRole(user.role)} />;
 }

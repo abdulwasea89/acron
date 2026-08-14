@@ -46,7 +46,7 @@ export function AppScreen({
         className="flex-1"
         contentContainerClassName="px-5"
         contentContainerStyle={{
-          paddingTop: insets.top + 24,
+          paddingTop: Math.max(insets.top, 24) + 28,
           paddingBottom: noBottomInset ? 0 : bottomInset + 24,
         }}
         keyboardShouldPersistTaps="handled"

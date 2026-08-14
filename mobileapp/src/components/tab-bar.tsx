@@ -10,12 +10,15 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { BottomTabBarHeightContext } from "expo-router/tabs";
-import type { BottomTabBarButtonProps, BottomTabNavigationOptions } from "expo-router/tabs";
+import {
+  BottomTabBarHeightContext,
+  type BottomTabBarButtonProps,
+  type BottomTabNavigationOptions,
+} from "@react-navigation/bottom-tabs";
 
 import { CELL_HEIGHT, CELL_WIDTH, TabIcon } from "@/components/tab-icon";
 import type { TabSymbol } from "@/components/tab-icon";
-import { ANDROID_BLUR, ScreenBlurTarget, useBlurTarget } from "@/components/blur-target";
+import { ANDROID_BLUR, ScreenBlurTarget } from "@/components/blur-target";
 import { getPalette } from "@/lib/theme";
 
 /**
@@ -94,30 +97,27 @@ function useReduceTransparency() {
 function TabBarBackground() {
   const { isDark, solid, rim, veil } = useTabBarTheme();
   const reduceTransparency = useReduceTransparency();
-  // Android's blur re-draws a host view rather than sampling the window, so it
-  // needs the focused screen's `BlurTargetView`; iOS ignores this entirely.
-  const blurTarget = useBlurTarget();
 
   return (
-    <View style={styles.capsule}>
-      {reduceTransparency ? (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: solid }]} />
+    <View
+      style={styles.capsule}
+      className="h-full w-full bg-black rounded-md bg-clip-padding backdrop-filter backdrop-blur-md bg-opacity-0 border border-[#383838]"
+    >
+      {/* Android has no stable blur backend in expo-blur 15.x: the only native
+          option (`dimezisBlurView`) crashes on emulators using software
+          rendering ("software rendering doesn't support hardware bitmaps"), and
+          `none` is just a flat tint. A translucent fill reads the same frosted
+          capsule without the crash. iOS keeps the system material. */}
+      {reduceTransparency || ANDROID_BLUR ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: ANDROID_BLUR ? veil : solid }]} />
       ) : isLiquidGlassAvailable() ? (
-        <GlassView
-          style={StyleSheet.absoluteFill}
-          glassEffectStyle="regular"
-          colorScheme={isDark ? "dark" : "light"}
-        />
+        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" />
       ) : (
         <>
           <BlurView
             style={StyleSheet.absoluteFill}
             tint={isDark ? "systemChromeMaterialDark" : "systemChromeMaterialLight"}
-            intensity={ANDROID_BLUR ? 100 : 70}
-            // SDK 31+ only: the older backend re-renders the host view every
-            // frame, which is too costly for permanently visible chrome.
-            blurMethod="dimezisBlurViewSdk31Plus"
-            blurTarget={blurTarget}
+            intensity={70}
           />
           {/* Blur alone vanishes over a flat background — the veil keeps the
               capsule readable as a distinct surface. */}
@@ -233,16 +233,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   capsule: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     borderRadius: BAR_HEIGHT / 2,
     borderCurve: "continuous",
     // Clips the material to the capsule.
     overflow: "hidden",
   },
   rim: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     borderRadius: BAR_HEIGHT / 2,
     borderCurve: "continuous",
-    borderWidth: StyleSheet.hairlineWidth,
+    // A real 1px light rim — the glass edge your class string's `border`
+    // wanted. `hairlineWidth` was too faint to read as a glass boundary.
+    borderWidth: 1,
   },
 });
