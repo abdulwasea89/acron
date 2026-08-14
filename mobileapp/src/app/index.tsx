@@ -3,9 +3,11 @@ import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { Button } from "@/components/ui/button";
 import { Stagger } from "@/components/motion";
+import { useRedirectAuthedUser } from "@/components/auth-guard";
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
+  useRedirectAuthedUser();
 
   return (
     <View

@@ -1,25 +1,30 @@
 import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
+import { routeForRole } from "@/components/auth-guard";
 import { memberLoginSchema } from "@/lib/validations";
 import type { LoginResponse, MemberLoginRequest } from "@/types/api";
 
 export default function LoginScreen() {
-  const { setSession } = useAuthStore();
+  const { setSession, user, accessToken, isHydrated } = useAuthStore();
   const [orgCode, setOrgCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
+  const remember = false;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  if (isHydrated && accessToken && user) {
+    return <Redirect href={routeForRole(user.role)} />;
+  }
 
   const handleLogin = async () => {
     setError(null);
