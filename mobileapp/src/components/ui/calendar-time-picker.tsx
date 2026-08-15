@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { Platform, Pressable, View } from "react-native";
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+import React, { useMemo, useState } from "react";
+import { useColorScheme, View } from "react-native";
+import WheelPicker, {
+  DatePicker,
+} from "@quidone/react-native-wheel-picker";
 import { Text, Label } from "heroui-native";
 
-import { Icon, type IconName } from "@/components/icon";
+import { getPalette } from "@/lib/theme";
 
 interface CalendarTimePickerProps {
   value: Date | null;
@@ -13,133 +13,211 @@ interface CalendarTimePickerProps {
   minimumDate?: Date;
 }
 
-type Tab = "date" | "time";
-
 /**
- * Native scroll-wheel date + time picker used for task deadlines.
+ * Inline scroll-wheel date + time picker for task deadlines.
  *
- * A Date / Time toggle shows one native spinner wheel at a time, so you scroll
- * by hand through every day of the month, the month, the year, and the time.
+ * Pure-JS wheels (no native modal), so it works identically inside the bottom
+ * sheet on iOS and Android:
  *
- * - iOS: the wheel renders inline inside the sheet.
- * - Android: each wheel opens as its own native scroll dialog.
+ *   - Day / Month / Year wheels scroll by hand, honoring the real month length
+ *     (30/31/28/29) and blocking dates before `minimumDate`.
+ *   - Hour / Minute / AM-PM wheels set the time of day.
  *
- * The resolved value is always a full `Date` carrying the chosen day and time.
+ * The selected row is highlighted in gray and nearby rows fade out, matching
+ * a native wheel. The resolved value is always a full `Date` carrying the
+ * chosen day and time.
  */
 export function CalendarTimePicker({
   value,
   onChange,
   minimumDate,
 }: CalendarTimePickerProps) {
-  const [tab, setTab] = useState<Tab>("date");
-  const base = value ?? defaultTime(new Date());
+  const isDark = useColorScheme() === "dark";
+  const palette = getPalette(isDark);
 
-  const handleDate = (e: DateTimePickerEvent) => {
-    if (e.type === "set" && e.nativeEvent.timestamp) {
-      const next = new Date(e.nativeEvent.timestamp);
-      const merged = new Date(base);
-      merged.setFullYear(next.getFullYear(), next.getMonth(), next.getDate());
-      onChange(merged);
-    }
-    if (Platform.OS === "android") setTab("time");
+  const base = value ?? new Date();
+  const [dateStr, setDateStr] = useState(formatDate(base));
+  const [hour, setHour] = useState(hourOf(base));
+  const [minute, setMinute] = useState(minuteOf(base));
+  const [ampm, setAmpm] = useState<"AM" | "PM">(ampmOf(base));
+  const minDateStr = minimumDate ? formatDate(minimumDate) : undefined;
+
+  const commit = (d: string, h: number, m: number, ap: "AM" | "PM") => {
+    const date = parseDate(d);
+    date.setHours(ap === "AM" ? h % 12 : (h % 12) + 12, m, 0, 0);
+    onChange(date);
   };
 
-  const handleTime = (e: DateTimePickerEvent) => {
-    if (e.type === "set" && e.nativeEvent.timestamp) {
-      const next = new Date(e.nativeEvent.timestamp);
-      const merged = new Date(base);
-      merged.setHours(next.getHours(), next.getMinutes(), 0, 0);
-      onChange(merged);
-    }
-    if (Platform.OS === "android") setTab("date");
+  const onDateChanged = ({ date }: { date: string }) => {
+    setDateStr(date);
+    commit(date, hour, minute, ampm);
+  };
+  const onHourChanged = ({ item }: { item: { value: number } }) => {
+    setHour(item.value);
+    commit(dateStr, item.value, minute, ampm);
+  };
+  const onMinuteChanged = ({ item }: { item: { value: number } }) => {
+    setMinute(item.value);
+    commit(dateStr, hour, item.value, ampm);
+  };
+  const onAmpmChanged = ({ item }: { item: { value: "AM" | "PM" } }) => {
+    setAmpm(item.value);
+    commit(dateStr, hour, minute, item.value);
+  };
+
+  const hours = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => ({ value: i + 1 })),
+    [],
+  );
+  const minutes = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => ({ value: i * 5 })),
+    [],
+  );
+  const ampms = useMemo(
+    () => [{ value: "AM" as const }, { value: "PM" as const }],
+    [],
+  );
+
+  const wheelTextStyle = { color: palette.foreground, fontSize: 18 };
+  const overlayStyle = {
+    backgroundColor: palette.surfaceSecondary,
+    borderRadius: 12,
   };
 
   return (
     <View>
       <Label>Deadline</Label>
 
-      <View className="mt-1.5 flex-row rounded-xl bg-surface-secondary p-1">
-        <TabButton
-          active={tab === "date"}
-          label="Date"
-          icon="calendar"
-          android="calendar_month"
-          onPress={() => setTab("date")}
-        />
-        <TabButton
-          active={tab === "time"}
-          label="Time"
-          icon="clock"
-          android="access_time"
-          onPress={() => setTab("time")}
+      <View className="mt-1.5 flex-row items-center justify-between rounded-xl bg-surface-secondary px-4 py-3">
+        <Text type="body" weight="semibold" className="text-foreground">
+          {formatDeadline(parseDate(dateStr), hour, minute, ampm)}
+        </Text>
+      </View>
+
+      <View className="mt-3 rounded-2xl bg-surface py-3">
+        <DatePicker
+          date={dateStr}
+          minDate={minDateStr}
+          onDateChanged={onDateChanged}
+          locale="en"
+          itemHeight={40}
+          visibleItemCount={5}
+          itemTextStyle={wheelTextStyle}
+          overlayItemStyle={overlayStyle}
         />
       </View>
 
-      <View className="mt-3 overflow-hidden rounded-2xl bg-surface">
-        {tab === "date" ? (
-          <DateTimePicker
-            value={base}
-            mode="date"
-            display="spinner"
-            onChange={handleDate}
-            minimumDate={minimumDate}
-            textColor="var(--color-foreground)"
+      <View className="mt-3 rounded-2xl bg-surface py-3">
+        <View className="flex-row justify-center">
+          <TimeWheel
+            data={hours}
+            value={hour}
+            onChange={onHourChanged}
+            label="Hour"
+            width={80}
+            palette={palette}
           />
-        ) : (
-          <DateTimePicker
-            value={base}
-            mode="time"
-            display="spinner"
-            onChange={handleTime}
-            textColor="var(--color-foreground)"
+          <TimeWheel
+            data={minutes}
+            value={minute}
+            onChange={onMinuteChanged}
+            label="Minute"
+            width={80}
+            palette={palette}
           />
-        )}
+          <TimeWheel
+            data={ampms}
+            value={ampm}
+            onChange={onAmpmChanged}
+            label="Period"
+            width={80}
+            palette={palette}
+          />
+        </View>
       </View>
+
+      <Text type="body-sm" className="mt-2 text-center text-muted">
+        Scroll to choose. Past dates are blocked.
+      </Text>
     </View>
   );
 }
 
-function TabButton({
-  active,
+function TimeWheel<T extends string | number>({
+  data,
+  value,
+  onChange,
   label,
-  icon,
-  android,
-  onPress,
+  width,
+  palette,
 }: {
-  active: boolean;
+  data: { value: T }[];
+  value: T;
+  onChange: (e: { item: { value: T } }) => void;
   label: string;
-  icon: IconName;
-  android: string;
-  onPress: () => void;
+  width: number;
+  palette: ReturnType<typeof getPalette>;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2 ${
-        active ? "bg-surface" : ""
-      }`}
-      accessibilityRole="button"
-    >
-      <Icon
-        name={icon}
-        android={android}
-        size={16}
-        className={active ? "text-accent" : "text-muted"}
+    <View className="items-center">
+      <WheelPicker
+        data={data}
+        value={value}
+        width={width}
+        itemHeight={40}
+        visibleItemCount={5}
+        enableScrollByTapOnItem
+        onValueChanged={onChange as never}
+        itemTextStyle={{ color: palette.foreground, fontSize: 18 }}
+        overlayItemStyle={{
+          backgroundColor: palette.surfaceSecondary,
+          borderRadius: 12,
+        }}
       />
-      <Text
-        type="body-sm"
-        weight={active ? "semibold" : "medium"}
-        className={active ? "text-foreground" : "text-muted"}
-      >
+      <Text type="body-xs" className="text-muted">
         {label}
       </Text>
-    </Pressable>
+    </View>
   );
 }
 
-/** A sensible default time when the user hasn't picked one yet: 6 PM. */
-function defaultTime(base: Date): Date {
-  const d = new Date(base);
-  d.setHours(18, 0, 0, 0);
-  return d;
+/** Format a `Date` as `YYYY-MM-DD` (the DatePicker contract). */
+function formatDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Parse `YYYY-MM-DD` into a local `Date` at midnight. */
+function parseDate(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Compact label, e.g. `26 Aug · 6:00 PM`. */
+function formatDeadline(
+  date: Date,
+  hour: number,
+  minute: number,
+  ampm: "AM" | "PM",
+): string {
+  const day = date.getDate();
+  const month = date.toLocaleString("en-US", { month: "short" });
+  const h = hour % 12 === 0 ? 12 : hour % 12;
+  const m = `${minute}`.padStart(2, "0");
+  return `${day} ${month} · ${h}:${m} ${ampm}`;
+}
+
+function hourOf(d: Date): number {
+  const h = d.getHours() % 12;
+  return h === 0 ? 12 : h;
+}
+
+function minuteOf(d: Date): number {
+  return Math.round(d.getMinutes() / 5) * 5;
+}
+
+function ampmOf(d: Date): "AM" | "PM" {
+  return d.getHours() >= 12 ? "PM" : "AM";
 }
