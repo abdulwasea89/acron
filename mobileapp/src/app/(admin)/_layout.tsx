@@ -21,19 +21,23 @@ export default function AdminLayout() {
         <Tabs.Screen
           name="dashboard"
           options={{ title: "Home", tabBarIcon: icon(SYMBOLS.dashboard) }}
+          unmount={false}
         />
         <Tabs.Screen
           name="approvals"
           options={{ title: "Approve", tabBarIcon: icon(SYMBOLS.approvals) }}
+          unmount={false}
         />
         <Tabs.Screen
           name="gym-status"
           options={{ title: "Status", tabBarIcon: icon(SYMBOLS.gymStatus) }}
+          unmount={false}
         />
-        <Tabs.Screen name="tasks" options={{ title: "Tasks", tabBarIcon: icon(SYMBOLS.tasks) }} />
+        <Tabs.Screen name="tasks" options={{ title: "Tasks", tabBarIcon: icon(SYMBOLS.tasks) }} unmount={false} />
         <Tabs.Screen
           name="profile"
           options={{ title: "Profile", tabBarIcon: icon(SYMBOLS.profile) }}
+          unmount={false}
         />
       </Tabs>
     </RequireAuth>

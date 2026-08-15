@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Image, Pressable, RefreshControl, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import { Text } from "heroui-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -15,8 +15,8 @@ import { money } from "@/lib/format";
 import type { OrganizationOut, ReceiptReviewItem } from "@/types/api";
 
 export default function Screen_receipts() {
-  const org = useGet<OrganizationOut>("/organizations/me");
-  const queue = useGet<ReceiptReviewItem[]>("/receipts/review-queue");
+  const org = useGet<OrganizationOut>("/organizations/me", ["receipt.processed", "payment.recorded"]);
+  const queue = useGet<ReceiptReviewItem[]>("/receipts/review-queue", ["receipt.processed"]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -42,9 +42,6 @@ export default function Screen_receipts() {
     <AppScreen
       title="Receipts"
       subtitle="Verify offline payments"
-      refreshControl={
-        <RefreshControl refreshing={queue.loading} onRefresh={() => { queue.refetch(); org.refetch(); }} />
-      }
     >
       {queue.loading && !queue.data ? (
         <DashboardSkeleton />

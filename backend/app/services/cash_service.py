@@ -140,6 +140,7 @@ async def log_cash_payment(
     from app.realtime import events
 
     await events.payment_recorded(org_id, payment_id=payment.id, member_id=member.id)
+    await events.membership_changed(org_id, member_id=member.id, status=MemberStatus.ACTIVE.value)
     return payment, member, pdf_url
 
 

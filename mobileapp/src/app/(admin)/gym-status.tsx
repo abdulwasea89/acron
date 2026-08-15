@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, RefreshControl, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Text } from "heroui-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -20,7 +20,7 @@ const STATUSES = [
 ] as const;
 
 export default function Screen_gym_status() {
-  const org = useGet<OrganizationOut>("/organizations/me");
+  const org = useGet<OrganizationOut>("/organizations/me", ["gym_status.changed"]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -48,7 +48,6 @@ export default function Screen_gym_status() {
     <AppScreen
       title="Gym status"
       subtitle="Let members know you're open"
-      refreshControl={<RefreshControl refreshing={org.loading} onRefresh={() => org.refetch()} />}
     >
       {org.loading && !org.data ? (
         <DashboardSkeleton />

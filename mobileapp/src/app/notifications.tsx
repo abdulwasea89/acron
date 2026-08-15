@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from "react";
-import { Pressable, RefreshControl, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Text } from "heroui-native";
-import { BottomSheet } from "heroui-native/bottom-sheet";
 import { router } from "expo-router";
 
 import { AppScreen } from "@/components/app-screen";
@@ -10,6 +9,7 @@ import { DashboardError } from "@/components/dashboard-states";
 import { EmptyState } from "@/components/empty-state";
 import { Icon, type IconName } from "@/components/icon";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetTitle } from "@/components/ui/sheet";
 import { useGet } from "@/hooks/use-api";
 import { api } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
@@ -41,7 +41,7 @@ function deepLinkFor(category: NotificationCategory, role: UserRole): string | n
 }
 
 export default function Screen_notifications() {
-  const notifications = useGet<NotificationOut[]>("/notifications");
+  const notifications = useGet<NotificationOut[]>("/notifications", ["notification.created"]);
   const role = useAuthStore((s) => s.user?.role ?? "member");
   const decrement = useNotificationStore((s) => s.decrement);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
@@ -93,7 +93,6 @@ export default function Screen_notifications() {
   return (
     <AppScreen
       showNotifications={false}
-      refreshControl={<RefreshControl refreshing={notifications.loading} onRefresh={refresh} />}
     >
       <NotificationsHeader unreadCount={unreadCount} onMarkAllRead={markAllRead} />
 
@@ -159,49 +158,44 @@ export default function Screen_notifications() {
         </View>
       )}
 
-      <BottomSheet isOpen={selected !== null} onOpenChange={(o) => { if (!o) setSelected(null); }}>
-        <BottomSheet.Portal>
-          <BottomSheet.Overlay isCloseOnPress />
-          {selected ? (
-            <BottomSheet.Content className="gap-4 p-5 pb-8">
-              <View className="items-start">
-                <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: (CATEGORY_META[selected.category] ?? CATEGORY_META.system).tile }}>
-                  <Icon
-                    name={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).icon}
-                    android={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).android}
-                    size={24}
-                    color={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).color}
-                  />
-                </View>
-                <Text type="body-xs" className="mb-1 text-muted">
-                  {(CATEGORY_META[selected.category] ?? CATEGORY_META.system).label} · {timeAgo(selected.created_at)}
-                </Text>
-                <BottomSheet.Title className="text-[18px] font-bold text-foreground">
-                  {selected.title}
-                </BottomSheet.Title>
+      <Sheet isOpen={selected !== null} onOpenChange={(o) => { if (!o) setSelected(null); }}>
+        {selected ? (
+          <>
+            <View className="items-start">
+              <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: (CATEGORY_META[selected.category] ?? CATEGORY_META.system).tile }}>
+                <Icon
+                  name={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).icon}
+                  android={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).android}
+                  size={24}
+                  color={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).color}
+                />
               </View>
-              <Text type="body" className="text-foreground leading-relaxed">
-                {selected.body}
+              <Text type="body-xs" className="mb-1 text-muted">
+                {(CATEGORY_META[selected.category] ?? CATEGORY_META.system).label} · {timeAgo(selected.created_at)}
               </Text>
+              <SheetTitle>{selected.title}</SheetTitle>
+            </View>
+            <Text type="body" className="text-foreground leading-relaxed">
+              {selected.body}
+            </Text>
 
-              {deepLinkFor(selected.category, role) ? (
-                <Button
-                  onPress={() => {
-                    const href = deepLinkFor(selected.category, role);
-                    setSelected(null);
-                    if (href) router.push(href as never);
-                  }}
-                >
-                  View details
-                </Button>
-              ) : null}
-              <BottomSheet.Close>
-                <Button variant="ghost">Close</Button>
-              </BottomSheet.Close>
-            </BottomSheet.Content>
-          ) : null}
-        </BottomSheet.Portal>
-      </BottomSheet>
+            {deepLinkFor(selected.category, role) ? (
+              <Button
+                onPress={() => {
+                  const href = deepLinkFor(selected.category, role);
+                  setSelected(null);
+                  if (href) router.push(href as never);
+                }}
+              >
+                View details
+              </Button>
+            ) : null}
+            <Button variant="ghost" onPress={() => setSelected(null)}>
+              Close
+            </Button>
+          </>
+        ) : null}
+      </Sheet>
     </AppScreen>
   );
 }

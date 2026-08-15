@@ -20,18 +20,22 @@ export default function MemberLayout() {
         <Tabs.Screen
           name="dashboard"
           options={{ title: "Home", tabBarIcon: icon(SYMBOLS.dashboard) }}
+          unmount={false}
         />
         <Tabs.Screen
           name="classes"
           options={{ title: "Classes", tabBarIcon: icon(SYMBOLS.classes) }}
+          unmount={false}
         />
         <Tabs.Screen
           name="payments"
           options={{ title: "Payments", tabBarIcon: icon(SYMBOLS.payments) }}
+          unmount={false}
         />
         <Tabs.Screen
           name="profile"
           options={{ title: "Profile", tabBarIcon: icon(SYMBOLS.profile) }}
+          unmount={false}
         />
       </Tabs>
     </RequireAuth>

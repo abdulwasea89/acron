@@ -21,16 +21,19 @@ export default function StaffLayout() {
         <Tabs.Screen
           name="dashboard"
           options={{ title: "Home", tabBarIcon: icon(SYMBOLS.dashboard) }}
+          unmount={false}
         />
-        <Tabs.Screen name="shift" options={{ title: "Shift", tabBarIcon: icon(SYMBOLS.shift) }} />
-        <Tabs.Screen name="cash-log" options={{ title: "Cash", tabBarIcon: icon(SYMBOLS.cashLog) }} />
+        <Tabs.Screen name="shift" options={{ title: "Shift", tabBarIcon: icon(SYMBOLS.shift) }} unmount={false} />
+        <Tabs.Screen name="cash-log" options={{ title: "Cash", tabBarIcon: icon(SYMBOLS.cashLog) }} unmount={false} />
         <Tabs.Screen
           name="receipts"
           options={{ title: "Receipts", tabBarIcon: icon(SYMBOLS.receipts) }}
+          unmount={false}
         />
         <Tabs.Screen
           name="profile"
           options={{ title: "Profile", tabBarIcon: icon(SYMBOLS.profile) }}
+          unmount={false}
         />
       </Tabs>
     </RequireAuth>

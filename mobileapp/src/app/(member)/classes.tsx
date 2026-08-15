@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, RefreshControl, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Text } from "heroui-native";
-import { BottomSheet } from "heroui-native/bottom-sheet";
 
 import { AppScreen } from "@/components/app-screen";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
@@ -10,6 +9,7 @@ import { SectionCard } from "@/components/section-card";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetTitle } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/empty-state";
 import { Stagger } from "@/components/motion";
 import { useGet } from "@/hooks/use-api";
@@ -29,8 +29,8 @@ function groupByDay(sessions: ClassSessionOut[]) {
 }
 
 export default function Screen_classes() {
-  const sessions = useGet<ClassSessionOut[]>("/classes");
-  const mine = useGet<MyBookingOut[]>("/classes/my-bookings");
+  const sessions = useGet<ClassSessionOut[]>("/classes", ["class.changed"]);
+  const mine = useGet<MyBookingOut[]>("/classes/my-bookings", ["class.changed"]);
   const [selected, setSelected] = useState<ClassSessionOut | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +100,6 @@ export default function Screen_classes() {
     <AppScreen
       title="Classes"
       subtitle="Book your next session"
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
     >
       {loading ? (
         <DashboardSkeleton />
@@ -157,39 +156,32 @@ export default function Screen_classes() {
         </View>
       ) : null}
 
-      <BottomSheet isOpen={selected !== null} onOpenChange={(o: boolean) => { if (!o) setSelected(null); }}>
-        <BottomSheet.Portal>
-          <BottomSheet.Overlay isCloseOnPress />
-          <BottomSheet.Content className="gap-4 p-5 pb-8">
-            {selected && (
-              <>
-                <BottomSheet.Title className="text-[20px] font-bold text-foreground">
-                  {selected.title}
-                </BottomSheet.Title>
-                <View className="gap-1">
-                  <Row label="Day" value={formatDay(selected.starts_at)} />
-                  <Row label="Starts" value={formatTime(selected.starts_at)} />
-                  <Row label="Capacity" value={`${selected.booked_count} / ${selected.capacity} booked`} />
-                </View>
-                {selected.trainer_checked_in ? (
-                  <Text type="body-xs" className="text-success">Trainer checked in</Text>
-                ) : null}
+      <Sheet isOpen={selected !== null} onOpenChange={(o: boolean) => { if (!o) setSelected(null); }}>
+        {selected && (
+          <>
+            <SheetTitle>{selected.title}</SheetTitle>
+            <View className="gap-1">
+              <Row label="Day" value={formatDay(selected.starts_at)} />
+              <Row label="Starts" value={formatTime(selected.starts_at)} />
+              <Row label="Capacity" value={`${selected.booked_count} / ${selected.capacity} booked`} />
+            </View>
+            {selected.trainer_checked_in ? (
+              <Text type="body-xs" className="text-success">Trainer checked in</Text>
+            ) : null}
 
-                {isMine ? (
-                  <Button variant="secondary" loading={busy} onPress={cancel}>
-                    Cancel my booking
-                  </Button>
-                ) : (
-                  <Button loading={busy} onPress={book} disabled={full}>
-                    {full ? "Class is full" : "Book this class"}
-                  </Button>
-                )}
-                {justBooked ? <Text type="body-sm" className="text-center text-success">Booked!</Text> : null}
-              </>
+            {isMine ? (
+              <Button variant="secondary" loading={busy} onPress={cancel}>
+                Cancel my booking
+              </Button>
+            ) : (
+              <Button loading={busy} onPress={book} disabled={full}>
+                {full ? "Class is full" : "Book this class"}
+              </Button>
             )}
-          </BottomSheet.Content>
-        </BottomSheet.Portal>
-      </BottomSheet>
+            {justBooked ? <Text type="body-sm" className="text-center text-success">Booked!</Text> : null}
+          </>
+        )}
+      </Sheet>
     </AppScreen>
   );
 }

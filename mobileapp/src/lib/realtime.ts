@@ -1,6 +1,27 @@
 import { useAuthStore } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
 
+export type RealtimeEvent = Record<string, unknown> & { type: string };
+type EventListener = (event: RealtimeEvent) => void;
+
+const listeners = new Set<EventListener>();
+
+/** Subscribe to every realtime event received on the socket. Returns an unsubscribe fn. */
+export function onRealtimeEvent(cb: EventListener): () => void {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
+function emit(event: RealtimeEvent) {
+  for (const cb of Array.from(listeners)) {
+    try {
+      cb(event);
+    } catch {
+      /* a subscriber must never break the socket loop */
+    }
+  }
+}
+
 /**
  * WebSocket realtime client (Section 16).
  *
@@ -85,6 +106,7 @@ function connect() {
       if (data.type === "notification.created") {
         useNotificationStore.getState().bump();
       }
+      emit(data);
     } catch {
       /* non-JSON frame — ignore */
     }

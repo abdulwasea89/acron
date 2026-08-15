@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, RefreshControl, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Text } from "heroui-native";
 import { router } from "expo-router";
 
@@ -35,9 +35,11 @@ export function ProfileScreen() {
   const [saved, setSaved] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
 
-  const me = useGet<MeResponse>("/auth/me");
-  const profile = useGet<ProfileOut>("/auth/me/profile");
-  const org = useGet<OrganizationOut>("/organizations/me");
+  const realtime = ["membership.changed", "gym_status.changed"];
+
+  const me = useGet<MeResponse>("/auth/me", realtime);
+  const profile = useGet<ProfileOut>("/auth/me/profile", realtime);
+  const org = useGet<OrganizationOut>("/organizations/me", realtime);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -111,16 +113,6 @@ export function ProfileScreen() {
     <AppScreen
       title="Profile"
       subtitle={user?.role ? humanize(user.role) : undefined}
-      refreshControl={
-        <RefreshControl
-          refreshing={profile.loading && !profile.data}
-          onRefresh={() => {
-            profile.refetch();
-            me.refetch();
-            org.refetch();
-          }}
-        />
-      }
     >
       {loading && !profile.data && <DashboardSkeleton />}
 

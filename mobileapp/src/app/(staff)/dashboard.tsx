@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, RefreshControl, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Text } from "heroui-native";
 import { router } from "expo-router";
 
@@ -29,12 +29,14 @@ import type {
 export default function Screen_dashboard() {
   const activeOrg = useOrgStore((s) => s.activeOrg);
 
-  const profile = useGet<ProfileOut>("/auth/me/profile");
-  const org = useGet<OrganizationOut>("/organizations/me");
-  const shift = useGet<ShiftOut | null>("/staff/shifts/current");
-  const headline = useGet<HeadlineMetrics>("/analytics/headline");
-  const receipts = useGet<ReceiptReviewItem[]>("/receipts/review-queue");
-  const tasks = useGet<TaskOut[]>("/staff/tasks");
+  const realtime = ["shift.check_in", "shift.check_out", "receipt.processed", "task.changed", "gym_status.changed", "payment.recorded"];
+
+  const profile = useGet<ProfileOut>("/auth/me/profile", realtime);
+  const org = useGet<OrganizationOut>("/organizations/me", realtime);
+  const shift = useGet<ShiftOut | null>("/staff/shifts/current", realtime);
+  const headline = useGet<HeadlineMetrics>("/analytics/headline", realtime);
+  const receipts = useGet<ReceiptReviewItem[]>("/receipts/review-queue", ["receipt.processed"]);
+  const tasks = useGet<TaskOut[]>("/staff/tasks", ["task.changed"]);
 
   const loading = profile.loading || shift.loading || headline.loading || receipts.loading;
   const error = profile.error ?? shift.error ?? headline.error ?? receipts.error;
@@ -58,7 +60,6 @@ export default function Screen_dashboard() {
     <AppScreen
       title={`${greeting()}, ${firstName(profile.data?.full_name)}`}
       subtitle={orgName || activeOrg?.org_code || "Your gym"}
-      refreshControl={<RefreshControl refreshing={shift.loading} onRefresh={refresh} />}
     >
       {loading ? (
         <DashboardSkeleton />

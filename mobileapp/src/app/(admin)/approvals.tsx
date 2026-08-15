@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, RefreshControl, TextInput, View } from "react-native";
+import { Pressable, TextInput, View } from "react-native";
 import { Text } from "heroui-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -17,8 +17,8 @@ import { formatDay } from "@/lib/format";
 import type { MemberDirectoryItem, ReceiptReviewItem } from "@/types/api";
 
 export default function Screen_approvals() {
-  const queue = useGet<MemberDirectoryItem[]>("/members/approval-queue");
-  const receipts = useGet<ReceiptReviewItem[]>("/receipts/review-queue")  
+  const queue = useGet<MemberDirectoryItem[]>("/members/approval-queue", ["membership.changed"]);
+  const receipts = useGet<ReceiptReviewItem[]>("/receipts/review-queue", ["receipt.processed"]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reasonFor, setReasonFor] = useState<MemberDirectoryItem | null>(null);
@@ -44,9 +44,6 @@ export default function Screen_approvals() {
     <AppScreen
       title="Approvals"
       subtitle="Members & receipts awaiting a decision"
-      refreshControl={
-        <RefreshControl refreshing={queue.loading} onRefresh={() => { queue.refetch(); receipts.refetch(); }} />
-      }
     >
       {queue.loading && !queue.data ? (
         <DashboardSkeleton />

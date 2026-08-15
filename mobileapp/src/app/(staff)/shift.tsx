@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { RefreshControl, View } from "react-native";
+import { View } from "react-native";
 import { Text } from "heroui-native";
 import Animated, {
   Easing,
@@ -68,8 +68,8 @@ function PulseRing({ active }: { active: boolean }) {
 }
 
 export default function Screen_shift() {
-  const org = useGet<OrganizationOut>("/organizations/me");
-  const shift = useGet<ShiftOut | null>("/staff/shifts/current");
+  const org = useGet<OrganizationOut>("/organizations/me", ["gym_status.changed"]);
+  const shift = useGet<ShiftOut | null>("/staff/shifts/current", ["shift.check_in", "shift.check_out"]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justCheckedIn, setJustCheckedIn] = useState(false);
@@ -109,9 +109,6 @@ export default function Screen_shift() {
     <AppScreen
       title="Shift"
       subtitle={org.data?.name}
-      refreshControl={
-        <RefreshControl refreshing={shift.loading && !shift.data} onRefresh={() => { shift.refetch(); org.refetch(); }} />
-      }
     >
       {shift.loading && !shift.data ? (
         <DashboardSkeleton />

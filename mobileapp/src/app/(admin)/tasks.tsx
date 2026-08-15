@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, RefreshControl, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Text } from "heroui-native";
-import { BottomSheet } from "heroui-native/bottom-sheet";
 
 import { AppScreen } from "@/components/app-screen";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
@@ -11,19 +10,26 @@ import { Icon } from "@/components/icon";
 import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CalendarTimePicker } from "@/components/ui/calendar-time-picker";
+import { Sheet, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Stagger, PressableScale } from "@/components/motion";
 import { useGet } from "@/hooks/use-api";
 import { api, ApiError } from "@/lib/api";
-import { relativeDeadline } from "@/lib/format";
+import { formatTime, relativeDeadline } from "@/lib/format";
 import type { TaskOut } from "@/types/api";
 
+function hasTime(iso: string): boolean {
+  const d = new Date(iso);
+  return d.getHours() !== 0 || d.getMinutes() !== 0;
+}
+
 export default function Screen_tasks() {
-  const tasks = useGet<TaskOut[]>("/staff/tasks");
+  const tasks = useGet<TaskOut[]>("/staff/tasks", ["task.changed"]);
   const [filter, setFilter] = useState<"open" | "done">("open");
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [deadline, setDeadline] = useState("");
+  const [deadline, setDeadline] = useState<Date | null>(null);
   const [creating, setCreating] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,14 +49,14 @@ export default function Screen_tasks() {
         {
           title: title.trim(),
           description: description.trim() || null,
-          deadline: deadline.trim() ? new Date(deadline).toISOString() : null,
+          deadline: deadline?.toISOString() ?? null,
         },
         { idempotent: true },
       );
       setCreateOpen(false);
       setTitle("");
       setDescription("");
-      setDeadline("");
+      setDeadline(null);
       refresh();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not create task.");
@@ -66,7 +72,9 @@ export default function Screen_tasks() {
       if (t.done) {
         await api.patch<TaskOut>(`/staff/tasks/${t.id}`, { done: false });
       } else {
-        await api.post<TaskOut>(`/staff/tasks/${t.id}/complete`, undefined, { idempotent: true });
+        await api.post<TaskOut>(`/staff/tasks/${t.id}/complete`, undefined, {
+          idempotent: true,
+        });
       }
       refresh();
     } catch (e) {
@@ -92,16 +100,31 @@ export default function Screen_tasks() {
     <AppScreen
       title="Tasks"
       subtitle="Assign, track and clear work"
-      headerRight={
-        <PressableScale scale={0.9} style={{ borderRadius: 14 }}>
-          <Pressable onPress={() => { setError(null); setCreateOpen(true); }}>
-            <View className="h-9 w-9 items-center justify-center rounded-xl bg-accent">
-              <Icon name="plus" android="add" size={18} color="#ffffff" weight="semibold" />
-            </View>
-          </Pressable>
+      fab={
+        <PressableScale
+          scale={0.88}
+          style={{ borderRadius: 999 }}
+          accessibilityRole="button"
+          accessibilityLabel="New task"
+          onPress={() => {
+            setError(null);
+            setCreateOpen(true);
+          }}
+        >
+          <View
+            className="h-14 w-14 items-center justify-center rounded-full bg-accent shadow-surface"
+            style={{ elevation: 8 }}
+          >
+            <Icon
+              name="plus"
+              android="add"
+              size={26}
+              color="#ffffff"
+              weight="semibold"
+            />
+          </View>
         </PressableScale>
       }
-      refreshControl={<RefreshControl refreshing={tasks.loading} onRefresh={refresh} />}
     >
       {tasks.loading && !tasks.data ? (
         <DashboardSkeleton />
@@ -115,7 +138,9 @@ export default function Screen_tasks() {
               <View className="flex-row gap-2">
                 {(["open", "done"] as const).map((f) => (
                   <Pressable key={f} onPress={() => setFilter(f)} hitSlop={8}>
-                    <Text className={`text-[13px] font-semibold ${filter === f ? "text-accent" : "text-muted"}`}>
+                    <Text
+                      className={`text-[13px] font-semibold ${filter === f ? "text-accent" : "text-muted"}`}
+                    >
                       {f === "open" ? "Open" : "Done"}
                     </Text>
                   </Pressable>
@@ -137,15 +162,34 @@ export default function Screen_tasks() {
             ) : (
               <Stagger gap={50}>
                 {shown.map((t) => (
-                  <View key={t.id} className="mb-2 flex-row items-center gap-3 rounded-2xl bg-surface p-4 shadow-surface">
-                    <PressableScale scale={0.85} pop={!t.done && togglingId === t.id}>
-                      <Pressable onPress={() => toggle(t)} disabled={togglingId === t.id}>
+                  <View
+                    key={t.id}
+                    className="mb-2 flex-row items-center gap-3 rounded-2xl bg-surface p-4 shadow-surface"
+                  >
+                    <PressableScale
+                      scale={0.85}
+                      pop={!t.done && togglingId === t.id}
+                    >
+                      <Pressable
+                        onPress={() => toggle(t)}
+                        disabled={togglingId === t.id}
+                      >
                         <View
                           className={`h-6 w-6 items-center justify-center rounded-full border-2 ${
-                            t.done ? "border-success bg-success" : "border-border bg-transparent"
+                            t.done
+                              ? "border-success bg-success"
+                              : "border-border bg-transparent"
                           }`}
                         >
-                          {t.done ? <Icon name="checkmark" android="check" size={13} color="#ffffff" weight="bold" /> : null}
+                          {t.done ? (
+                            <Icon
+                              name="checkmark"
+                              android="check"
+                              size={13}
+                              color="#ffffff"
+                              weight="bold"
+                            />
+                          ) : null}
                         </View>
                       </Pressable>
                     </PressableScale>
@@ -158,19 +202,30 @@ export default function Screen_tasks() {
                         {t.title}
                       </Text>
                       {t.description ? (
-                        <Text type="body-sm" color="muted" className="mt-0.5" numberOfLines={1}>
+                        <Text
+                          type="body-sm"
+                          color="muted"
+                          className="mt-0.5"
+                          numberOfLines={1}
+                        >
                           {t.description}
                         </Text>
                       ) : null}
                       {t.deadline ? (
                         <Text type="body-xs" className="mt-1 text-muted">
                           Due {relativeDeadline(t.deadline)}
+                          {hasTime(t.deadline) ? ` · ${formatTime(t.deadline)}` : ""}
                         </Text>
                       ) : null}
                     </View>
                     {t.done ? (
                       <Pressable onPress={() => removeTask(t)} hitSlop={8}>
-                        <Icon name="trash" android="delete" size={18} className="text-muted" />
+                        <Icon
+                          name="trash"
+                          android="delete"
+                          size={18}
+                          className="text-muted"
+                        />
                       </Pressable>
                     ) : null}
                   </View>
@@ -183,33 +238,51 @@ export default function Screen_tasks() {
 
       {error ? (
         <View className="mb-4">
-          <Alert type="error" message={error} onDismiss={() => setError(null)} />
+          <Alert
+            type="error"
+            message={error}
+            onDismiss={() => setError(null)}
+          />
         </View>
       ) : null}
 
-      <BottomSheet isOpen={createOpen} onOpenChange={setCreateOpen}>
-        <BottomSheet.Portal>
-          <BottomSheet.Overlay isCloseOnPress />
-          <BottomSheet.Content className="gap-4 p-5 pb-8">
-            <BottomSheet.Title className="text-[18px] font-bold text-foreground">
-              New task
-            </BottomSheet.Title>
-            <BottomSheet.Description className="text-[13px] text-muted">
-              Assign work to yourself or your team.
-            </BottomSheet.Description>
-            <Input label="Title" value={title} onChangeText={setTitle} placeholder="e.g. Order replacement mats" />
-            <Input label="Description (optional)" value={description} onChangeText={setDescription} placeholder="What needs to happen?" />
-            <Input label="Deadline (optional)" value={deadline} onChangeText={setDeadline} placeholder="YYYY-MM-DD" />
-            <BottomSheet.Close>
-              <View>
-                <Button loading={creating} onPress={createTask} disabled={!title.trim()}>
-                  Create task
-                </Button>
-              </View>
-            </BottomSheet.Close>
-          </BottomSheet.Content>
-        </BottomSheet.Portal>
-      </BottomSheet>
+      <Sheet isOpen={createOpen} onOpenChange={setCreateOpen}>
+        <SheetTitle>New task</SheetTitle>
+        <SheetDescription>
+          Assign work to yourself or your team.
+        </SheetDescription>
+        <Input
+          label="Title"
+          value={title}
+          onChangeText={setTitle}
+          placeholder="e.g. Order replacement mats"
+        />
+        <Input
+          label="Description (optional)"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="What needs to happen?"
+        />
+        <CalendarTimePicker
+          value={deadline}
+          onChange={(d) => setDeadline(d)}
+          minimumDate={new Date()}
+        />
+        {error ? (
+          <Alert
+            type="error"
+            message={error}
+            onDismiss={() => setError(null)}
+          />
+        ) : null}
+        <Button
+          loading={creating}
+          onPress={createTask}
+          disabled={!title.trim()}
+        >
+          Create task
+        </Button>
+      </Sheet>
     </AppScreen>
   );
 }

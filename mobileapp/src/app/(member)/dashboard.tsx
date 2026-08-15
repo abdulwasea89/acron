@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, RefreshControl, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Text } from "heroui-native";
 import { router } from "expo-router";
 
@@ -48,10 +48,12 @@ function upcoming(sessions: ClassSessionOut[]): ClassSessionOut[] {
 export default function Screen_dashboard() {
   const activeOrg = useOrgStore((s) => s.activeOrg);
 
-  const me = useGet<MeResponse>("/auth/me");
-  const profile = useGet<ProfileOut>("/auth/me/profile");
-  const org = useGet<OrganizationOut>("/organizations/me");
-  const classes = useGet<ClassSessionOut[]>("/classes");
+  const realtime = ["membership.changed", "payment.recorded", "plan.changed", "class.changed", "gym_status.changed"];
+
+  const me = useGet<MeResponse>("/auth/me", realtime);
+  const profile = useGet<ProfileOut>("/auth/me/profile", realtime);
+  const org = useGet<OrganizationOut>("/organizations/me", realtime);
+  const classes = useGet<ClassSessionOut[]>("/classes", ["class.changed"]);
 
   const loading = me.loading || profile.loading || org.loading || classes.loading;
   const error = me.error ?? profile.error ?? org.error ?? classes.error;
@@ -76,7 +78,6 @@ export default function Screen_dashboard() {
     <AppScreen
       title={`${greeting()}, ${greetingName}`}
       subtitle={orgName || activeOrg?.org_code || "Your gym"}
-      refreshControl={<RefreshControl refreshing={me.loading} onRefresh={refresh} />}
     >
       {loading ? (
         <DashboardSkeleton />

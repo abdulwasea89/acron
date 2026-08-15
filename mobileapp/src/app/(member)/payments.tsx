@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { RefreshControl, View } from "react-native";
+import { View } from "react-native";
 import { Text } from "heroui-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -53,8 +53,8 @@ function methodIcon(method: string): { ios: IconName; android: AndroidSymbol } {
 }
 
 export default function Screen_payments() {
-  const org = useGet<OrganizationOut>("/organizations/me");
-  const payments = useGet<PaymentOut[]>("/payments/my");
+  const org = useGet<OrganizationOut>("/organizations/me", ["payment.recorded", "membership.changed"]);
+  const payments = useGet<PaymentOut[]>("/payments/my", ["payment.recorded"]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const currency = org.data?.currency || "USD";
@@ -76,9 +76,6 @@ export default function Screen_payments() {
     <AppScreen
       title="Payments"
       subtitle="Your payment history"
-      refreshControl={
-        <RefreshControl refreshing={payments.loading && !payments.data} onRefresh={() => { payments.refetch(); org.refetch(); }} />
-      }
     >
       {payments.loading && !payments.data ? (
         <DashboardSkeleton />

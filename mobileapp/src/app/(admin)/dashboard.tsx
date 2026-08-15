@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshControl, View } from "react-native";
+import { View } from "react-native";
 import { Text } from "heroui-native";
 import { router } from "expo-router";
 
@@ -42,12 +42,14 @@ const CHECKLIST_ITEMS: {
 export default function Screen_dashboard() {
   const activeOrg = useOrgStore((s) => s.activeOrg);
 
-  const profile = useGet<ProfileOut>("/auth/me/profile");
-  const org = useGet<OrganizationOut>("/organizations/me");
-  const headline = useGet<HeadlineMetrics>("/analytics/headline");
-  const checklist = useGet<SetupChecklist>("/organizations/me/checklist");
-  const approvals = useGet<MemberDirectoryItem[]>("/members/approval-queue");
-  const receipts = useGet<ReceiptReviewItem[]>("/receipts/review-queue");
+  const realtime = ["payment.recorded", "plan.changed", "membership.changed", "task.changed", "gym_status.changed", "receipt.processed", "class.changed"];
+
+  const profile = useGet<ProfileOut>("/auth/me/profile", realtime);
+  const org = useGet<OrganizationOut>("/organizations/me", realtime);
+  const headline = useGet<HeadlineMetrics>("/analytics/headline", realtime);
+  const checklist = useGet<SetupChecklist>("/organizations/me/checklist", realtime);
+  const approvals = useGet<MemberDirectoryItem[]>("/members/approval-queue", ["membership.changed"]);
+  const receipts = useGet<ReceiptReviewItem[]>("/receipts/review-queue", ["receipt.processed"]);
 
   const loading = profile.loading || headline.loading || checklist.loading;
   const error = profile.error ?? headline.error ?? checklist.error;
@@ -78,8 +80,6 @@ export default function Screen_dashboard() {
       title={`${greeting()}, ${firstName(profile.data?.full_name)}`}
       subtitle={orgName || activeOrg?.org_code || "Your gym"}
       headerVariant="dashboard"
-      organizationLogoUrl={org.data?.logo_url}
-      refreshControl={<RefreshControl refreshing={checklist.loading} onRefresh={refresh} />}
     >
       {loading ? (
         <DashboardSkeleton />

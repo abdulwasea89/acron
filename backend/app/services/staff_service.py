@@ -305,6 +305,8 @@ async def create_task(
                 body=data.description or data.title,
                 data={"task_id": task.id, "title": data.title},
             )
+    from app.realtime import events
+    await events.task_changed(org_id, task_id=task.id, action="created")
     return task
 
 
@@ -322,6 +324,8 @@ async def complete_task(session: AsyncSession, *, org_id: str, task_id: str) -> 
         raise HTTPException(status_code=404, detail="Task not found.")
     task.done = True
     session.add(task)
+    from app.realtime import events
+    await events.task_changed(org_id, task_id=task.id, action="completed")
     return task
 
 
@@ -340,6 +344,8 @@ async def update_task(session: AsyncSession, *, org_id: str, task_id: str, data:
     session.add(task)
     await record_audit(session, action="task.updated", organization_id=org_id,
                        entity_type="task", entity_id=task.id, new_values=data.model_dump(exclude_none=True))
+    from app.realtime import events
+    await events.task_changed(org_id, task_id=task.id, action="updated")
     return task
 
 
@@ -350,3 +356,5 @@ async def delete_task(session: AsyncSession, *, org_id: str, task_id: str) -> No
     await session.delete(task)
     await record_audit(session, action="task.deleted", organization_id=org_id,
                        entity_type="task", entity_id=task_id)
+    from app.realtime import events
+    await events.task_changed(org_id, task_id=task_id, action="deleted")

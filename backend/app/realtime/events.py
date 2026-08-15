@@ -43,6 +43,14 @@ async def sessions_changed(org_id: str) -> None:
     await publish(org_id, "sessions.changed")
 
 
+async def task_changed(org_id: str, *, task_id: str, action: str) -> None:
+    await publish(org_id, "task.changed", {"task_id": task_id, "action": action})
+
+
+async def membership_changed(org_id: str, *, member_id: str, status: str | None = None) -> None:
+    await publish(org_id, "membership.changed", {"member_id": member_id, "status": status})
+
+
 async def notification_created(org_id: str, *, user_id: str, notification_id: str) -> None:
     """Per-recipient alert: only ``user_id``'s sockets get it."""
 
