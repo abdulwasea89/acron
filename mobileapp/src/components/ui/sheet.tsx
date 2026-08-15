@@ -5,6 +5,13 @@ interface SheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
+  /**
+   * Let the sheet's pan gesture share vertical drags with nested scrollables.
+   * Default `true` (dragging on content drags the sheet). Pass `false` when a
+   * child needs to own vertical scrolling (e.g. inline wheel pickers), so the
+   * sheet no longer competes for the gesture.
+   */
+  enableContentPanningGesture?: boolean;
 }
 
 /*
@@ -22,7 +29,12 @@ interface SheetProps {
   - Safe-area floor comes from the library's `pb-safe-offset-3` base; don't
     override bottom padding here.
 */
-export function Sheet({ isOpen, onOpenChange, children }: SheetProps) {
+export function Sheet({
+  isOpen,
+  onOpenChange,
+  children,
+  enableContentPanningGesture,
+}: SheetProps) {
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
@@ -31,6 +43,7 @@ export function Sheet({ isOpen, onOpenChange, children }: SheetProps) {
           keyboardBehavior="interactive"
           keyboardBlurBehavior="restore"
           android_keyboardInputMode="resize"
+          enableContentPanningGesture={enableContentPanningGesture}
           handleIndicatorClassName="h-[5px] w-9 rounded-full bg-separator"
           contentContainerClassName="gap-4 px-6"
         >

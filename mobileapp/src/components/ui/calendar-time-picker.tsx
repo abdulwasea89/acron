@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { useColorScheme, View } from "react-native";
+import { StyleSheet, useColorScheme, View, Text } from "react-native";
 import WheelPicker, {
   DatePicker,
 } from "@quidone/react-native-wheel-picker";
-import { Text, Label } from "heroui-native";
 
 import { getPalette } from "@/lib/theme";
 
@@ -23,9 +22,9 @@ interface CalendarTimePickerProps {
  *     (30/31/28/29) and blocking dates before `minimumDate`.
  *   - Hour / Minute / AM-PM wheels set the time of day.
  *
- * The selected row is highlighted in gray and nearby rows fade out, matching
- * a native wheel. The resolved value is always a full `Date` carrying the
- * chosen day and time.
+ * The selected row is highlighted in neutral gray, nearby rows fade, and the
+ * whole box gets a light hairline border. Colors come straight from the theme
+ * palette so they never fall back to black/blue.
  */
 export function CalendarTimePicker({
   value,
@@ -78,65 +77,81 @@ export function CalendarTimePicker({
     [],
   );
 
+  const itemHeight = 42;
   const wheelTextStyle = { color: palette.foreground, fontSize: 18 };
+  // Neutral highlight — never blue, unlike the theme's surface-secondary.
   const overlayStyle = {
-    backgroundColor: palette.surfaceSecondary,
-    borderRadius: 12,
+    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)",
   };
+  const boxStyle = {
+    borderColor: palette.border,
+    borderWidth: 1,
+    borderRadius: 14,
+  };
+  const captionStyle = { color: palette.muted, fontSize: 12 };
 
   return (
     <View>
-      <Label>Deadline</Label>
+      <Text style={[styles.label, { color: palette.foreground }]}>Deadline</Text>
 
-      <View className="mt-1.5 flex-row items-center justify-between rounded-xl bg-surface-secondary px-4 py-3">
-        <Text type="body" weight="semibold" className="text-foreground">
+      <View
+        style={[
+          styles.summary,
+          boxStyle,
+          { backgroundColor: palette.surface },
+        ]}
+      >
+        <Text style={[styles.summaryText, { color: palette.foreground }]}>
           {formatDeadline(parseDate(dateStr), hour, minute, ampm)}
         </Text>
       </View>
 
-      <View className="mt-3 rounded-2xl bg-surface py-3">
+      <View style={[styles.box, boxStyle, { backgroundColor: palette.surface }]}>
         <DatePicker
           date={dateStr}
           minDate={minDateStr}
           onDateChanged={onDateChanged}
           locale="en"
-          itemHeight={40}
+          itemHeight={itemHeight}
           visibleItemCount={5}
           itemTextStyle={wheelTextStyle}
           overlayItemStyle={overlayStyle}
         />
       </View>
 
-      <View className="mt-3 rounded-2xl bg-surface py-3">
-        <View className="flex-row justify-center">
+      <View style={[styles.box, boxStyle, { backgroundColor: palette.surface }]}>
+        <View style={styles.timeRow}>
           <TimeWheel
             data={hours}
             value={hour}
             onChange={onHourChanged}
             label="Hour"
-            width={80}
+            width={76}
             palette={palette}
+            overlayStyle={overlayStyle}
           />
           <TimeWheel
             data={minutes}
             value={minute}
             onChange={onMinuteChanged}
             label="Minute"
-            width={80}
+            width={76}
             palette={palette}
+            overlayStyle={overlayStyle}
           />
           <TimeWheel
             data={ampms}
             value={ampm}
             onChange={onAmpmChanged}
             label="Period"
-            width={80}
+            width={76}
             palette={palette}
+            overlayStyle={overlayStyle}
           />
         </View>
       </View>
 
-      <Text type="body-sm" className="mt-2 text-center text-muted">
+      <Text style={[styles.caption, captionStyle]}>
         Scroll to choose. Past dates are blocked.
       </Text>
     </View>
@@ -150,6 +165,7 @@ function TimeWheel<T extends string | number>({
   label,
   width,
   palette,
+  overlayStyle,
 }: {
   data: { value: T }[];
   value: T;
@@ -157,29 +173,64 @@ function TimeWheel<T extends string | number>({
   label: string;
   width: number;
   palette: ReturnType<typeof getPalette>;
+  overlayStyle: { backgroundColor: string };
 }) {
   return (
-    <View className="items-center">
+    <View style={styles.timeColumn}>
       <WheelPicker
         data={data}
         value={value}
         width={width}
-        itemHeight={40}
+        itemHeight={42}
         visibleItemCount={5}
         enableScrollByTapOnItem
         onValueChanged={onChange as never}
         itemTextStyle={{ color: palette.foreground, fontSize: 18 }}
-        overlayItemStyle={{
-          backgroundColor: palette.surfaceSecondary,
-          borderRadius: 12,
-        }}
+        overlayItemStyle={overlayStyle}
       />
-      <Text type="body-xs" className="text-muted">
-        {label}
-      </Text>
+      <Text style={[styles.caption, { color: palette.muted }]}>{label}</Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  summary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  summaryText: {
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  box: {
+    borderRadius: 14,
+    overflow: "hidden",
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  timeRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  timeColumn: {
+    alignItems: "center",
+  },
+  caption: {
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 2,
+  },
+});
 
 /** Format a `Date` as `YYYY-MM-DD` (the DatePicker contract). */
 function formatDate(d: Date): string {

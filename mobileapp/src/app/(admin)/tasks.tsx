@@ -333,7 +333,11 @@ export default function Screen_tasks() {
         </Button>
       </Sheet>
 
-      <Sheet isOpen={deadlineSheetOpen} onOpenChange={setDeadlineSheetOpen}>
+      <Sheet
+        isOpen={deadlineSheetOpen}
+        onOpenChange={setDeadlineSheetOpen}
+        enableContentPanningGesture={false}
+      >
         <SheetTitle>Set deadline</SheetTitle>
         <SheetDescription>
           Pick a date and time for this task.
