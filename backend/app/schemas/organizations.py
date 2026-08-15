@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core.constants import EnrollmentMode, GymStatus, SaasTier
+from app.schemas.auth import NAME_RE
 
 
 class GymDetails(BaseModel):
@@ -82,6 +83,20 @@ class ConnectOnboardingOut(BaseModel):
 
 class OrgCodeRotateOut(BaseModel):
     org_code: str
+
+
+class OrgNameUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Gym name is too short")
+        if not NAME_RE.match(v):
+            raise ValueError("Gym name may only contain letters, spaces, . ' and -")
+        return v
 
 
 class BulkImportResult(BaseModel):

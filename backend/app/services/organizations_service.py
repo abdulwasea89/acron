@@ -296,6 +296,15 @@ async def update_enrollment_mode(session: AsyncSession, org: Organization, mode)
     session.add(org)
 
 
+async def update_org_name(session: AsyncSession, org: Organization, name: str, *, actor_id: str) -> None:
+    old_name = org.name
+    org.name = name
+    session.add(org)
+    await record_audit(session, action="org.renamed", organization_id=org.id, actor_user_id=actor_id,
+                       entity_type="organization", entity_id=org.id,
+                       old_values={"name": old_name}, new_values={"name": name})
+
+
 async def update_gym_status(session: AsyncSession, org: Organization, gym_status) -> None:
     org.gym_status = gym_status
     session.add(org)

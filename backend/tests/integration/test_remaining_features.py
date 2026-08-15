@@ -198,6 +198,26 @@ async def test_org_code_rotation_changes_code(client):
     assert r.json()["org_code"] == new_code
 
 
+# -------------------------------------------------------------- gym rename
+@pytest.mark.asyncio
+async def test_org_name_update_and_validation(client):
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+
+    r = await client.patch("/api/v1/organizations/me/name", headers=headers,
+                           json={"name": "Iron Pulse Boxing West"})
+    assert r.status_code == 200, r.text
+
+    r = await client.get("/api/v1/organizations/me", headers=headers)
+    assert r.json()["name"] == "Iron Pulse Boxing West"
+
+    # Empty / non-name input is rejected.
+    r = await client.patch("/api/v1/organizations/me/name", headers=headers, json={"name": "  "})
+    assert r.status_code == 422, r.text
+
+    r = await client.patch("/api/v1/organizations/me/name", headers=headers, json={"name": "Iron 123"})
+    assert r.status_code == 422, r.text
+
+
 # -------------------------------------------------------------- CSV import
 @pytest.mark.asyncio
 async def test_bulk_import_csv(client):

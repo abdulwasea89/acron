@@ -17,6 +17,7 @@ from app.schemas.organizations import (
     EnrollmentModeUpdate,
     GymStatusUpdate,
     OrgCodeRotateOut,
+    OrgNameUpdate,
     OrganizationOut,
     RegisterGymRequest,
     RegisterGymResponse,
@@ -111,6 +112,19 @@ async def set_enrollment(
 ):
     await orgs.update_enrollment_mode(session, org, data.enrollment_mode)
     return Message(message="Enrollment mode updated.")
+
+
+@router.patch("/me/name", response_model=Message)
+async def set_org_name(
+    data: OrgNameUpdate,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_SETTINGS)),
+    org: Organization = Depends(get_org),
+    session: AsyncSession = Depends(get_session),
+):
+    """Rename the gym (owner/manager, Section 4.4)."""
+
+    await orgs.update_org_name(session, org, data.name, actor_id=ctx.user_id)
+    return Message(message="Gym name updated.")
 
 
 @router.patch("/me/gym-status", response_model=Message)
