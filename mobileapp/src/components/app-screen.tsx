@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, View, ScrollView } from "react-native";
+import { Image, Pressable, View, ScrollView } from "react-native";
 import type { RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "heroui-native";
@@ -22,6 +22,8 @@ interface AppScreenProps {
   showBackButton?: boolean;
   /** Dashboard headers separate the page title from utility actions. */
   headerVariant?: "default" | "dashboard";
+  /** Optional organization mark used by the dashboard identity header. */
+  organizationLogoUrl?: string | null;
   /** Fixed footer pinned to the bottom of the scroll content. */
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -42,6 +44,7 @@ export function AppScreen({
   showNotifications = true,
   showBackButton = false,
   headerVariant = "default",
+  organizationLogoUrl,
   footer,
   children,
   noBottomInset,
@@ -69,11 +72,7 @@ export function AppScreen({
           (headerVariant === "dashboard" ? (
             <View className="mb-7">
               <View className="mb-5 flex-row items-center justify-between">
-                <View className="flex-1 pr-4">
-                  <Text type="body" weight="semibold" className="text-foreground" numberOfLines={1} style={{ fontSize: 16, lineHeight: 21 }}>
-                    {subtitle || "Dashboard"}
-                  </Text>
-                </View>
+                <OrganizationIdentity name={subtitle || "Your gym"} logoUrl={organizationLogoUrl} />
                 {(showNotifications || headerRight) && (
                   <View className="flex-row items-center gap-2">
                     {showNotifications ? <NotificationBell /> : null}
@@ -119,6 +118,40 @@ export function AppScreen({
 
         {footer && <View className="mt-auto pt-6">{footer}</View>}
       </ScrollView>
+    </View>
+  );
+}
+
+function OrganizationIdentity({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  const cleanName = name.trim() || "Your gym";
+  const displayName = cleanName === cleanName.toLowerCase()
+    ? `${cleanName.charAt(0).toUpperCase()}${cleanName.slice(1)}`
+    : cleanName;
+  const initial = displayName.charAt(0).toUpperCase();
+
+  return (
+    <View className="min-w-0 flex-1 flex-row items-center gap-3 pr-4">
+      <View
+        className="h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border"
+        style={{ backgroundColor: "#0e2543", borderColor: "#315d97" }}
+      >
+        {logoUrl ? (
+          <Image source={{ uri: logoUrl }} className="h-10 w-10" resizeMode="cover" />
+        ) : (
+          <Text style={{ color: "#93c5fd", fontFamily: "Saira", fontSize: 18, letterSpacing: 0.5 }}>
+            {initial}
+          </Text>
+        )}
+      </View>
+      <Text
+        type="body"
+        weight="semibold"
+        className="flex-1 text-foreground"
+        numberOfLines={1}
+        style={{ fontSize: 17, lineHeight: 22, letterSpacing: -0.2 }}
+      >
+        {displayName}
+      </Text>
     </View>
   );
 }

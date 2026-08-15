@@ -78,6 +78,7 @@ export default function Screen_dashboard() {
       title={`${greeting()}, ${firstName(profile.data?.full_name)}`}
       subtitle={orgName || activeOrg?.org_code || "Your gym"}
       headerVariant="dashboard"
+      organizationLogoUrl={org.data?.logo_url}
       refreshControl={<RefreshControl refreshing={checklist.loading} onRefresh={refresh} />}
     >
       {loading ? (
