@@ -19,14 +19,16 @@ import { useNotificationStore } from "@/stores/notification-store";
  */
 export function NotificationBell() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
-  const accent = getPalette(useColorScheme() === "dark").accent;
+  const isDark = useColorScheme() === "dark";
+  const palette = getPalette(isDark);
+  const bellColor = isDark ? (unreadCount > 0 ? "#93c5fd" : "#60a5fa") : palette.accent;
 
   return (
     <View className="relative">
       <Pressable
         onPress={() => router.push("/notifications")}
         accessibilityRole="button"
-        accessibilityLabel="Notifications"
+        accessibilityLabel={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
         hitSlop={6}
         style={({ pressed }) => [
           {
@@ -35,16 +37,18 @@ export function NotificationBell() {
             alignItems: "center",
             justifyContent: "center",
             borderRadius: 9999,
-            backgroundColor: "transparent",
+            backgroundColor: palette.surfaceSecondary,
+            borderWidth: 1,
+            borderColor: palette.border,
             opacity: pressed ? 0.6 : 1,
           },
         ]}
       >
-        <Icon name="bell.fill" android="bell_fill" size={20} color={accent} />
+        <Icon name="bell.fill" android="bell_fill" size={20} color={bellColor} />
       </Pressable>
 
       {unreadCount > 0 ? (
-        <View className="absolute -right-0.5 -top-0.5 min-w-[18px] items-center justify-center rounded-full bg-danger px-1 py-0.5">
+        <View className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-danger px-1 py-0.5">
           <Text className="text-[10px] font-bold leading-none text-white">
             {unreadCount > 99 ? "99+" : unreadCount}
           </Text>

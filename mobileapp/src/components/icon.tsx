@@ -3,7 +3,9 @@ import { SymbolView } from "expo-symbols";
 import type { SFSymbol } from "expo-symbols";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import type { ColorValue } from "react-native";
+import { useColorScheme, type ColorValue } from "react-native";
+
+import { getPalette, type Palette } from "@/lib/theme";
 
 export type IconName = SFSymbol;
 
@@ -64,21 +66,47 @@ interface IconProps {
 }
 
 /**
+ * `SymbolView` and the Android Material fallback do not inherit CSS
+ * `currentColor`. Resolve the semantic utility ourselves so native icons have
+ * the same contrast as text on every screen.
+ */
+function semanticIconColor(className: string | undefined, palette: Palette): string {
+  const classes = className ?? "";
+
+  if (classes.includes("text-accent-foreground") || classes.includes("text-white")) return "#ffffff";
+  if (classes.includes("text-danger")) return palette.danger;
+  if (classes.includes("text-warning")) return palette.warning;
+  if (classes.includes("text-success")) return palette.success;
+  if (classes.includes("text-accent")) return palette.accent;
+  if (classes.includes("text-muted")) return palette.muted;
+
+  return palette.foreground;
+}
+
+/**
  * Cross-platform icon. Renders the iOS SF Symbol (`name`) on iOS and the
  * matching Material icon (via `android`) on Android/web using `SymbolView`'s
  * fallback.
  */
 export function Icon({ name, android, size = 24, color, weight = "regular", className }: IconProps) {
+  const isDark = useColorScheme() === "dark";
+  const palette = getPalette(isDark);
+  const semanticColor = semanticIconColor(className, palette);
+  const resolvedColor =
+    typeof color === "string" && (color === "currentColor" || color.startsWith("text-"))
+      ? semanticIconColor(color === "currentColor" ? className : color, palette)
+      : color ?? semanticColor;
+
   return (
     <SymbolView
       name={name}
       size={size}
       weight={weight}
-      tintColor={color}
+      tintColor={resolvedColor}
       className={className}
       fallback={
         android ? (
-          <MaterialIcons name={MATERIAL_FALLBACK[android] ?? "error"} size={size} color={color} />
+          <MaterialIcons name={MATERIAL_FALLBACK[android] ?? "error"} size={size} color={resolvedColor} />
         ) : null
       }
     />

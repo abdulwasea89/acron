@@ -1,11 +1,13 @@
 import React from "react";
-import { View, ScrollView } from "react-native";
+import { Pressable, View, ScrollView } from "react-native";
 import type { RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "heroui-native";
+import { router } from "expo-router";
 
 import { useTabBarInset } from "@/components/tab-bar";
 import { NotificationBell } from "@/components/notification-bell";
+import { Icon } from "@/components/icon";
 
 interface AppScreenProps {
   /** Bold screen title. */
@@ -16,6 +18,10 @@ interface AppScreenProps {
   headerRight?: React.ReactNode;
   /** Hide the notifications bell (e.g. on the notifications screen itself). */
   showNotifications?: boolean;
+  /** Adds a visible in-app back affordance for stack screens. */
+  showBackButton?: boolean;
+  /** Dashboard headers separate the page title from utility actions. */
+  headerVariant?: "default" | "dashboard";
   /** Fixed footer pinned to the bottom of the scroll content. */
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -34,6 +40,8 @@ export function AppScreen({
   subtitle,
   headerRight,
   showNotifications = true,
+  showBackButton = false,
+  headerVariant = "default",
   footer,
   children,
   noBottomInset,
@@ -57,33 +65,75 @@ export function AppScreen({
         showsVerticalScrollIndicator={false}
         refreshControl={refreshControl}
       >
-        {(title || headerRight || showNotifications) && (
-          <View className="mb-4 flex-row items-start justify-between gap-3">
-            <View className="flex-1">
-              {title && (
-                <Text type="h2" className="text-foreground tracking-tight">
+        {(title || headerRight || showNotifications || showBackButton) &&
+          (headerVariant === "dashboard" ? (
+            <View className="mb-7">
+              <View className="mb-5 flex-row items-center justify-between">
+                <View className="flex-1 pr-4">
+                  <Text type="body" weight="semibold" className="text-foreground" numberOfLines={1} style={{ fontSize: 16, lineHeight: 21 }}>
+                    {subtitle || "Dashboard"}
+                  </Text>
+                </View>
+                {(showNotifications || headerRight) && (
+                  <View className="flex-row items-center gap-2">
+                    {showNotifications ? <NotificationBell /> : null}
+                    {headerRight}
+                  </View>
+                )}
+              </View>
+              {title ? (
+                <Text
+                  type="h1"
+                  className="text-foreground tracking-tight"
+                  style={{ fontSize: 30, lineHeight: 37, letterSpacing: -0.8 }}
+                >
                   {title}
                 </Text>
-              )}
-              {subtitle && (
-                <Text type="body-sm" color="muted" className="mt-1">
-                  {subtitle}
-                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <View className="mb-5 flex-row items-center gap-3">
+              {showBackButton ? <HeaderBackButton /> : null}
+              <View className="flex-1">
+                {title && (
+                  <Text type="h2" className="text-foreground tracking-tight">
+                    {title}
+                  </Text>
+                )}
+                {subtitle && (
+                  <Text type="body-sm" color="muted" className="mt-1">
+                    {subtitle}
+                  </Text>
+                )}
+              </View>
+              {(showNotifications || headerRight) && (
+                <View className="flex-row items-center gap-2">
+                  {showNotifications ? <NotificationBell /> : null}
+                  {headerRight}
+                </View>
               )}
             </View>
-            {(showNotifications || headerRight) && (
-              <View className="flex-row items-center gap-2 pt-1">
-                {showNotifications ? <NotificationBell /> : null}
-                {headerRight}
-              </View>
-            )}
-          </View>
-        )}
+          ))}
 
         {children}
 
         {footer && <View className="mt-auto pt-6">{footer}</View>}
       </ScrollView>
     </View>
+  );
+}
+
+function HeaderBackButton() {
+  return (
+    <Pressable
+      onPress={() => router.back()}
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+      hitSlop={8}
+      className="h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface-secondary"
+      style={({ pressed }) => ({ opacity: pressed ? 0.62 : 1 })}
+    >
+      <Icon name="chevron.left" android="chevron_left" size={20} className="text-foreground" weight="semibold" />
+    </Pressable>
   );
 }

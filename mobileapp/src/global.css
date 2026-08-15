@@ -31,8 +31,26 @@
     }
 
     @variant dark {
-      --info: oklch(0.7137 0.1434 254.624); /* #60a5fa */
-      --info-foreground: oklch(0.1448 0 0);
+      --info: oklch(0.707 0.165 254.624); /* #60a5fa */
+      --info-foreground: oklch(0.145 0.02 250);
+
+      /* Gym operations palette: deep charcoal surfaces with blue/green signals. */
+      --background: oklch(0 0 0); /* #000000 */
+      --foreground: oklch(0.965 0.015 250); /* #f1f5f9 */
+      --surface: oklch(0.20 0.012 260); /* #202226 */
+      --surface-foreground: var(--foreground);
+      --surface-secondary: oklch(0.25 0.015 260); /* #2b2e34 */
+      --surface-secondary-foreground: var(--foreground);
+      --surface-tertiary: oklch(0.32 0.018 260); /* #3a3e46 */
+      --surface-tertiary-foreground: var(--foreground);
+      --muted: oklch(0.68 0.035 250); /* #94a3b8 */
+      --border: oklch(0.36 0.02 260); /* #4b505a */
+      --separator: oklch(0.47 0.02 260); /* #656b76 */
+      --accent: oklch(0.62 0.19 255); /* #3b82f6 */
+      --accent-foreground: oklch(0.98 0.01 250);
+      --success: oklch(0.72 0.19 145); /* #22c55e */
+      --warning: oklch(0.75 0.16 75); /* #f59e0b */
+      --danger: oklch(0.64 0.22 25); /* #ef4444 */
     }
   }
 }

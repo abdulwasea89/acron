@@ -17,15 +17,15 @@ import { useAuthStore, type UserRole } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
 import type { NotificationCategory, NotificationOut } from "@/types/api";
 
-const CATEGORY_META: Record<NotificationCategory, { icon: IconName; android: string; label: string }> = {
-  approval: { icon: "person.crop.circle.badge.questionmark", android: "query_stats", label: "Approval" },
-  receipt: { icon: "doc.text", android: "receipt_long", label: "Receipt" },
-  receipt_review: { icon: "doc.text.magnifyingglass", android: "receipt_long", label: "Receipt review" },
-  payment: { icon: "banknote", android: "payments", label: "Payment" },
-  task: { icon: "checklist", android: "task_alt", label: "Task" },
-  membership: { icon: "figure.strengthtraining.traditional", android: "fitness_center", label: "Membership" },
-  cash: { icon: "dollarsign.circle", android: "payments", label: "Cash" },
-  system: { icon: "bell", android: "bell", label: "System" },
+const CATEGORY_META: Record<NotificationCategory, { icon: IconName; android: string; label: string; color: string; tile: string }> = {
+  approval: { icon: "person.crop.circle.badge.questionmark", android: "query_stats", label: "Approval", color: "#fcd34d", tile: "#442d08" },
+  receipt: { icon: "doc.text", android: "receipt_long", label: "Receipt", color: "#a78bfa", tile: "#2d1c49" },
+  receipt_review: { icon: "doc.text.magnifyingglass", android: "receipt_long", label: "Receipt review", color: "#fcd34d", tile: "#442d08" },
+  payment: { icon: "banknote", android: "payments", label: "Payment", color: "#86efac", tile: "#103b28" },
+  task: { icon: "checklist", android: "task_alt", label: "Task", color: "#93c5fd", tile: "#0b315c" },
+  membership: { icon: "figure.strengthtraining.traditional", android: "fitness_center", label: "Membership", color: "#f9a8d4", tile: "#4a1d33" },
+  cash: { icon: "dollarsign.circle", android: "payments", label: "Cash", color: "#86efac", tile: "#103b28" },
+  system: { icon: "bell", android: "bell", label: "System", color: "#93c5fd", tile: "#0b315c" },
 };
 
 /** Route to deep-link from an alert, per recipient role. */
@@ -50,6 +50,7 @@ export default function Screen_notifications() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const list = notifications.data ?? [];
+  const unreadCount = list.filter((n) => !n.read).length;
 
   const refresh = useCallback(() => {
     notifications.refetch();
@@ -91,25 +92,19 @@ export default function Screen_notifications() {
 
   return (
     <AppScreen
-      title="Notifications"
-      subtitle={list.filter((n) => !n.read).length > 0 ? "You have unread alerts" : "You're all caught up"}
       showNotifications={false}
-      headerRight={
-        list.some((n) => !n.read) ? (
-          <Pressable onPress={markAllRead} hitSlop={8}>
-            <Text className="text-[13px] font-semibold text-accent">Mark all read</Text>
-          </Pressable>
-        ) : undefined
-      }
       refreshControl={<RefreshControl refreshing={notifications.loading} onRefresh={refresh} />}
     >
+      <NotificationsHeader unreadCount={unreadCount} onMarkAllRead={markAllRead} />
+
       {notifications.loading && !notifications.data ? (
         <DashboardSkeleton />
       ) : notifications.error ? (
         <DashboardError message={notifications.error} onRetry={refresh} />
       ) : list.length === 0 ? (
         <EmptyState
-          icon="bell"
+          tone="accent"
+          showIcon={false}
           title="No notifications yet"
           message="Payment updates, receipt verdicts and task assignments will land here."
         />
@@ -130,8 +125,8 @@ export default function Screen_notifications() {
                     unread ? "bg-surface" : "bg-surface-secondary"
                   }`}
                 >
-                  <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface-tertiary">
-                    <Icon name={meta.icon} android={meta.android} size={20} className="text-foreground" />
+                  <View className="h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: meta.tile }}>
+                    <Icon name={meta.icon} android={meta.android} size={20} color={meta.color} />
                   </View>
                   <View className="flex-1">
                     <View className="flex-row items-center gap-2">
@@ -170,12 +165,12 @@ export default function Screen_notifications() {
           {selected ? (
             <BottomSheet.Content className="gap-4 p-5 pb-8">
               <View className="items-start">
-                <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-surface-tertiary">
+                <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: (CATEGORY_META[selected.category] ?? CATEGORY_META.system).tile }}>
                   <Icon
                     name={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).icon}
                     android={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).android}
                     size={24}
-                    className="text-accent"
+                    color={(CATEGORY_META[selected.category] ?? CATEGORY_META.system).color}
                   />
                 </View>
                 <Text type="body-xs" className="mb-1 text-muted">
@@ -208,5 +203,42 @@ export default function Screen_notifications() {
         </BottomSheet.Portal>
       </BottomSheet>
     </AppScreen>
+  );
+}
+
+function NotificationsHeader({ unreadCount, onMarkAllRead }: { unreadCount: number; onMarkAllRead: () => void }) {
+  return (
+    <View className="mb-6">
+      <View className="relative h-11 items-center justify-center">
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={8}
+          className="absolute left-0 h-9 w-9 items-center justify-center rounded-full bg-surface-secondary"
+          style={({ pressed }) => ({ opacity: pressed ? 0.62 : 1 })}
+        >
+          <Icon name="chevron.left" android="chevron_left" size={20} color="#e2e8f0" weight="semibold" />
+        </Pressable>
+        <Text
+          type="h2"
+          weight="semibold"
+          className="text-foreground"
+          style={{ fontSize: 21, lineHeight: 26, letterSpacing: -0.25 }}
+        >
+          Notifications
+        </Text>
+      </View>
+
+      {unreadCount > 0 ? (
+        <View className="mt-2 flex-row justify-end px-1">
+          <Pressable onPress={onMarkAllRead} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.62 : 1 })}>
+            <Text type="body-sm" weight="semibold" className="text-accent">
+              Mark all read
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
   );
 }

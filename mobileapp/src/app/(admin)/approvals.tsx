@@ -18,7 +18,7 @@ import type { MemberDirectoryItem, ReceiptReviewItem } from "@/types/api";
 
 export default function Screen_approvals() {
   const queue = useGet<MemberDirectoryItem[]>("/members/approval-queue");
-  const receipts = useGet<ReceiptReviewItem[]>("/receipts/review-queue");
+  const receipts = useGet<ReceiptReviewItem[]>("/receipts/review-queue")  
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reasonFor, setReasonFor] = useState<MemberDirectoryItem | null>(null);
