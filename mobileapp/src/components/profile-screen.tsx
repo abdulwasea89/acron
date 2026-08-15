@@ -1,31 +1,34 @@
 import React, { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { Text } from "heroui-native";
 import { router } from "expo-router";
+import Animated, { ZoomIn, useReducedMotion } from "react-native-reanimated";
 
 import { AppScreen } from "@/components/app-screen";
+import { ProfileHero } from "@/components/profile-hero";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import { DashboardError } from "@/components/dashboard-states";
 import { SectionCard } from "@/components/section-card";
 import { ListRow } from "@/components/list-row";
-import { StatusChip, memberStatusTone, humanize } from "@/components/status-chip";
+import { Badge } from "@/components/ui/badge";
+import { StatusChip, humanize } from "@/components/status-chip";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { PressableScale } from "@/components/motion";
+import { Stagger } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
+import { Icon } from "@/components/icon";
 import { useGet } from "@/hooks/use-api";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { useOrgStore } from "@/stores/org-store";
-import { firstName } from "@/lib/format";
 import { nameSchema, phoneSchema } from "@/lib/validations";
-import type { MeResponse, OrganizationOut, ProfileOut, ProfileUpdateRequest } from "@/types/api";
+import type { MeResponse, MfaStatus, OrganizationOut, ProfileOut, ProfileUpdateRequest } from "@/types/api";
 
 /**
- * Shared in-app profile screen for all three roles. Shows identity + org
- * context, an editable contact form (PATCH /auth/me/profile) and sign out
- * (the one place the app lets you leave — admin by default for owners).
+ * Shared in-app profile screen for all three roles. Identity hero, grouped
+ * editable contact sections, your gym + security rows, and sign out (the one
+ * place the app lets you leave — admin by default for owners).
  */
 export function ProfileScreen() {
   const { user, clearSession } = useAuthStore();
@@ -40,6 +43,7 @@ export function ProfileScreen() {
   const me = useGet<MeResponse>("/auth/me", realtime);
   const profile = useGet<ProfileOut>("/auth/me/profile", realtime);
   const org = useGet<OrganizationOut>("/organizations/me", realtime);
+  const mfa = useGet<MfaStatus>("/auth/mfa");
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -59,6 +63,15 @@ export function ProfileScreen() {
     setEducation(profile.data?.education ?? "");
     setEmergency(profile.data?.emergency_contact ?? "");
   }
+
+  const pristine =
+    profile.data != null &&
+    fullName === (profile.data.full_name ?? "") &&
+    phone === (profile.data.phone ?? "") &&
+    city === (profile.data.city ?? "") &&
+    occupation === (profile.data.occupation ?? "") &&
+    education === (profile.data.education ?? "") &&
+    emergency === (profile.data.emergency_contact ?? "");
 
   const openSignOut = () => {
     setError(null);
@@ -108,125 +121,186 @@ export function ProfileScreen() {
 
   const loading = profile.loading;
   const loadFailed = !loading && (profile.error || me.error || org.error);
+  const reduceMotion = useReducedMotion();
+
+  const sections = profile.data && (
+    <>
+      <ProfileHero
+        name={fullName || user?.full_name}
+        email={profile.data.email}
+        role={user?.role}
+        memberStatus={me.data?.member_status}
+        photoUrl={profile.data.photo_url}
+      />
+
+      <SectionCard title="Personal details">
+        <View className="gap-3 rounded-2xl bg-surface p-4">
+          <Input
+            label="Full name"
+            value={fullName}
+            onChangeText={(t) => {
+              setFullName(t);
+              setFieldErrors((p) => ({ ...p, full_name: "" }));
+            }}
+            error={fieldErrors.full_name}
+          />
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <Input
+                label="Phone"
+                value={phone}
+                onChangeText={(t) => {
+                  setPhone(t);
+                  setFieldErrors((p) => ({ ...p, phone: "" }));
+                }}
+                keyboardType="phone-pad"
+                error={fieldErrors.phone}
+              />
+            </View>
+            <View className="flex-1">
+              <Input label="City" value={city} onChangeText={setCity} />
+            </View>
+          </View>
+        </View>
+      </SectionCard>
+
+      <SectionCard title="Work">
+        <View className="gap-3 rounded-2xl bg-surface p-4">
+          <Input label="Occupation" value={occupation} onChangeText={setOccupation} />
+          <Input label="Education" value={education} onChangeText={setEducation} />
+        </View>
+      </SectionCard>
+
+      <SectionCard title="Emergency contact">
+        <View className="rounded-2xl bg-surface p-4">
+          <Input label="Emergency contact" value={emergency} onChangeText={setEmergency} />
+        </View>
+      </SectionCard>
+
+      {error && (
+        <View className="mb-4">
+          <Alert type="error" message={error} onDismiss={() => setError(null)} />
+        </View>
+      )}
+
+      <Button onPress={handleSave} loading={saving} disabled={saving || pristine} className="w-full">
+        {saved ? (
+          <Animated.View
+            entering={ZoomIn.springify().damping(14).stiffness(200)}
+            className="flex-row items-center gap-1.5"
+          >
+            <Icon name="checkmark.circle.fill" android="check_circle" size={17} color="#ffffff" />
+            <Text className="text-white" style={{ fontWeight: "600" }}>
+              Saved
+            </Text>
+          </Animated.View>
+        ) : (
+          "Save changes"
+        )}
+      </Button>
+
+      {org.data && (
+        <SectionCard title="Your gym">
+          <View className="overflow-hidden rounded-2xl bg-surface">
+            <ListRow
+              title={org.data.name}
+              icon="building.2"
+              android="storefront"
+              trailing={<StatusChip status={org.data.saas_status} />}
+              divider
+            />
+            <ListRow title="Org code" subtitle={org.data.org_code} icon="number" android="lock" divider />
+            <ListRow
+              title="Enrollment"
+              subtitle={humanize(org.data.enrollment_mode ?? "open")}
+              icon="person.3"
+              android="group"
+              divider
+            />
+            <ListRow
+              title="Stripe"
+              subtitle={humanize(org.data.stripe_connect_status ?? "disconnected")}
+              icon="creditcard"
+              android="credit_card"
+              divider={false}
+            />
+          </View>
+        </SectionCard>
+      )}
+
+      <SectionCard title="Security">
+        <View className="overflow-hidden rounded-2xl bg-surface">
+          <ListRow
+            title="Password"
+            subtitle="Reset via email"
+            icon="lock"
+            android="lock"
+            chevron
+            onPress={() => router.navigate("/forgot-password")}
+            divider
+          />
+          <ListRow
+            title="Multi-factor authentication"
+            subtitle="Protect your account with an authenticator app"
+            icon="shield"
+            android="shield"
+            chevron
+            onPress={() => router.navigate("/mfa-enroll")}
+            divider={false}
+            trailing={
+              mfa.data ? (
+                <Badge tone={mfa.data.mfa_enabled ? "success" : "neutral"} label={mfa.data.mfa_enabled ? "On" : "Off"} />
+              ) : undefined
+            }
+          />
+        </View>
+      </SectionCard>
+
+      <SectionCard title="Session">
+        <View className="overflow-hidden rounded-2xl bg-surface">
+          <ListRow
+            title="Sign out"
+            icon="rectangle.portrait.and.arrow.right"
+            android="logout"
+            destructive
+            onPress={openSignOut}
+            divider={false}
+          />
+        </View>
+      </SectionCard>
+    </>
+  );
 
   return (
-    <AppScreen
-      title="Profile"
-      subtitle={user?.role ? humanize(user.role) : undefined}
-    >
+    <AppScreen title="Profile">
       {loading && !profile.data && <DashboardSkeleton />}
 
-      {loadFailed && <DashboardError message={profile.error ?? me.error ?? "Unable to load profile."} onRetry={() => { profile.refetch(); me.refetch(); org.refetch(); }} />}
+      {loadFailed && (
+        <DashboardError
+          message={profile.error ?? me.error ?? "Unable to load profile."}
+          onRetry={() => {
+            profile.refetch();
+            me.refetch();
+            org.refetch();
+          }}
+        />
+      )}
 
       {!loadFailed && profile.data && (
         <>
-          {/* Identity header */}
-          <PressableScale style={{ borderRadius: 20 }}>
-            <View className="mb-4 flex-row items-center gap-4 rounded-2xl bg-surface p-5 shadow-surface">
-              <View className="h-14 w-14 items-center justify-center rounded-full bg-accent">
-                <Text className="text-[22px] font-bold text-accent-foreground">
-                  {firstName(fullName || user?.full_name || "?", "")?.charAt(0).toUpperCase() || "G"}
-                </Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-[18px] font-bold text-foreground">{fullName || user?.email}</Text>
-                <Text className="text-[13px] text-muted">{profile.data.email}</Text>
-                {me.data?.member_status && (
-                  <View className="mt-1.5">
-                    <StatusChip status={me.data.member_status} tone={memberStatusTone(me.data.member_status)} />
-                  </View>
-                )}
-              </View>
-            </View>
-          </PressableScale>
+          {reduceMotion ? sections : <Stagger gap={64}>{sections}</Stagger>}
 
-          {/* Contact details */}
-          <SectionCard title="Contact details">
-            <View className="gap-4">
-              <Input label="Full name" value={fullName} onChangeText={(t) => { setFullName(t); setFieldErrors((p) => ({ ...p, full_name: "" })); }} error={fieldErrors.full_name} />
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Input label="Phone" value={phone} onChangeText={(t) => { setPhone(t); setFieldErrors((p) => ({ ...p, phone: "" })); }} keyboardType="phone-pad" error={fieldErrors.phone} />
-                </View>
-                <View className="flex-1">
-                  <Input label="City" value={city} onChangeText={setCity} />
-                </View>
-              </View>
-              <Input label="Occupation" value={occupation} onChangeText={setOccupation} />
-              <Input label="Education" value={education} onChangeText={setEducation} />
-              <Input label="Emergency contact" value={emergency} onChangeText={setEmergency} />
-            </View>
-
-            {error && (
-              <View className="mt-4">
-                <Alert type="error" message={error} onDismiss={() => setError(null)} />
-              </View>
-            )}
-            {saved && (
-              <View className="mt-4">
-                <Alert type="success" message="Profile saved." onDismiss={() => setSaved(false)} />
-              </View>
-            )}
-
-            <Pressable
-              onPress={handleSave}
-              disabled={saving}
-              className="mt-5 active:opacity-70"
-              android_ripple={{ color: "rgba(128,128,128,0.15)" }}
-            >
-              <Button loading={saving}>Save changes</Button>
-            </Pressable>
-          </SectionCard>
-
-          {/* Organization */}
-          {org.data && (
-            <SectionCard title="Your gym">
-              <View className="rounded-2xl bg-surface p-5 shadow-surface">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-[16px] font-bold text-foreground">{org.data.name}</Text>
-                  <StatusChip status={org.data.saas_status ?? undefined} />
-                </View>
-                {org.data.org_code && (
-                  <Text className="mt-1 font-mono text-[13px] text-muted">{org.data.org_code}</Text>
-                )}
-                <View className="mt-3 flex-row gap-2">
-                  <Text className="text-[12px] text-muted">
-                    {humanize(org.data.enrollment_mode ?? "open")} enrollment
-                  </Text>
-                  <Text className="text-[12px] text-muted">·</Text>
-                  <Text className="text-[12px] text-muted">
-                    Stripe {humanize(org.data.stripe_connect_status ?? "disconnected")}
-                  </Text>
-                </View>
-                <View className="mt-2 flex-row gap-2">
-                  <Text className="text-[12px] text-muted">{org.data.saas_tier} plan</Text>
-                  <Text className="text-[12px] text-muted">·</Text>
-                  <Text className="text-[12px] text-muted">
-                    {humanize(org.data.gym_status ?? "open")}
-                  </Text>
-                </View>
-              </View>
-            </SectionCard>
-          )}
-
-          {/* Session */}
-          <SectionCard title="Session">
-            <View className="overflow-hidden rounded-2xl bg-surface shadow-surface">
-              <ListRow title="Sign out" icon="rectangle.portrait.and.arrow.right" android="logout" destructive onPress={openSignOut} divider={false} />
-            </View>
-          </SectionCard>
+          <ConfirmDialog
+            open={signOutOpen}
+            title="Sign out"
+            description={`You'll need to sign back in to use ${activeOrg?.name ?? "this gym"}.`}
+            confirmLabel="Sign out"
+            destructive
+            onConfirm={handleSignOut}
+            onOpenChange={setSignOutOpen}
+          />
         </>
       )}
-
-      <ConfirmDialog
-        open={signOutOpen}
-        title="Sign out"
-        description={`You'll need to sign back in to use ${activeOrg?.name ?? "this gym"}.`}
-        confirmLabel="Sign out"
-        destructive
-        onConfirm={handleSignOut}
-        onOpenChange={setSignOutOpen}
-      />
     </AppScreen>
   );
 }
