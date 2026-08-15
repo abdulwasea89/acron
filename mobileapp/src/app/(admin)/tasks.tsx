@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, View } from "react-native";
-import { Text, Label } from "heroui-native";
+import { Pressable, Text, View, useColorScheme } from "react-native";
+import { getPalette } from "@/lib/theme";
 
 import { AppScreen } from "@/components/app-screen";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
@@ -38,29 +38,57 @@ function DeadlineButton({
   onPress: () => void;
   onClear: () => void;
 }) {
+  const isDark = useColorScheme() === "dark";
+  const palette = getPalette(isDark);
   return (
     <View>
-      <Label>Deadline</Label>
-      <Pressable onPress={onPress} className="mt-1.5" accessibilityRole="button">
+      <Text style={{ fontSize: 14, fontWeight: "600", color: palette.foreground }}>
+        Deadline
+      </Text>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        style={{ marginTop: 6 }}
+      >
         <View
-          className="h-12 flex-row items-center justify-between rounded-xl bg-field px-4"
-          style={{ borderWidth: 1, borderColor: "var(--color-border)" }}
+          style={{
+            height: 48,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderRadius: 12,
+            paddingHorizontal: 16,
+            borderWidth: 1,
+            borderColor: palette.border,
+            backgroundColor: isDark ? "#1b1d21" : "#f6f7f9",
+          }}
         >
-          <View className="flex-row items-center gap-2">
-            <Icon name="calendar" android="calendar_month" size={18} className="text-muted" />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Icon
+              name="calendar"
+              android="calendar_month"
+              size={18}
+              color={palette.muted}
+            />
             <Text
-              className="text-[15px]"
-              style={{ color: value ? "var(--color-foreground)" : "var(--color-muted)" }}
+              style={{
+                fontSize: 15,
+                color: value ? palette.foreground : palette.muted,
+              }}
             >
               {value ? formatDeadline(value) : "Set deadline"}
             </Text>
           </View>
           {value ? (
-            <Pressable onPress={onClear} hitSlop={10} accessibilityLabel="Clear deadline">
-              <Icon name="xmark.circle.fill" android="close" size={18} className="text-muted" />
+            <Pressable
+              onPress={onClear}
+              hitSlop={10}
+              accessibilityLabel="Clear deadline"
+            >
+              <Icon name="xmark.circle.fill" android="close" size={18} color={palette.muted} />
             </Pressable>
           ) : (
-            <Icon name="chevron.right" android="chevron_right" size={16} className="text-muted" />
+            <Icon name="chevron.right" android="chevron_right" size={16} color={palette.muted} />
           )}
         </View>
       </Pressable>
