@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, View } from "react-native";
-import { Text } from "heroui-native";
+import { Text, Label } from "heroui-native";
 
 import { AppScreen } from "@/components/app-screen";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
@@ -23,10 +23,56 @@ function hasTime(iso: string): boolean {
   return d.getHours() !== 0 || d.getMinutes() !== 0;
 }
 
+function formatDeadline(date: Date): string {
+  const day = date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${day} · ${time}`;
+}
+
+function DeadlineButton({
+  value,
+  onPress,
+  onClear,
+}: {
+  value: Date | null;
+  onPress: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <View>
+      <Label>Deadline</Label>
+      <Pressable onPress={onPress} className="mt-1.5" accessibilityRole="button">
+        <View
+          className="h-12 flex-row items-center justify-between rounded-xl bg-field px-4"
+          style={{ borderWidth: 1, borderColor: "var(--color-border)" }}
+        >
+          <View className="flex-row items-center gap-2">
+            <Icon name="calendar" android="calendar_month" size={18} className="text-muted" />
+            <Text
+              className="text-[15px]"
+              style={{ color: value ? "var(--color-foreground)" : "var(--color-muted)" }}
+            >
+              {value ? formatDeadline(value) : "Set deadline"}
+            </Text>
+          </View>
+          {value ? (
+            <Pressable onPress={onClear} hitSlop={10} accessibilityLabel="Clear deadline">
+              <Icon name="xmark.circle.fill" android="close" size={18} className="text-muted" />
+            </Pressable>
+          ) : (
+            <Icon name="chevron.right" android="chevron_right" size={16} className="text-muted" />
+          )}
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function Screen_tasks() {
   const tasks = useGet<TaskOut[]>("/staff/tasks", ["task.changed"]);
   const [filter, setFilter] = useState<"open" | "done">("open");
   const [createOpen, setCreateOpen] = useState(false);
+  const [deadlineSheetOpen, setDeadlineSheetOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState<Date | null>(null);
@@ -263,10 +309,13 @@ export default function Screen_tasks() {
           onChangeText={setDescription}
           placeholder="What needs to happen?"
         />
-        <CalendarTimePicker
+        <DeadlineButton
           value={deadline}
-          onChange={(d) => setDeadline(d)}
-          minimumDate={new Date()}
+          onPress={() => {
+            setError(null);
+            setDeadlineSheetOpen(true);
+          }}
+          onClear={() => setDeadline(null)}
         />
         {error ? (
           <Alert
@@ -281,6 +330,21 @@ export default function Screen_tasks() {
           disabled={!title.trim()}
         >
           Create task
+        </Button>
+      </Sheet>
+
+      <Sheet isOpen={deadlineSheetOpen} onOpenChange={setDeadlineSheetOpen}>
+        <SheetTitle>Set deadline</SheetTitle>
+        <SheetDescription>
+          Pick a date and time for this task.
+        </SheetDescription>
+        <CalendarTimePicker
+          value={deadline}
+          onChange={setDeadline}
+          minimumDate={new Date()}
+        />
+        <Button onPress={() => setDeadlineSheetOpen(false)}>
+          Done
         </Button>
       </Sheet>
     </AppScreen>
