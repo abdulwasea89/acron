@@ -2,7 +2,7 @@
 
 Multi-tenant SaaS for gym operations. One backend, one web portal, one mobile app,
 multiple roles: owner, manager, trainer, front desk, member. Each gym is an isolated
-organization identified by `organization_id`.
+organization identified by `organization_id`.    
 
 Full product specification: `requirements/Gym_Platform_Full_Plan.pdf`
 Engineering reference: `CLAUDE.md`
