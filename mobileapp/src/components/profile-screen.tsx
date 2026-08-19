@@ -48,6 +48,9 @@ export function ProfileScreen() {
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [pendingEnrollment, setPendingEnrollment] = useState<string | null>(null);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
+  const [savingEnrollment, setSavingEnrollment] = useState(false);
 
   const realtime = ["membership.changed", "gym_status.changed"];
 
@@ -157,14 +160,28 @@ export function ProfileScreen() {
     }
   };
 
-  const changeEnrollment = async (mode: string) => {
-    setEnrollOpen(false);
-    setError(null);
+  const openEnrollment = () => {
+    setPendingEnrollment(org.data?.enrollment_mode ?? "open");
+    setEnrollError(null);
+    setEnrollOpen(true);
+  };
+
+  const applyEnrollment = async () => {
+    const mode = pendingEnrollment ?? (org.data?.enrollment_mode ?? "open");
+    if (mode === (org.data?.enrollment_mode ?? "open")) {
+      setEnrollOpen(false);
+      return;
+    }
+    setEnrollError(null);
+    setSavingEnrollment(true);
     try {
       await api.patch("/organizations/me/enrollment", { enrollment_mode: mode });
       org.refetch();
+      setEnrollOpen(false);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not update enrollment.");
+      setEnrollError(e instanceof ApiError ? e.message : "Could not update enrollment.");
+    } finally {
+      setSavingEnrollment(false);
     }
   };
 
@@ -304,7 +321,7 @@ export function ProfileScreen() {
                 <OptionRow
                   label="Enrollment"
                   value={humanize(org.data.enrollment_mode ?? "open")}
-                  onPress={() => setEnrollOpen(true)}
+                  onPress={openEnrollment}
                 />
                 <OptionRow
                   label="Rotate join code"
@@ -410,24 +427,49 @@ export function ProfileScreen() {
               <Dialog.Overlay />
               <Dialog.Content>
                 <Dialog.Close variant="ghost" />
-                <View className="pt-1">
-                  <Dialog.Title className="mb-5">Enrollment mode</Dialog.Title>
+                <View className="gap-5">
+                  <View className="gap-1.5">
+                    <Dialog.Title>Enrollment mode</Dialog.Title>
+                    <Dialog.Description>
+                      Choose how new members can join your gym.
+                    </Dialog.Description>
+                  </View>
+
                   <View className="overflow-hidden rounded-2xl bg-surface">
                     {ENROLLMENT_OPTIONS.map((opt, i) => {
-                      const selected = opt.value === (org.data?.enrollment_mode ?? "open");
+                      const selected =
+                        opt.value ===
+                        (pendingEnrollment ?? (org.data?.enrollment_mode ?? "open"));
                       return (
                         <View key={opt.value}>
                           {i > 0 ? <View className="ml-4 h-px bg-border" /> : null}
-                          <OptionRow
+                          <EnrollmentOption
                             label={opt.label}
-                            value={opt.description}
+                            description={opt.description}
                             selected={selected}
-                            onPress={() => changeEnrollment(opt.value)}
+                            onPress={() => setPendingEnrollment(opt.value)}
                           />
                         </View>
                       );
                     })}
                   </View>
+
+                  {enrollError ? (
+                    <Alert type="error" message={enrollError} onDismiss={() => setEnrollError(null)} />
+                  ) : null}
+
+                  <Button
+                    onPress={applyEnrollment}
+                    loading={savingEnrollment}
+                    disabled={
+                      savingEnrollment ||
+                      (pendingEnrollment ?? (org.data?.enrollment_mode ?? "open")) ===
+                        (org.data?.enrollment_mode ?? "open")
+                    }
+                    className="w-full"
+                  >
+                    Done
+                  </Button>
                 </View>
               </Dialog.Content>
             </Dialog.Portal>
@@ -448,5 +490,56 @@ function ReadRow({ label, value }: { label: string; value: string }) {
         {value}
       </Text>
     </View>
+  );
+}
+
+function EnrollmentOption({
+  label,
+  description,
+  selected,
+  onPress,
+}: {
+  label: string;
+  description: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const isDark = useColorScheme() === "dark";
+  const p = getPalette(isDark);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${label}: ${description}`}
+      className="flex-row items-center px-4 py-3.5 active:opacity-60"
+      style={selected ? { backgroundColor: `${p.accent}0f` } : undefined}
+    >
+      <View className="flex-1 pr-3">
+        <Text
+          type="body"
+          weight="semibold"
+          style={{ color: selected ? p.accent : p.foreground }}
+        >
+          {label}
+        </Text>
+        <Text type="body-sm" color="muted" className="mt-0.5">
+          {description}
+        </Text>
+      </View>
+      <View
+        className="h-6 w-6 items-center justify-center rounded-full"
+        style={{
+          backgroundColor: selected ? p.accent : "transparent",
+          borderWidth: selected ? 0 : 1.5,
+          borderColor: p.separator,
+        }}
+      >
+        {selected ? (
+          <Icon name="checkmark" android="check" size={14} weight="bold" color="#ffffff" />
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
