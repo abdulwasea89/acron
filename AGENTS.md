@@ -678,7 +678,8 @@ pnpm deploy:prod      # Deploy to production
 ---
 
 > **Document Status:** Engineering Ready  
-> **Next Step:** Architecture review → Database migrations → Backend scaffolding → API contracts → Frontend implementation
+> **Next Step:** Architecture review → Database migrations → Backend scaffolding → API contracts → Frontend implementation  
+> **Last Updated:** `date +%Y-%m-%d`
 """
 
 with open('/mnt/agents/output/AGENTS.md', 'w') as f:
