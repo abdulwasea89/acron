@@ -128,6 +128,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(admin)" />
                 <Stack.Screen name="gym-settings/rotate-code" options={{ animation: "slide_from_right" }} />
                 <Stack.Screen name="gym-settings/stripe" options={{ animation: "slide_from_right" }} />
+                <Stack.Screen name="gym-settings/revenue" options={{ animation: "slide_from_right" }} />
                 <Stack.Screen name="notifications" options={{ animation: "slide_from_right" }} />
               </Stack>
             </BlurTargetProvider>

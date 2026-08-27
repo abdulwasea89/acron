@@ -161,6 +161,37 @@ export default function Screen_dashboard() {
           ) : null}
 
           <SectionCard
+            title="Revenue"
+            action={
+              <PressableScale onPress={() => router.navigate("/gym-settings/revenue")} hitSlop={8}>
+                <Text type="body-sm" className="text-accent">Breakdown</Text>
+              </PressableScale>
+            }
+          >
+            <PressableScale onPress={() => router.navigate("/gym-settings/revenue")}>
+              <View className="flex-row items-center justify-between rounded-2xl bg-surface p-4">
+                <View className="flex-row items-center gap-3">
+                  <View
+                    className="h-10 w-10 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: "#0b315c" }}
+                  >
+                    <Icon name="banknote" android="payments" size={20} color="#93c5fd" />
+                  </View>
+                  <View>
+                    <Text type="body" weight="semibold" className="text-foreground">
+                      Revenue breakdown
+                    </Text>
+                    <Text type="body-sm" color="muted">
+                      By method and members
+                    </Text>
+                  </View>
+                </View>
+                <Icon name="chevron.right" android="chevron_right" size={18} className="text-muted" weight="semibold" />
+              </View>
+            </PressableScale>
+          </SectionCard>
+
+          <SectionCard
             title="Approval queue"
             action={
               <PressableScale onPress={() => router.navigate("/approvals")} hitSlop={8}>

@@ -49,6 +49,16 @@ export interface HeadlineMetrics {
   pending_approvals: number;
 }
 
+/** `GET /analytics/revenue` — owner/manager only (view_revenue_analytics). */
+export interface RevenueAnalytics {
+  total_revenue: number;
+  revenue_by_method: Record<string, number>;
+  member_count_by_status: Record<string, number>;
+  active_members: number;
+  churn_count: number;
+  currency: string;
+}
+
 export interface PlanOut {
   id: string;
   name: string;
