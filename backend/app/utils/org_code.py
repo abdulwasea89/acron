@@ -23,11 +23,14 @@ def _rand(n: int) -> str:
     return "".join(secrets.choice(_ALPHABET) for _ in range(n))
 
 
-def generate_org_code(name: str) -> str:
-    """Build a code like ``IRON-PULS-3K9``."""
+def generate_org_code(name: str, fallback: str = "GYM") -> str:
+    """Build a code like ``IRON-PULS-3K9``.
+
+    ``fallback`` is the word used when ``name`` yields no usable words (e.g. the
+    industry prefix OFF for offices, ACAD for academies)."""
 
     words = [w for w in re.split(r"\s+", name.strip()) if w]
-    first = _slug(words[0] if words else "GYM", 4)
+    first = _slug(words[0] if words else fallback, 4)
     second = _slug(words[1], 4) if len(words) > 1 else _rand(4)
     suffix = _rand(3)
     return f"{first}-{second}-{suffix}"

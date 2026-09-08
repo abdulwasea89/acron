@@ -131,3 +131,14 @@ class SwitchOrgRequest(BaseModel):
     """Switch to a different organization the user belongs to."""
 
     organization_id: str
+
+
+class InvoiceSettings(BaseModel):
+    """B2B invoice template (office vertical): what appears on an issued invoice.
+
+    Flipping any field on marks the 'invoices' setup-checklist step done."""
+
+    legal_name: str | None = None
+    address: str | None = None
+    tax_id: str | None = None
+    payment_terms_days: int | None = Field(default=None, ge=0, le=120)

@@ -18,7 +18,7 @@ from app.services import analytics_service as analytics
 router = APIRouter()
 
 
-@router.get("/headline", response_model=HeadlineMetrics)
+@router.get("/headline", response_model=HeadlineMetrics, response_model_exclude_none=True)
 async def headline(
     ctx: TenantContext = Depends(get_tenant),
     session: AsyncSession = Depends(get_session),

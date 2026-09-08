@@ -51,9 +51,18 @@ def _welcome_email(org_name: str, org_code: str, *, industry_key: str, additiona
     return subject, body
 
 
-async def _unique_org_code(session: AsyncSession, name: str) -> str:
+def _industry_code_prefix(industry: str | None) -> str:
+    """Org-code word fallback for an industry (OFF/ACAD/etc), default GYM."""
+    try:
+        return get_industry(industry or "gym").org_code_fallback_prefix
+    except KeyError:
+        return "GYM"
+
+
+async def _unique_org_code(session: AsyncSession, name: str, *, industry: str | None = None) -> str:
+    fallback = _industry_code_prefix(industry)
     for _ in range(10):
-        code = generate_org_code(name)
+        code = generate_org_code(name, fallback=fallback)
         exists = (
             await session.execute(select(Organization).where(Organization.org_code == code))
         ).scalar_one_or_none()
@@ -95,7 +104,7 @@ async def register_gym(
     d = data.details
     org = Organization(
         name=d.name,
-        org_code=await _unique_org_code(session, d.name),
+        org_code=await _unique_org_code(session, d.name, industry=d.industry),
         country=d.country,
         timezone=d.timezone,
         default_currency=d.default_currency,
@@ -173,7 +182,7 @@ async def create_organization_for_user(
     d = data.details
     org = Organization(
         name=d.name,
-        org_code=await _unique_org_code(session, d.name),
+        org_code=await _unique_org_code(session, d.name, industry=d.industry),
         country=d.country,
         timezone=d.timezone,
         default_currency=d.default_currency,
@@ -299,7 +308,7 @@ async def rotate_org_code(session: AsyncSession, org: Organization, *, actor_id:
     """
 
     old_code = org.org_code
-    org.org_code = await _unique_org_code(session, org.name)
+    org.org_code = await _unique_org_code(session, org.name, industry=org.industry)
     org.signup_frozen = False  # a fresh code clears any abuse freeze
     session.add(org)
 
@@ -358,3 +367,31 @@ async def update_gym_status(session: AsyncSession, org: Organization, gym_status
     from app.realtime import events
 
     await events.gym_status_changed(org.id, gym_status=gym_status.value)
+
+
+# ------------------------------------------------------------------ invoice template
+def invoice_settings(org: Organization) -> dict:
+    """The org's B2B invoice template (office vertical)."""
+    return {
+        "legal_name": org.invoice_legal_name,
+        "address": org.invoice_address,
+        "tax_id": org.invoice_tax_id,
+        "payment_terms_days": org.invoice_payment_terms_days,
+    }
+
+
+async def update_invoice_settings(session: AsyncSession, org: Organization, data, *, actor_id: str) -> dict:
+    """Persist the B2B invoice template. Any field set completes the 'invoices'
+    setup-checklist step (once the office has real company + offer data)."""
+    changes = data.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=422, detail="Nothing to update.")
+    old = invoice_settings(org)
+    for field, value in changes.items():
+        setattr(org, field, value)
+    org.checklist_invoice_template_set = True
+    session.add(org)
+    await record_audit(session, action="org.invoice_settings_updated", organization_id=org.id,
+                       actor_user_id=actor_id, entity_type="organization", entity_id=org.id,
+                       old_values=old, new_values=changes)
+    return invoice_settings(org)

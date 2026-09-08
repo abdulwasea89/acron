@@ -14,15 +14,112 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.constants import MemberStatus, PaymentStatus, ReceiptStatus
+from app.core.industry import MoneyMode, get_industry
 from app.core.security import now_utc
+from app.models.company_contract import CompanyContract
+from app.models.invoice import Invoice
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.payment import Payment
 from app.models.receipt import ReceiptUpload
 from app.models.staff import Shift
 
+# Monthly-equivalent factor per contract term (for space MRR aggregation).
+_TERM_MONTHS = {"monthly": 1, "quarterly": 3, "annual": 12}
+
+
+def _org_is_office(org: Organization) -> bool:
+    try:
+        return get_industry(org.industry or "gym").money == MoneyMode.B2B_INVOICE
+    except (KeyError, ValueError):
+        return False
+
+
+async def _office_headline(session: AsyncSession, *, org_id: str) -> dict:
+    """Headline KPIs for an office vertical (B2B invoicing): seats + invoices.
+
+    occupied_seats = active seat-holders bound to a company. seat capacity = the
+    seats across the org's active contracts. space_mrr = seats×price per term,
+    normalized to monthly (quarterly /3, annual /12). outstanding_invoices = the
+    unpaid balance across sent/partial invoices (overdue is derived, never
+    stored).
+    """
+
+    occupied_seats = int(
+        (
+            await session.execute(
+                select(func.count()).select_from(OrganizationMember).where(
+                    OrganizationMember.organization_id == org_id,
+                    OrganizationMember.role == "member",
+                    OrganizationMember.member_status == MemberStatus.ACTIVE,
+                    OrganizationMember.company_id.is_not(None),
+                )
+            )
+        ).scalar()
+        or 0
+    )
+
+    contracts = (
+        await session.execute(
+            select(CompanyContract).where(
+                CompanyContract.organization_id == org_id,
+                CompanyContract.status == "active",
+            )
+        )
+    ).scalars().all()
+    seat_capacity = 0
+    space_mrr = 0.0
+    for c in contracts:
+        seat_capacity += int(c.seats)
+        term_total = float(c.seats) * float(c.price_per_seat)
+        space_mrr += term_total / _TERM_MONTHS.get(c.term, 1)
+
+    occupancy_pct = round(occupied_seats / seat_capacity * 100, 1) if seat_capacity else 0.0
+
+    open_ids = [
+        i.id for i in (
+            await session.execute(
+                select(Invoice.id).where(
+                    Invoice.organization_id == org_id,
+                    Invoice.status.in_(["sent", "partial"]),
+                )
+            )
+        ).scalars().all()
+    ]
+    outstanding = 0.0
+    if open_ids:
+        gross = (
+            await session.execute(
+                select(func.coalesce(func.sum(Invoice.total), 0.0)).where(
+                    Invoice.organization_id == org_id,
+                    Invoice.status.in_(["sent", "partial"]),
+                )
+            )
+        ).scalar_one()
+        paid = (
+            await session.execute(
+                select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+                    Payment.organization_id == org_id,
+                    Payment.status == PaymentStatus.SUCCEEDED,
+                    Payment.invoice_id.in_(open_ids),
+                )
+            )
+        ).scalar_one()
+        outstanding = round(float(gross or 0.0) - float(paid or 0.0), 2)
+
+    return {
+        "occupied_seats": int(occupied_seats),
+        "occupancy_pct": float(occupancy_pct),
+        "space_mrr": round(space_mrr, 2),
+        "outstanding_invoices": outstanding,
+    }
+
 
 async def headline_metrics(session: AsyncSession, *, org_id: str) -> dict:
+    org = await session.get(Organization, org_id)
+    if org is not None and _org_is_office(org):
+        return await _office_headline(session, org_id=org_id)
+
     today = now_utc().date()
     start = datetime.combine(today, time.min)
     end = datetime.combine(today, time.max)

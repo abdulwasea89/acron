@@ -38,6 +38,7 @@ from app.core.constants import (
 )
 from app.core.rate_limit import rate_limiter
 from app.core.security import hash_password, now_utc
+from app.core.industry import MoneyMode, get_industry
 from app.integrations.email import send_email_safe as send_email
 from app.integrations.push import send_push
 from app.integrations.stripe_connect import connect_stripe
@@ -55,6 +56,26 @@ from app.services.audit_service import record_audit
 
 
 # ----------------------------------------------------------------- helpers
+def _is_b2b_office(org: Organization) -> bool:
+    """True when the org is an office vertical (money settles by B2B invoice).
+
+    Office onboarding is invite-only — there is no public join-with-code + pay,
+    so every self-serve signup entry point must refuse office orgs."""
+    try:
+        return get_industry(org.industry or "gym").money == MoneyMode.B2B_INVOICE
+    except (KeyError, ValueError):
+        return False
+
+
+def _reject_office_self_signup(org: Organization) -> None:
+    if _is_b2b_office(org):
+        raise HTTPException(
+            status_code=403,
+            detail="This office only accepts invited seat-holders. "
+                   "Ask your office manager for an invitation.",
+        )
+
+
 async def _org_by_code(session: AsyncSession, org_code: str) -> Organization:
     org = (
         await session.execute(
@@ -142,6 +163,7 @@ async def start_signup(
 ) -> Organization:
     org = await _org_by_code(session, org_code)
     _verify_captcha(captcha_token)
+    _reject_office_self_signup(org)
 
     if org.enrollment_mode == EnrollmentMode.INVITE_ONLY:
         raise HTTPException(status_code=403, detail="This gym is invite-only.")
@@ -161,6 +183,7 @@ async def request_email_verification(
 ) -> None:
     org = await _org_by_code(session, org_code)
     _verify_captcha(captcha_token)
+    _reject_office_self_signup(org)
     await _enforce_signup_rate_limits(session, org=org, email=email, ip=ip)
 
     # If email already a member of THIS org -> redirect to login (Section 8.3).
@@ -291,10 +314,18 @@ async def redeem_invite(
     member = await _member_for(session, org.id, user.id)
     if member is None:
         raise HTTPException(status_code=404, detail="Invite is not linked to this gym.")
-    # Only a not-yet-claimed invite advances to payment; an already-active member
-    # redeeming again is a no-op guard.
+    # Only a not-yet-claimed invite advances. An already-active member redeeming
+    # again is a no-op guard.
     if member.member_status == MemberStatus.PENDING_ACTIVATION:
-        member.member_status = MemberStatus.PENDING_PAYMENT
+        if _is_b2b_office(org):
+            # Office seat-holders are invited with no payment step: redeeming the
+            # invite activates the seat immediately (B2B invoicing to their
+            # company — the individual never pays).
+            member.member_status = MemberStatus.ACTIVE
+            if member.joined_at is None:
+                member.joined_at = now_utc()
+        else:
+            member.member_status = MemberStatus.PENDING_PAYMENT
         session.add(member)
     await record_audit(session, action="member.invite_redeemed", organization_id=org.id,
                        actor_user_id=user.id, entity_type="member", entity_id=member.id)

@@ -16,6 +16,7 @@ from app.schemas.organizations import (
     CreateOrganizationRequest,
     EnrollmentModeUpdate,
     GymStatusUpdate,
+    InvoiceSettings,
     OrgCodeRotateOut,
     OrgNameUpdate,
     OrganizationOut,
@@ -160,3 +161,22 @@ async def rotate_org_code(
 
     new_code = await orgs.rotate_org_code(session, org, actor_id=ctx.user_id)
     return OrgCodeRotateOut(org_code=new_code)
+
+
+@router.get("/me/invoice-settings", response_model=InvoiceSettings)
+async def get_invoice_settings(org: Organization = Depends(get_org)):
+    """The org's B2B invoice template (office vertical; blank for gym/academy)."""
+
+    return InvoiceSettings(**orgs.invoice_settings(org))
+
+
+@router.put("/me/invoice-settings", response_model=InvoiceSettings)
+async def set_invoice_settings(
+    data: InvoiceSettings,
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_SETTINGS)),
+    org: Organization = Depends(get_org),
+    session: AsyncSession = Depends(get_session),
+):
+    """Persist the invoice template. Owner-only; flips the 'invoices' checklist step."""
+
+    return InvoiceSettings(**await orgs.update_invoice_settings(session, org, data, actor_id=ctx.user_id))

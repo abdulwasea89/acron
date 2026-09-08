@@ -14,7 +14,10 @@ from app.api.v1.routes import (
     auth,
     cash,
     classes,
+    companies,
     industries,
+    invoices,
+    initial,
     members,
     memberships,
     notifications,
@@ -24,10 +27,10 @@ from app.api.v1.routes import (
     plans,
     receipts,
     saas_billing,
+    space,
     staff,
     webhooks,
     ws,
-    initial
 )
 
 api_router = APIRouter()
@@ -50,3 +53,8 @@ api_router.include_router(analytics.router, prefix="/analytics", tags=["analytic
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(ws.router, tags=["realtime"])
+
+# ---- Office vertical (B2B invoicing, seat-holders) ----
+api_router.include_router(companies.router, prefix="/companies", tags=["companies"])
+api_router.include_router(invoices.router, prefix="/invoices", tags=["invoices"])
+api_router.include_router(space.router, prefix="/space", tags=["space"])

@@ -175,16 +175,21 @@ async def decide_approval(
 
 
 # ------------------------------------------------------- invite-only invite
-async def _send_invite_email(email: str, org_name: str, code: str) -> None:
+async def _send_invite_email(email: str, org_name: str, code: str, *, org_code: str | None = None) -> None:
     """Send an invite email, surfacing a delivery failure as a clear 502.
 
     The invite email IS the deliverable — if the provider rejects it (e.g. an
     unverified Resend sender domain), the caller must learn that instead of the
     UI falsely reporting "invite sent"."""
 
+    body = f"You've been invited to join {org_name}. Use this code to join: {code}"
+    if org_code is not None:
+        # Office invite-only redemption is entered as org code + code (no public
+        # signup step), so the seat-holder must see the org code in the email.
+        body = (f"You've been invited to join {org_name} as a seat-holder. "
+                f"Org code: {org_code}. Use this code to activate your seat: {code}")
     try:
-        await send_email(email, f"You're invited to {org_name}",
-                         f"You've been invited to join {org_name}. Use this code to join: {code}")
+        await send_email(email, f"You're invited to {org_name}", body)
     except EmailDeliveryError as exc:
         raise HTTPException(
             status_code=502,
@@ -192,14 +197,30 @@ async def _send_invite_email(email: str, org_name: str, code: str) -> None:
         ) from exc
 
 
+def _is_b2b_office(org: Organization) -> bool:
+    """True when the org is an office vertical (money settles by B2B invoice)."""
+    from app.core.industry import MoneyMode, get_industry
+
+    try:
+        return get_industry(org.industry or "gym").money == MoneyMode.B2B_INVOICE
+    except (KeyError, ValueError):
+        return False
+
+
 async def invite_member(
-    session: AsyncSession, *, org_id: str, email: str, actor_id: str
+    session: AsyncSession, *, org_id: str, email: str, actor_id: str,
+    company_id: str | None = None,
 ) -> tuple[OrganizationMember, str]:
-    """Create a pending member + single-use invite code tied to the email (Section 8.4)."""
+    """Create a pending member + single-use invite code tied to the email (Section 8.4).
+
+    For office orgs ``company_id`` binds the seat-holder to a tenant company and
+    the invite email carries the org code, because office onboarding is
+    invite-only (no public join-with-code + pay)."""
 
     org = await session.get(Organization, org_id)
     if org is None:
         raise HTTPException(status_code=404, detail="Organization not found.")
+    office = _is_b2b_office(org)
 
     user = (
         await session.execute(select(User).where(User.email == email.lower()))
@@ -229,6 +250,7 @@ async def invite_member(
     member = OrganizationMember(
         organization_id=org_id, user_id=user.id, role=Role.MEMBER,
         member_status=MemberStatus.PENDING_ACTIVATION,
+        company_id=company_id if office else None,
     )
     session.add(member)
     try:
@@ -243,9 +265,10 @@ async def invite_member(
         session, email=email, purpose=VerificationPurpose.MEMBER_INVITE,
         organization_id=org_id, user_id=user.id,
     )
-    await _send_invite_email(email, org.name, code)
+    await _send_invite_email(email, org.name, code, org_code=org.org_code if office else None)
     await record_audit(session, action="member.invited", organization_id=org_id, actor_user_id=actor_id,
-                       entity_type="member", entity_id=member.id)
+                       entity_type="member", entity_id=member.id,
+                       metadata={"company_id": company_id, "office": office})
     return member, code
 
 
@@ -273,7 +296,8 @@ async def resend_invite(
         session, email=user.email, purpose=VerificationPurpose.MEMBER_INVITE,
         organization_id=org_id, user_id=user.id,
     )
-    await _send_invite_email(user.email, org.name, code)
+    await _send_invite_email(user.email, org.name, code,
+                             org_code=org.org_code if _is_b2b_office(org) else None)
     await record_audit(session, action="member.invite_resent", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="member", entity_id=member.id)
     return member, code
