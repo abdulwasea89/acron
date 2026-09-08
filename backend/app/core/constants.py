@@ -127,6 +127,7 @@ class PaymentMethod(str, Enum):
     CASH = "cash"
     BANK_TRANSFER = "bank_transfer"
     MOBILE_WALLET = "mobile_wallet"
+    INVOICE = "invoice"  # office B2B: settled company invoice (no Stripe intent)
 
 
 class PaymentStatus(str, Enum):
@@ -143,6 +144,8 @@ class PaymentKind(str, Enum):
     SAAS_SUBSCRIPTION = "saas_subscription"   # owner -> platform
     MEMBER_FEE = "member_fee"                 # member -> gym (Connect)
     TRAINER_PAYOUT = "trainer_payout"         # gym -> trainer
+    SPACE = "space"                           # office: company -> space provider
+    TUITION = "tuition"                       # academy: guardian -> academy
 
 
 class IdempotencyStatus(str, Enum):

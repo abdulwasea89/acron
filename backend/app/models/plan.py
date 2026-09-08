@@ -19,6 +19,14 @@ class MembershipPlan(UUIDModel, TimestampModel, table=True):
 
     organization_id: str = Field(index=True, foreign_key="organizations.id")
 
+    # Multi-industry offer shape (Phase 0): membership | space | course.
+    # Default 'membership' keeps the classic gym columns authoritative for gyms;
+    # space/course store their vertical attributes in spec_json.
+    offer_kind: str = "membership"
+    spec_json: str | None = None  # industry offer spec, validated against JSON Schema
+    # Denormalized org industry copy so offers can be filtered without a join.
+    org_industry: str | None = None
+
     # Basics (Section 6.1)
     name: str
     public_description: str | None = None

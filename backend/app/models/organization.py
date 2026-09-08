@@ -26,7 +26,10 @@ class Organization(UUIDModel, TimestampModel, table=True):
     # Identity
     name: str
     org_code: str = Field(index=True, unique=True)  # e.g. IRON-PULS-3K9
-    industry: str = "gym_fitness"
+    # Venue vertical (multi-industry, Phase 0): gym | office | academy.
+    # Legacy rows stored "gym_fitness" -> backfilled to "gym" by migration.
+    # Canonical keys live in app/core/industry.py (IndustryKind).
+    industry: str = "gym"
 
     # Locale / branding (Section 4.4)
     country: str = "US"
@@ -62,6 +65,10 @@ class Organization(UUIDModel, TimestampModel, table=True):
     checklist_enrollment_configured: bool = False
     checklist_staff_invited: bool = False
     checklist_office_configured: bool = False
+    # Industry-specific setup progress (office/academy). Unused by gym.
+    checklist_companies_added: bool = False
+    checklist_courses_added: bool = False
+    checklist_invoice_template_set: bool = False
 
     # Org-code abuse control (Section 7.2)
     signup_frozen: bool = False

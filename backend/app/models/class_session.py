@@ -19,6 +19,10 @@ class ClassSession(UUIDModel, TimestampModel, table=True):
     __tablename__ = "class_sessions"
 
     organization_id: str = Field(index=True, foreign_key="organizations.id")
+    # Slot category (Phase 0): class | space_slot | lesson.
+    # gym uses 'class'; office desk/room slots use 'space_slot'; academy
+    # per-batch lessons use 'lesson' — all share one scheduling table.
+    category: str = "class"
     title: str
     trainer_member_id: str | None = Field(default=None, foreign_key="organization_members.id")
     starts_at: datetime = Field(index=True)
