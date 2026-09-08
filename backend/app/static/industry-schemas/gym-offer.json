@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://api.example.com/industry-schemas/gym-offer.json",
+  "title": "Gym membership plan",
+  "description": "Offer fields for the gym vertical (offer_kind=membership). The classic membership columns (billing_type, cycle_*, pack_size, validity_days) stay authoritative; this schema documents them so the plan builder renders from one shape.",
+  "type": "object",
+  "properties": {
+    "billing_type": {
+      "type": "string",
+      "enum": ["recurring", "one_time_pack", "drop_in"]
+    },
+    "cycle_length": { "type": "integer", "minimum": 1 },
+    "cycle_unit": { "type": "string", "enum": ["day", "week", "month"] },
+    "auto_renew": { "type": "boolean", "default": true },
+    "trial_days": { "type": "integer", "minimum": 0 },
+    "pack_size": { "type": "integer", "minimum": 1 },
+    "validity_days": { "type": "integer", "minimum": 1 },
+    "inclusions": { "type": "array", "items": { "type": "string" } },
+    "rules": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["billing_type"],
+  "additionalProperties": true
+}

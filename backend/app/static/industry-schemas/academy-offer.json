@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://api.example.com/industry-schemas/academy-offer.json",
+  "title": "Course fee plan",
+  "description": "Offer fields for the academy vertical (offer_kind=course). Authoritative spec stored in membership_plans.spec_json. price = full term tuition (pre-discount); enrollment_fees split tuition across installments.",
+  "type": "object",
+  "properties": {
+    "course_id": { "type": "string" },
+    "term": { "type": "string" },
+    "installments": { "type": "integer", "minimum": 1, "maximum": 12 },
+    "sibling_discount_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+    "include_materials_fee": { "type": "number", "minimum": 0 },
+    "refund_cutoff_days": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["course_id", "term"],
+  "additionalProperties": false
+}

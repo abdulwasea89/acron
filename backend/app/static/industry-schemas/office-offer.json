@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://api.example.com/industry-schemas/office-offer.json",
+  "title": "Space plan",
+  "description": "Offer fields for the office vertical (offer_kind=space). Authoritative spec stored in membership_plans.spec_json. price = per-seat per-term price; a company contract total = price x seats_included.",
+  "type": "object",
+  "properties": {
+    "space_type": {
+      "type": "string",
+      "enum": ["hot_desk", "fixed_desk", "private_office", "meeting_room", "day_pass"]
+    },
+    "seats_included": { "type": "integer", "minimum": 1 },
+    "term": { "type": "string", "enum": ["monthly", "quarterly", "annual"] },
+    "billing": { "type": "string", "enum": ["company_invoice", "card"] },
+    "deposit_months": { "type": "integer", "minimum": 0 },
+    "room_credits": { "type": "integer", "minimum": 0 },
+    "room_credit_validity_days": { "type": "integer", "minimum": 1 },
+    "includes": { "type": "array", "items": { "type": "string" } },
+    "cancel_notice_days": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["space_type", "term", "billing"],
+  "additionalProperties": false
+}
