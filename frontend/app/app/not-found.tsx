@@ -18,7 +18,7 @@ export default function AppNotFoundPage() {
           </div>
         </div>
         <div className="mx-auto mb-8 h-px w-12 bg-gradient-to-r from-transparent via-[var(--foreground)] to-transparent opacity-15" />
-        <h1 className="mb-2 text-base font-semibold text-[var(--foreground)] sm:text-lg">
+        <h1 className="mb-2 font-heading text-2xl tracking-tight text-[var(--foreground)]">
           Page not found
         </h1>
         <p className="mx-auto mb-8 max-w-[260px] text-sm leading-relaxed text-[var(--foreground-muted)]">

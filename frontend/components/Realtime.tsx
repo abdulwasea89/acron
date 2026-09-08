@@ -44,10 +44,10 @@ export function useRealtimeEvent(types: string[], handler: Handler) {
 }
 
 const DOT: Record<RtStatus, { color: string; label: string; pulse: boolean }> = {
-  live: { color: "bg-emerald-500", label: "Live", pulse: false },
-  connecting: { color: "bg-amber-500", label: "Connecting", pulse: true },
-  reconnecting: { color: "bg-amber-500", label: "Reconnecting", pulse: true },
-  offline: { color: "bg-zinc-400", label: "Offline", pulse: false },
+  live: { color: "bg-[var(--success)]", label: "Live", pulse: false },
+  connecting: { color: "bg-[var(--warning)]", label: "Connecting", pulse: true },
+  reconnecting: { color: "bg-[var(--warning)]", label: "Reconnecting", pulse: true },
+  offline: { color: "bg-[var(--muted)]", label: "Offline", pulse: false },
 };
 
 /** Compact connection indicator for the sidebar/header. */
@@ -79,7 +79,7 @@ export function OfflineBanner() {
 
   if (!show) return null;
   return (
-    <div className="sticky top-0 z-30 bg-amber-500/95 px-4 py-1.5 text-center text-[12px] font-medium text-white backdrop-blur">
+    <div className="sticky top-0 z-30 border-b border-[var(--warning-border)] bg-[var(--warning-bg)]/90 px-4 py-1.5 text-center font-mono text-[11px] uppercase tracking-widest text-[var(--warning)] backdrop-blur">
       Reconnecting — showing last known data.
     </div>
   );

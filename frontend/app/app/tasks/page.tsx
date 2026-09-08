@@ -186,15 +186,16 @@ export default function TasksPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      <div className="mb-4 flex w-fit gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
+      <div className="mb-4 flex w-fit items-center gap-1 rounded-full border border-[var(--border)] p-1">
         {tabs.map((t) => (
           <button
             key={t.value}
             type="button"
             onClick={() => setFilter(t.value)}
-            className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+            aria-pressed={filter === t.value}
+            className={`rounded-full px-3.5 py-1.5 font-mono text-xs uppercase tracking-widest transition-colors ${
               filter === t.value
-                ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                ? "bg-brand text-brand-foreground"
                 : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
             }`}
           >
@@ -245,7 +246,7 @@ export default function TasksPage() {
         hideTitle
       >
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-danger-bg">
             <svg className="h-6 w-6 text-[var(--danger)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
@@ -313,7 +314,7 @@ export default function TasksPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="w-12 px-4 py-3" />
                   <th className="px-4 py-3">Title</th>

@@ -216,15 +216,16 @@ export default function ClassesPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      <div className="mb-4 flex w-fit gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
+      <div className="mb-4 flex w-fit items-center gap-1 rounded-full border border-[var(--border)] p-1">
         {tabs.map((t) => (
           <button
             key={t.value}
             type="button"
             onClick={() => setFilter(t.value)}
-            className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+            aria-pressed={filter === t.value}
+            className={`rounded-full px-3.5 py-1.5 font-mono text-xs uppercase tracking-widest transition-colors ${
               filter === t.value
-                ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                ? "bg-brand text-brand-foreground"
                 : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
             }`}
           >
@@ -394,7 +395,7 @@ export default function ClassesPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-4 py-3">Class</th>
                   <th className="px-4 py-3">Trainer</th>

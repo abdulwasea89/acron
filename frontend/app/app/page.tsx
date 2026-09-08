@@ -26,9 +26,9 @@ export default async function DashboardPage() {
     safe(backend<SaasStatusOut>("/saas-billing/status")),
   ]);
 
-  const stats = [
+  const stats: { label: string; value: string; accent?: boolean }[] = [
     { label: "Active members", value: metrics ? String(metrics.active_members) : "—" },
-    { label: "Today's revenue", value: metrics ? money(metrics.today_revenue, "USD") : "—" },
+    { label: "Today's revenue", value: metrics ? money(metrics.today_revenue, "USD") : "—", accent: true },
     { label: "Check-ins today", value: metrics ? String(metrics.today_check_ins) : "—" },
     { label: "Pending approvals", value: metrics ? String(metrics.pending_approvals) : "—" },
   ];
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
-          <StatCard key={s.label} label={s.label} value={s.value} />
+          <StatCard key={s.label} label={s.label} value={s.value} accent={s.accent} />
         ))}
       </div>
 

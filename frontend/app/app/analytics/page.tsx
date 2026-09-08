@@ -60,8 +60,9 @@ export default function AnalyticsPage() {
   const revenueChartConfig = useMemo(() => {
     if (!data) return {} satisfies ChartConfig;
     const config: ChartConfig = {};
+    // Brand-family ramp, read from CSS so charts re-theme on switch (§10.6).
+    const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
     Object.keys(data.revenue_by_method).forEach((method, i) => {
-      const colors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"];
       config[method] = {
         label: METHOD_LABELS[method] || method,
         color: colors[i % colors.length],
@@ -81,22 +82,24 @@ export default function AnalyticsPage() {
 
   const statusChartConfig = useMemo(() => {
     if (!data) return {} satisfies ChartConfig;
+    // Semantic status hues via CSS vars (DESIGN §10.8 — statuses use semantic
+    // tokens, never hardcoded hex, so midnight/oled/solarized all hold).
     const palette: Record<string, string> = {
-      active: "#10b981",
-      grace: "#f59e0b",
-      expired: "#ef4444",
-      cancelled: "#94a3b8",
-      frozen: "#06b6d4",
-      pending_payment: "#f97316",
-      pending_approval: "#f97316",
-      pending_activation: "#0ea5e9",
-      banned: "#f43f5e",
+      active: "var(--success)",
+      grace: "var(--warning)",
+      expired: "var(--danger)",
+      cancelled: "var(--muted-foreground)",
+      frozen: "var(--chart-3)",
+      pending_payment: "var(--info)",
+      pending_approval: "var(--warning)",
+      pending_activation: "var(--info)",
+      banned: "var(--danger)",
     };
     const config: ChartConfig = {};
     Object.keys(data.member_count_by_status).forEach((status) => {
       config[status] = {
         label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        color: palette[status] || "var(--muted)",
+        color: palette[status] || "var(--muted-foreground)",
       };
     });
     return config;
@@ -173,8 +176,8 @@ export default function AnalyticsPage() {
                   <AreaChart data={[]} margin={{ top: 10, right: 12, left: 12, bottom: 0 }}>
                     <defs>
                       <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--color-revenue, #3b82f6)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="var(--color-revenue, #3b82f6)" stopOpacity={0.05} />
+                        <stop offset="5%" stopColor="var(--color-revenue, var(--brand))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="var(--color-revenue, var(--brand))" stopOpacity={0.05} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="4 4" />
@@ -184,7 +187,7 @@ export default function AnalyticsPage() {
                     <Area
                       type="monotone"
                       dataKey="revenue"
-                      stroke="var(--color-revenue, #3b82f6)"
+                      stroke="var(--color-revenue, var(--brand))"
                       fill="url(#fillRevenue)"
                     />
                   </AreaChart>
@@ -257,10 +260,10 @@ export default function AnalyticsPage() {
                           if (viewBox && "cx" in viewBox) {
                             return (
                               <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                                <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) - 6} className="fill-[var(--foreground)] text-2xl font-bold">
+                                <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) - 6} className="fill-[var(--foreground)] font-heading text-2xl tracking-tight">
                                   {data.active_members}
                                 </tspan>
-                                <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 16} className="fill-[var(--muted)] text-xs">
+                                <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 16} className="fill-[var(--muted)] font-mono text-[11px] uppercase tracking-widest">
                                   Active
                                 </tspan>
                               </text>

@@ -18,7 +18,7 @@ export default function AppErrorPage({
     <div className="flex h-dvh items-center justify-center p-6">
       <Card className="w-full max-w-sm p-8 text-center">
         <div className="mb-4 text-5xl">⚠</div>
-        <h1 className="mb-2 text-lg font-semibold text-[var(--foreground)]">Something went wrong</h1>
+        <h1 className="mb-2 font-heading text-2xl tracking-tight text-[var(--foreground)]">Something went wrong</h1>
         <p className="mb-6 text-sm text-[var(--foreground-muted)]">
           An unexpected error occurred in this page.
         </p>

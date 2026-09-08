@@ -530,7 +530,7 @@ export default function StaffPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Email</th>
@@ -857,7 +857,7 @@ export default function StaffPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                   <tr className="border-b border-[var(--border)]">
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Email</th>
@@ -893,7 +893,7 @@ export default function StaffPage() {
           {compError && <Alert>{compError}</Alert>}
 
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Fixed pay</p>
+            <p className="mb-3 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Fixed pay</p>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Monthly salary"
@@ -920,7 +920,7 @@ export default function StaffPage() {
           <hr className="border-[var(--border)]" />
 
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Variable pay</p>
+            <p className="mb-3 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Variable pay</p>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Per-class rate"
@@ -969,7 +969,7 @@ export default function StaffPage() {
           />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Role</th>

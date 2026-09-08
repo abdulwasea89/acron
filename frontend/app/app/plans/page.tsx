@@ -85,7 +85,7 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
               onClick={() => { setOpen(false); a.onClick(); }}
               className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
                 a.danger
-                  ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                  ? "text-danger hover:bg-danger-bg"
                   : "text-[var(--foreground)] hover:bg-[var(--background)]"
               }`}
             >
@@ -315,7 +315,7 @@ export default function PlansPage() {
               </div>
             </div>
             {viewing.featured && (
-              <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+              <div className="inline-flex items-center gap-1 rounded-full border border-warning/45 bg-warning-bg px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest text-warning">
                 <StarIcon /> Featured
               </div>
             )}
@@ -417,7 +417,7 @@ export default function PlansPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Price</th>
@@ -436,7 +436,7 @@ export default function PlansPage() {
                           <div className="flex items-center gap-1.5">
                             <button type="button" onClick={() => setViewing(p)} className="max-w-[260px] truncate font-medium text-[var(--foreground)] hover:underline">{p.name}</button>
                             {p.featured && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+                              <span className="inline-flex items-center gap-0.5 rounded-full border border-warning/45 bg-warning-bg px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-widest text-warning">
                                 <StarIcon /> Featured
                               </span>
                             )}

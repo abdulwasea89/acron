@@ -2,7 +2,7 @@ import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['10.35.197.85'],
+  allowedDevOrigins: ['10.35.197.85', '10.14.225.85'],
   turbopack: {
     root: path.resolve(__dirname),
   },

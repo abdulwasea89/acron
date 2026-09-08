@@ -33,7 +33,7 @@ function pendingTone(kind: string) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">{label}</dt>
+      <dt className="font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">{label}</dt>
       <dd className="mt-1 text-sm text-[var(--foreground)]">{children}</dd>
     </div>
   );
@@ -349,7 +349,7 @@ export default function MemberDetailPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-6 py-3.5">Date</th>
                   <th className="px-6 py-3.5">Method</th>

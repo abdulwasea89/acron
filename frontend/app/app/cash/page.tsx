@@ -93,7 +93,7 @@ function MemberCombobox({
   if (selected) {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">Member</p>
+        <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Member</p>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Avatar name={selected.full_name || selected.email} size="md" />
@@ -121,7 +121,7 @@ function MemberCombobox({
 
   return (
     <div ref={containerRef} className="relative">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">Member</p>
+      <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Member</p>
       <input
         ref={inputRef}
         type="text"
@@ -284,7 +284,7 @@ function SuccessPanel({
           The receipt has been emailed to the member.
         </p>
 
-        <p className="mt-4 text-3xl font-bold tabular-nums text-[var(--foreground)]">
+        <p className="mt-4 font-heading text-3xl tracking-tight tabular-nums text-[var(--foreground)]">
           {money(result.amount, plan?.currency)}
         </p>
 
@@ -467,7 +467,7 @@ function LogPayment() {
 
           {/* Step 2: Pick plan */}
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">Membership plan</p>
+            <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Membership plan</p>
             {plans.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--background)] p-4 text-center">
                 <p className="text-sm font-medium text-[var(--foreground)]">No membership plans yet</p>
@@ -504,7 +504,7 @@ function LogPayment() {
               className="text-lg font-semibold tabular-nums [&_input]:text-lg [&_input]:font-semibold"
             />
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">Method</p>
+              <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Method</p>
               <div className="flex gap-2">
                 {methods.map((m) => (
                   <MethodCard key={m} value={m} selected={method === m} onSelect={() => setMethod(m)} />

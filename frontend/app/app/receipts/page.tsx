@@ -108,7 +108,7 @@ function ReceiptCard({
       />
       <div className="grid gap-5 p-6 sm:grid-cols-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Confidence</div>
+          <div className="font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Confidence</div>
           <div className="mt-2">
             <Badge tone={confidenceTone(receipt.confidence_score)}>
               {receipt.confidence_score === null ? "—" : `${receipt.confidence_score.toFixed(0)}%`}
@@ -116,11 +116,11 @@ function ReceiptCard({
           </div>
         </div>
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Amount</div>
+          <div className="font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Amount</div>
           <div className="mt-2 tabular-nums font-medium text-[var(--foreground)]">{receipt.extracted_amount === null ? "—" : money(receipt.extracted_amount)}</div>
         </div>
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Payee</div>
+          <div className="font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Payee</div>
           <div className="mt-2 font-medium text-[var(--foreground)]">{receipt.extracted_payee || "—"}</div>
         </div>
         {receipt.is_duplicate && (

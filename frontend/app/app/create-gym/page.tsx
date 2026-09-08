@@ -60,8 +60,9 @@ export default function CreateGymPage() {
   return (
     <div className="mx-auto max-w-xl py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Create New Gym</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+        <p className="mb-2.5 font-mono text-[11px] uppercase tracking-widest text-[var(--muted-foreground)]">/app · New gym</p>
+        <h1 className="font-heading text-[26px] leading-tight tracking-tight text-[var(--foreground)] sm:text-3xl">Create New Gym</h1>
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
           Add another gym to your account. A new SaaS subscription will be created.
         </p>
       </div>

@@ -19,14 +19,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <RealtimeProvider>
-      <div className="flex h-dvh bg-[var(--background)]">
-        <Sidebar orgName={org.name} orgCode={org.org_code} orgId={org.id} gymStatus={org.gym_status} />
-        <main className="min-w-0 flex-1 overflow-y-auto">
-          <OfflineBanner />
-          <div className="container-app">
-            <div className="page-content">{children}</div>
+      <div className="min-h-screen bg-background text-foreground noise-overlay">
+        <div className="relative lg:flex lg:min-h-screen">
+          <Sidebar
+            orgName={org.name}
+            orgCode={org.org_code}
+            orgId={org.id}
+            gymStatus={org.gym_status}
+          />
+          <div className="relative flex min-w-0 flex-1 flex-col">
+            <OfflineBanner />
+            {/* Content column: centered, capped at 1240 (DESIGN §10.2). */}
+            <main className="w-full flex-1 self-center px-5 py-8 sm:px-8 lg:max-w-[1240px] lg:py-10">
+              {children}
+            </main>
           </div>
-        </main>
+        </div>
       </div>
     </RealtimeProvider>
   );

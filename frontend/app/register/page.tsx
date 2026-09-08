@@ -524,7 +524,7 @@ export default function RegisterPage() {
                     className={`tier-option flex items-center justify-between rounded-xl border px-4 py-3.5 text-left transition duration-200 ${
                       tier === t.id
                         ? "border-[var(--primary)] bg-[var(--primary-light)] ring-2 ring-[var(--ring)]"
-                        : "border-[var(--border)] hover:bg-gray-50"
+                        : "border-[var(--border)] hover:bg-foreground/5"
                     }`}
                   >
                     <div>

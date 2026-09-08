@@ -15,29 +15,25 @@ export default function SettingsErrorPage({
   }, [error]);
 
   return (
-    <div className="container-app">
-      <div className="page-content">
-        <div className="flex items-start justify-center pt-24">
-          <Card className="w-full max-w-sm p-8 text-center">
-            <div className="mb-4 text-5xl">⚠</div>
-            <h1 className="mb-2 text-lg font-semibold text-[var(--foreground)]">Could not load settings</h1>
-            <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-              An error occurred while loading the settings page.
-            </p>
-            {error.digest && (
-              <p className="mb-4 text-[11px] break-all text-[var(--muted)]">
-                Error ID: {error.digest}
-              </p>
-            )}
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <Button onClick={reset}>Try again</Button>
-              <Button variant="secondary" onClick={() => (window.location.href = "/app")}>
-                Back to dashboard
-              </Button>
-            </div>
-          </Card>
+    <div className="flex items-start justify-center py-16">
+      <Card className="w-full max-w-sm p-8 text-center">
+        <div className="mb-4 text-5xl">⚠</div>
+        <h1 className="mb-2 font-heading text-2xl tracking-tight text-[var(--foreground)]">Could not load settings</h1>
+        <p className="mb-6 text-sm text-[var(--foreground-muted)]">
+          An error occurred while loading the settings page.
+        </p>
+        {error.digest && (
+          <p className="mb-4 text-[11px] break-all text-[var(--muted)]">
+            Error ID: {error.digest}
+          </p>
+        )}
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Button onClick={reset}>Try again</Button>
+          <Button variant="secondary" onClick={() => (window.location.href = "/app")}>
+            Back to dashboard
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

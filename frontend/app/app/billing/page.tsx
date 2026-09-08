@@ -219,7 +219,7 @@ export default function BillingPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                    <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                       <tr className="border-b border-[var(--border)]">
                         <th className="px-6 py-3.5">Date</th>
                         <th className="px-6 py-3.5">Amount</th>

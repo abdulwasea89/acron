@@ -98,7 +98,7 @@ export default function SessionsPage() {
         <Card className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <tr className="border-b border-[var(--border)] font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 {ownerView && <th className="px-5 py-3">User</th>}
                 <th className="px-5 py-3">Device</th>
                 <th className="px-5 py-3">IP</th>

@@ -78,7 +78,7 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
               onClick={() => { setOpen(false); a.onClick(); }}
               className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
                 a.danger
-                  ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                  ? "text-danger hover:bg-danger-bg"
                   : "text-[var(--foreground)] hover:bg-[var(--background)]"
               }`}
             >
@@ -262,17 +262,18 @@ export default function MembersPage() {
     return (
       <button
         onClick={() => setTab(t)}
-        className={`inline-flex h-7 items-center gap-1.5 px-4 text-sm font-medium transition-colors ${
+        aria-pressed={active}
+        className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 font-mono text-xs transition-colors ${
           active
-            ? "text-[var(--foreground)]"
-            : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            ? "border-brand bg-brand text-brand-foreground"
+            : "border-foreground/20 text-muted-foreground hover:border-foreground/50 hover:text-foreground"
         }`}
       >
         {label}
-        <span className={`inline-flex items-center justify-center min-w-[4px] h-4 px-1 text-[11px] font-semibold rounded-full ${
+        <span className={`inline-flex h-[18px] items-center rounded-full px-1.5 text-[10px] font-mono ${
           active
-            ? "bg-[var(--foreground)] text-[var(--background)]"
-            : "bg-[var(--border)] text-[var(--muted)]"
+            ? "bg-brand-foreground/20 text-brand-foreground"
+            : "bg-foreground/5 text-muted-foreground"
         }`}>
           {count}
         </span>
@@ -432,12 +433,12 @@ export default function MembersPage() {
           action={
             <div className="flex items-center gap-1.5">
               <Input
-                placeholder="Search..."
+                placeholder="Search…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="!h-[32px] w-[70px]"
+                className="!h-9 w-[130px]"
               />
-              <div className="flex items-center border border-[var(--border)] rounded-[var(--radius)] shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 {tabBtn("all", "All", members?.length ?? 0)}
                 {tabBtn("approvals", "Approvals", pending.length)}
               </div>
@@ -460,7 +461,7 @@ export default function MembersPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-6 py-3.5">Name</th>
                   <th className="px-6 py-3.5">Email</th>
