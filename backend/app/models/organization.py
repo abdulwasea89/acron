@@ -70,6 +70,13 @@ class Organization(UUIDModel, TimestampModel, table=True):
     checklist_courses_added: bool = False
     checklist_invoice_template_set: bool = False
 
+    # B2B invoice template (office vertical): what appears on an invoice. Blank for
+    # gym/academy. invoice_payment_terms_days in days, used to compute due_date.
+    invoice_legal_name: str | None = None
+    invoice_address: str | None = None
+    invoice_tax_id: str | None = None
+    invoice_payment_terms_days: int | None = None
+
     # Org-code abuse control (Section 7.2)
     signup_frozen: bool = False
 

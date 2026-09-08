@@ -29,6 +29,11 @@ class OrganizationMember(UUIDModel, TimestampModel, table=True):
     role: Role = Field(default=Role.MEMBER, index=True)
     member_status: MemberStatus = Field(default=MemberStatus.PENDING_PAYMENT, index=True)
 
+    # Office vertical: set when this member is a seat-holder under a Company.
+    # A seat-holder is invited (no self-serve signup) and binds to one company;
+    # the company drives occupancy/seat-count analytics. Null for gym/academy.
+    company_id: str | None = Field(default=None, foreign_key="companies.id", index=True)
+
     # Member profile (Section 8.7)
     display_name: str | None = None  # org-scoped name, independent of User.full_name
     phone: str | None = None

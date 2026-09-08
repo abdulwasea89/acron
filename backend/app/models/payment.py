@@ -49,4 +49,7 @@ class Payment(UUIDModel, TimestampModel, table=True):
     # Receipt linkage when activated via uploaded receipt
     receipt_id: str | None = Field(default=None, foreign_key="receipt_uploads.id")
 
+    # Office vertical: settlement of a B2B invoice (kind=SPACE, method=bank_transfer|cash).
+    invoice_id: str | None = Field(default=None, foreign_key="invoices.id", index=True)
+
     paid_at: datetime | None = None

@@ -7,7 +7,10 @@ Importing this package imports every table module so that
 from app.models.audit_log import AuditLog
 from app.models.cash import CashReconciliation
 from app.models.class_session import ClassBooking, ClassSession
+from app.models.company import Company
+from app.models.company_contract import CompanyContract
 from app.models.idempotency_key import IdempotencyKey
+from app.models.invoice import Invoice
 from app.models.member_trainer import MemberTrainer
 from app.models.membership import OrganizationMember
 from app.models.notification import Notification
@@ -29,7 +32,10 @@ __all__ = [
     "CashReconciliation",
     "ClassBooking",
     "ClassSession",
+    "Company",
+    "CompanyContract",
     "IdempotencyKey",
+    "Invoice",
     "MemberTrainer",
     "MembershipPlan",
     "Notification",
