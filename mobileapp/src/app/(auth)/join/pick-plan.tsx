@@ -93,8 +93,8 @@ export default function PickPlan() {
           title={error ? "Couldn't load plans" : "No plans yet"}
           message={
             error
-              ? "Something went wrong reaching your gym."
-              : "This gym hasn't published any membership plans. Check back soon."
+              ? "Something went wrong reaching your organization."
+              : "This organization hasn't published any plans yet. Check back soon."
           }
           action={
             <Button variant="secondary" onPress={load}>

@@ -104,7 +104,7 @@ export default function MagicLinkPage() {
         {step === "request" ? (
           <form onSubmit={requestLink} className="space-y-4">
             <Input
-              label="Gym code"
+              label="Org code"
               required
               value={orgCode}
               onChange={(e) => { setOrgCode(e.target.value.toUpperCase()); setFieldErrors((p) => ({ ...p, orgCode: "" })); }}
@@ -114,7 +114,7 @@ export default function MagicLinkPage() {
             />
             <div className="-mt-3 text-right">
               <Link href="/recover-codes" className="text-xs text-[var(--muted)] hover:text-[var(--primary)] underline underline-offset-2">
-                Don&apos;t remember your gym code?
+                Don&apos;t remember your org code?
               </Link>
             </div>
 
@@ -126,7 +126,7 @@ export default function MagicLinkPage() {
               required
               value={email}
               onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: "" })); }}
-              placeholder="owner@yourgym.com"
+              placeholder="owner@yourcompany.com"
               error={fieldErrors.email}
             />
 

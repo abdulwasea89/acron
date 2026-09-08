@@ -67,7 +67,7 @@ export default function SetPassword() {
   return (
     <AuthScreen
       title="Create a password"
-      subtitle="You'll use this with your email and gym code to sign in."
+      subtitle="You'll use this with your email and org code to sign in."
       back
       progress={flowPosition(JOIN_FLOW, "/(auth)/join/set-password")}
       footer={

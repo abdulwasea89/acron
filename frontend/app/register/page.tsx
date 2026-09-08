@@ -302,7 +302,7 @@ export default function RegisterPage() {
               required
               value={email}
               onChange={(e) => { setEmail(e.target.value); clearField("email"); }}
-              placeholder="owner@yourgym.com"
+              placeholder="owner@yourcompany.com"
               error={fieldErrors.email}
             />
 
@@ -430,7 +430,7 @@ export default function RegisterPage() {
                 required
                 value={occupation}
                 onChange={(e) => { setOccupation(e.target.value); clearField("occupation"); }}
-                placeholder="Gym owner"
+                placeholder="Owner"
                 error={fieldErrors.occupation}
               />
 

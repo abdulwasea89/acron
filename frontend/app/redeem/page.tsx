@@ -71,7 +71,7 @@ export default function RedeemPage() {
     <AuthShell
       eyebrow="STAFF INVITE"
       title="Join your team"
-      description="Enter the invite code shared by your gym"
+      description="Enter the invite code shared by your organization"
       footer={
         <span>
           Already have an account? <Link href="/login" className="auth-link">Log in</Link>
@@ -87,7 +87,7 @@ export default function RedeemPage() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="STAFF-XXXX-XXXX"
-          hint="Ask your gym owner for this code"
+          hint="Ask the person who invited you for this code"
         />
 
         <Input

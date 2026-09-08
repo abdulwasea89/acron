@@ -33,14 +33,14 @@ export function AuthShell({ children, eyebrow, title, description, footer, wide 
             </div>
 
             <blockquote className="auth-brand-quote">
-              <p>Keep your gym<br />in motion.</p>
+              <p>Keep your venue<br />in motion.</p>
               <footer>Every member, payment, and team moment — in sync.</footer>
             </blockquote>
 
             <div className="auth-brand-features">
               <div className="auth-brand-feature">
                 <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16.7 5.3L7.5 14.5 3.3 10.3" /></svg>
-                Built for independent gyms
+                Built for independent venues
               </div>
               <div className="auth-brand-feature">
                 <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16.7 5.3L7.5 14.5 3.3 10.3" /></svg>

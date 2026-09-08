@@ -52,7 +52,7 @@ export default function MagicLink() {
       <AuthScreen title="Link sent" back onBack={() => router.replace("/(auth)/login")}>
         <SentConfirmation
           title="Check your email"
-          message={`If ${email} manages this gym, a secure sign-in link is on its way. It expires in 15 minutes.`}
+          message={`If ${email} manages this organization, a secure sign-in link is on its way. It expires in 15 minutes.`}
           action={
             <Button variant="secondary" onPress={() => router.replace("/(auth)/login")}>
               Back to sign in
@@ -80,9 +80,9 @@ export default function MagicLink() {
         </View>
       ) : null}
 
-      <FieldGroup caption="Available to gym owners and managers.">
+      <FieldGroup caption="Available to organization owners and managers.">
         <Field
-          label="Gym code"
+          label="Org code"
           placeholder="IRON-PULS-3K9"
           value={orgCode}
           onChangeText={(t) => {
@@ -100,7 +100,7 @@ export default function MagicLink() {
         <Field
           ref={emailRef}
           label="Email"
-          placeholder="you@yourgym.com"
+          placeholder="you@yourcompany.com"
           value={email}
           onChangeText={(t) => {
             setEmail(t);

@@ -102,7 +102,7 @@ export default function LoginScreen() {
   return (
     <AuthScreen
       title="Welcome back"
-      subtitle="Sign in with your email, password, and gym code."
+      subtitle="Sign in with your email, password, and org code."
       back
       onBack={() => router.push("/")}
       footer={
@@ -116,7 +116,7 @@ export default function LoginScreen() {
             className="items-center py-1 active:opacity-60"
           >
             <Text type="body-sm" color="muted">
-              New here? <Text className="font-semibold text-accent">Register your gym</Text>
+              New here? <Text className="font-semibold text-accent">Register your organization</Text>
             </Text>
           </Pressable>
         </View>
@@ -128,10 +128,10 @@ export default function LoginScreen() {
         </View>
       ) : null}
 
-      <FieldGroup caption="Your gym code is on your welcome email — it looks like IRON-PULS-3K9.">
+      <FieldGroup caption="Your org code is on your welcome email — it looks like IRON-PULS-3K9.">
         <Field
           label="Email"
-          placeholder="you@yourgym.com"
+          placeholder="you@yourcompany.com"
           value={email}
           onChangeText={(t) => {
             setEmail(t);
@@ -165,7 +165,7 @@ export default function LoginScreen() {
 
         <Field
           ref={orgCodeRef}
-          label="Gym code"
+          label="Org code"
           placeholder="IRON-PULS-3K9"
           value={orgCode}
           onChangeText={(t) => {
@@ -197,7 +197,7 @@ export default function LoginScreen() {
           className="active:opacity-60"
         >
           <Text type="body-sm" className="text-accent">
-            Forgot your gym code?
+            Forgot your org code?
           </Text>
         </Pressable>
 

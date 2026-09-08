@@ -98,7 +98,7 @@ export default function RegisterStep3() {
   return (
     <AuthScreen
       title="A few more details"
-      subtitle="Last step before we set up your gym."
+      subtitle="Last step before we set up your organization."
       back
       progress={flowPosition(OWNER_FLOW, "/(auth)/register/step-3")}
       footer={
@@ -116,7 +116,7 @@ export default function RegisterStep3() {
       <FieldGroup title="Background">
         <Field
           label="Occupation"
-          placeholder="Gym owner"
+          placeholder="Owner"
           value={form.occupation}
           onChangeText={(t) => update("occupation", t)}
           returnKeyType="next"

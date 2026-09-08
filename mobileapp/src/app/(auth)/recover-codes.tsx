@@ -43,7 +43,7 @@ export default function RecoverCodes() {
       <AuthScreen title="Codes sent" back onBack={() => router.replace("/(auth)/login")}>
         <SentConfirmation
           title="Check your email"
-          message={`If ${email} belongs to a member or staff account, we've sent a list of your gyms and their codes.`}
+          message={`If ${email} belongs to a member or staff account, we've sent a list of your organizations and their codes.`}
           action={
             <Button onPress={() => router.replace("/(auth)/login")}>Back to sign in</Button>
           }
@@ -54,8 +54,8 @@ export default function RecoverCodes() {
 
   return (
     <AuthScreen
-      title="Find your gym code"
-      subtitle="We'll email you every gym you belong to, with its code."
+      title="Find your org code"
+      subtitle="We'll email you every organization you belong to, with its code."
       back
       footer={
         <Button loading={loading} onPress={handleSubmit}>

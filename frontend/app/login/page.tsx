@@ -69,10 +69,10 @@ function LoginForm() {
 
   return (
     <AuthShell
-      eyebrow="Gym management, simplified"
+      eyebrow="Venue management, simplified"
       title={needsMfa ? "One more quick check" : "Welcome back"}
-      description={needsMfa ? "Enter the code from your authenticator app to continue securely." : "Sign in to pick up where your gym left off."}
-      footer={<>New to Gym Ops? <Link href="/register" className="auth-link">Create your gym</Link></>}
+      description={needsMfa ? "Enter the code from your authenticator app to continue securely." : "Sign in to pick up where your organization left off."}
+      footer={<>New to Gym Ops? <Link href="/register" className="auth-link">Create your organization</Link></>}
     >
       <div className="auth-form-card">
         {error && (
@@ -92,7 +92,7 @@ function LoginForm() {
                 required
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: "" })); }}
-                placeholder="you@yourgym.com"
+                placeholder="you@yourcompany.com"
                 error={fieldErrors.email}
               />
 
@@ -118,11 +118,11 @@ function LoginForm() {
               </div>
 
               <Input
-                label="Gym code"
+                label="Org code"
                 value={orgCode}
                 onChange={(e) => { setOrgCode(e.target.value.toUpperCase()); setFieldErrors((p) => ({ ...p, orgCode: "" })); }}
                 placeholder="IRON-PULS-3K9"
-                hint="Leave blank to go to your last gym"
+                hint="Leave blank to go to your last organization"
                 autoComplete="organization"
                 error={fieldErrors.orgCode}
               />
@@ -132,7 +132,7 @@ function LoginForm() {
                   href="/recover-codes"
                   className="text-sm font-medium text-[var(--muted)]  transition-colors"
                 >
-                  Don&apos;t remember your gym code?
+                  Don&apos;t remember your org code?
                 </Link>
                 <Link
                   href="/forgot-password"

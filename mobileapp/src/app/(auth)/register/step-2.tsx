@@ -87,7 +87,7 @@ export default function RegisterStep2() {
   return (
     <AuthScreen
       title="About you"
-      subtitle="Gyms handle money and member records, so we verify who runs them."
+      subtitle="Organizations handle money and member records, so we verify who runs them."
       back
       progress={flowPosition(OWNER_FLOW, "/(auth)/register/step-2")}
       footer={<Button onPress={handleContinue}>Continue</Button>}

@@ -113,7 +113,7 @@ export default function ForgotPasswordPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@yourgym.com"
+              placeholder="you@yourcompany.com"
             />
             <Button type="submit" loading={loading} className="w-full">
               Send reset token

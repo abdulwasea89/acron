@@ -103,7 +103,7 @@ export default function JoinPay() {
       <View className="gap-3 rounded-2xl bg-surface p-5">
         <View className="flex-row items-center justify-between">
           <Text type="body-sm" color="muted">
-            Gym
+            Organization
           </Text>
           <Text type="body-sm" weight="medium" className="text-foreground">
             {orgName || orgCode}

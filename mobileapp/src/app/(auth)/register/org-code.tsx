@@ -30,7 +30,7 @@ export default function OrgCodeScreen() {
 
     const parse = signupStartSchema.safeParse({ org_code: orgCode });
     if (!parse.success) {
-      setFieldError("Enter a valid gym code");
+      setFieldError("Enter a valid org code");
       return;
     }
 
@@ -41,7 +41,7 @@ export default function OrgCodeScreen() {
       });
 
       if (!res.accepting_signups) {
-        setError("This gym isn't accepting new members right now.");
+        setError("This organization isn't accepting new members right now.");
         return;
       }
 
@@ -49,7 +49,7 @@ export default function OrgCodeScreen() {
       router.push("/(auth)/join/verify-email");
     } catch (e) {
       if (e instanceof ApiError) {
-        if (e.status === 404) setError("No gym found with that code. Check it and try again.");
+        if (e.status === 404) setError("No organization found with that code. Check it and try again.");
         else setError(e.message);
       } else {
         setError("Network error. Check your connection.");
@@ -61,14 +61,14 @@ export default function OrgCodeScreen() {
 
   return (
     <AuthScreen
-      title="Find your gym"
-      subtitle="Your gym gave you a code when you signed up."
+      title="Find your organization"
+      subtitle="Your organization gave you a code when you signed up."
       back
       progress={flowPosition(JOIN_FLOW, "/(auth)/register/org-code")}
       footer={
         <View className="gap-3">
           <Button loading={loading} onPress={handleSubmit}>
-            Find gym
+            Find organization
           </Button>
           <Pressable
             onPress={() => router.push("/(auth)/redeem")}
@@ -91,7 +91,7 @@ export default function OrgCodeScreen() {
 
       <FieldGroup caption="It's on your welcome email or posted at the front desk — something like IRON-PULS-3K9.">
         <Field
-          label="Gym code"
+          label="Org code"
           placeholder="IRON-PULS-3K9"
           value={orgCode}
           onChangeText={(t) => {

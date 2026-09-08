@@ -40,11 +40,11 @@ export default function RecoverCodesPage() {
 
   return (
     <AuthShell
-      eyebrow="Recover gym codes"
-      title={done ? "Check your inbox" : "Forgot your gym code?"}
+      eyebrow="Recover org codes"
+      title={done ? "Check your inbox" : "Forgot your org code?"}
       description={done
-        ? `If an account exists for ${email}, your gym codes have been sent.`
-        : "Enter your email and we'll send you a list of all your gyms and their codes."}
+        ? `If an account exists for ${email}, your org codes have been sent.`
+        : "Enter your email and we'll send you a list of all your organizations and their codes."}
       footer={<>Back to <Link href="/login" className="auth-link">sign in</Link></>}
     >
       <div className="auth-form-card">
@@ -62,7 +62,7 @@ export default function RecoverCodesPage() {
               </svg>
             </div>
             <p className="text-sm text-[var(--muted)]">
-              If your email is registered, you&apos;ll receive a message shortly with all your gym codes.
+              If your email is registered, you&apos;ll receive a message shortly with all your org codes.
             </p>
             <Link href="/login" className="auth-link text-sm font-medium">Back to sign in</Link>
           </div>
@@ -76,7 +76,7 @@ export default function RecoverCodesPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@yourgym.com"
+              placeholder="you@yourcompany.com"
             />
 
             <Button type="submit" loading={loading} className="w-full">

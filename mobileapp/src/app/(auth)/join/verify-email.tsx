@@ -91,7 +91,7 @@ export default function JoinVerifyEmail() {
       title={onEmailStep ? "Your email" : "Check your email"}
       subtitle={
         onEmailStep
-          ? `We'll send a code to confirm it's you joining ${orgName || "this gym"}.`
+          ? `We'll send a code to confirm it's you joining ${orgName || "this organization"}.`
           : "The code expires in 10 minutes."
       }
       back

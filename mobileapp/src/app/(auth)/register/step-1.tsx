@@ -63,7 +63,7 @@ export default function RegisterStep1() {
   return (
     <AuthScreen
       title="Create your account"
-      subtitle="This is how you'll sign in to manage your gym."
+      subtitle="This is how you'll sign in to manage your organization."
       back
       progress={flowPosition(OWNER_FLOW, "/(auth)/register/step-1")}
       footer={<Button onPress={handleContinue}>Continue</Button>}
@@ -83,7 +83,7 @@ export default function RegisterStep1() {
         <Field
           ref={emailRef}
           label="Email"
-          placeholder="you@yourgym.com"
+          placeholder="you@yourcompany.com"
           value={form.email}
           onChangeText={(t) => update("email", t)}
           autoCapitalize="none"

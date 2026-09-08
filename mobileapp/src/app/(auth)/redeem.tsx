@@ -75,7 +75,7 @@ export default function RedeemInvite() {
   return (
     <AuthScreen
       title="Redeem your invite"
-      subtitle="Your gym emailed you a code that's tied to your address."
+      subtitle="Your organization emailed you a code that's tied to your address."
       back
       footer={
         <Button loading={loading} onPress={handleSubmit}>
@@ -91,7 +91,7 @@ export default function RedeemInvite() {
 
       <FieldGroup title="Your invite">
         <Field
-          label="Gym code"
+          label="Org code"
           placeholder="IRON-PULS-3K9"
           value={form.org_code}
           onChangeText={(t) => update("org_code", t.toUpperCase())}
