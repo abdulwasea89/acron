@@ -1,10 +1,11 @@
-"""Membership plan schemas (Section 6)."""
+"""Membership plan schemas (Section 6, multi-industry Phase 0)."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
 from app.core.constants import PlanBillingType, PlanVisibility, TaxMode
+from app.core.industry import OfferKind
 
 
 class PlanCreate(BaseModel):
@@ -26,6 +27,11 @@ class PlanCreate(BaseModel):
     rules_json: str | None = None
     visibility: PlanVisibility = PlanVisibility.PUBLIC
     featured: bool = False
+    # Multi-industry offer shape. Defaults to the org's industry offer kind
+    # (membership for gym, space for office, course for academy). The industry
+    # spec object is validated server-side against the industry JSON Schema.
+    offer_kind: OfferKind | None = None
+    spec: dict | None = None
 
 
 class PlanUpdate(BaseModel):
@@ -63,3 +69,5 @@ class PlanOut(BaseModel):
     visibility: str
     status: str
     featured: bool
+    offer_kind: str = "membership"
+    spec: dict | None = None

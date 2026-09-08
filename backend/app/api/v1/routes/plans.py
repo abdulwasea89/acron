@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_org, get_session, require_capability, require_writable_org
 from app.core.constants import PlanStatus
+from app.core.industry import OfferKind
 from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
 from app.models.organization import Organization
@@ -18,20 +21,28 @@ router = APIRouter()
 
 
 def _to_out(p: MembershipPlan) -> PlanOut:
+    spec = None
+    if p.spec_json:
+        try:
+            spec = json.loads(p.spec_json)
+        except ValueError:
+            spec = None
     return PlanOut(
         id=p.id, name=p.name, public_description=p.public_description, price=p.price,
         currency=p.currency, tax_mode=p.tax_mode.value, tax_rate=p.tax_rate,
         billing_type=p.billing_type.value, visibility=p.visibility.value,
         status=p.status.value, featured=p.featured,
+        offer_kind=p.offer_kind or "membership", spec=spec,
     )
 
 
 @router.get("", response_model=list[PlanOut])
 async def list_plans(
+    offer_kind: OfferKind | None = None,
     ctx: TenantContext = Depends(require_capability(Capability.VIEW_PLANS)),
     session: AsyncSession = Depends(get_session),
 ):
-    return [_to_out(p) for p in await plans.list_plans(session, org_id=ctx.org_id)]
+    return [_to_out(p) for p in await plans.list_plans(session, org_id=ctx.org_id, offer_kind=offer_kind)]
 
 
 @router.post("", response_model=PlanOut, status_code=201, dependencies=[Depends(require_writable_org)])

@@ -9,6 +9,7 @@ from __future__ import annotations
 from enum import Enum
 
 from app.core.constants import Role
+from app.core.industry import IndustryKind, normalize_industry
 
 
 class Capability(str, Enum):
@@ -32,6 +33,14 @@ class Capability(str, Enum):
     VIEW_ASSIGNED_MEMBERS = "view_assigned_members"
     VIEW_AUDIT_LOG = "view_audit_log"
     VIEW_PLANS = "view_plans"
+
+    # ---- Multi-industry capabilities (office/academy, Phase 0) ----
+    MANAGE_COMPANIES = "manage_companies"    # office: tenant companies & contracts
+    ISSUE_INVOICES = "issue_invoices"        # office: draft/send/settle invoices
+    MANAGE_COURSES = "manage_courses"        # academy: courses & batches
+    ENROLL_STUDENTS = "enroll_students"      # academy: register students into batches
+    TAKE_ATTENDANCE = "take_attendance"      # academy: mark per-lesson attendance
+    BOOK_SPACE = "book_space"                # office: book desks/meeting rooms
 
 
 # Capability -> set of roles allowed. Mirrors the Section 2 table.
@@ -58,6 +67,40 @@ _MATRIX: dict[Capability, set[Role]] = {
     Capability.VIEW_PLANS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
 }
 
+# Per-industry deltas over the base matrix (multi-industry Phase 0). The gym
+# industry has no entry: gym behavior is exactly the base matrix. Office/academy
+# extend shared capabilities and add their vertical-only ones.
+_INDUSTRY_MATRIX: dict[IndustryKind, dict[Capability, set[Role]]] = {
+    IndustryKind.OFFICE: {
+        Capability.MANAGE_COMPANIES: {Role.OWNER, Role.MANAGER},
+        Capability.ISSUE_INVOICES: {Role.OWNER, Role.MANAGER},
+        Capability.BOOK_SPACE: {Role.MEMBER},
+        Capability.MANAGE_MEMBERS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+        Capability.VIEW_PLANS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+    },
+    IndustryKind.ACADEMY: {
+        Capability.MANAGE_COURSES: {Role.OWNER, Role.MANAGER},
+        Capability.ENROLL_STUDENTS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+        Capability.TAKE_ATTENDANCE: {Role.OWNER, Role.MANAGER, Role.TRAINER},
+        Capability.MANAGE_MEMBERS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+        Capability.VIEW_PLANS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+    },
+}
 
-def role_has(role: Role, capability: Capability) -> bool:
+
+def role_has(role: Role, capability: Capability, industry: str | IndustryKind | None = None) -> bool:
+    """Whether ``role`` holds ``capability``.
+
+    When ``industry`` is supplied the vertical's capability overrides apply on
+    top of the shared base matrix (office/academy). Without industry (or for
+    ``gym``) this is exactly the classic gym matrix.
+    """
+
+    if industry is not None:
+        try:
+            overrides = _INDUSTRY_MATRIX.get(normalize_industry(industry), {})
+            if capability in overrides:
+                return role in overrides[capability]
+        except (KeyError, ValueError):
+            pass  # unknown industry -> fall back to the base matrix
     return role in _MATRIX.get(capability, set())

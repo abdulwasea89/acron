@@ -12,11 +12,16 @@ Plans are owner-defined. Key rules enforced here:
 
 from __future__ import annotations
 
+import json
+
 from fastapi import HTTPException
+from jsonschema import ValidationError as JsonSchemaError
+from jsonschema import validate as json_schema_validate
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.constants import PlanStatus, PlanVisibility, SubscriptionStatus
+from app.core.industry import OfferKind, get_industry
 from app.models.organization import Organization
 from app.models.plan import MembershipPlan
 from app.models.subscription import Subscription
@@ -24,9 +29,51 @@ from app.schemas.plans import PlanCreate, PlanUpdate
 from app.services.audit_service import record_audit
 
 
+def _resolve_offer(org: Organization, data: PlanCreate) -> tuple[OfferKind, dict | None]:
+    """Determine + validate the offer kind/spec for a new plan.
+
+    The offer kind defaults to the org's industry offer kind; an explicit kind
+    must match the org's vertical. space/course specs are required and validated
+    against the industry JSON Schema. membership specs are optional (the classic
+    membership columns stay authoritative).
+    """
+
+    try:
+        industry = get_industry(org.industry or "gym")
+    except KeyError:
+        industry = get_industry("gym")
+
+    offer_kind = data.offer_kind or industry.offer_kind
+    if offer_kind is not industry.offer_kind:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Org industry '{industry.key_value}' only supports "
+                   f"{industry.offer_kind.value} offers (got {offer_kind.value}).",
+        )
+
+    spec = data.spec
+    if offer_kind is OfferKind.MEMBERSHIP:
+        return offer_kind, spec
+
+    if spec is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"An {offer_kind.value} offer requires an industry spec.",
+        )
+    try:
+        json_schema_validate(spec, industry.load_offer_schema())
+    except JsonSchemaError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid {offer_kind.value} spec: {exc.message}",
+        ) from exc
+    return offer_kind, spec
+
+
 async def create_plan(
     session: AsyncSession, *, org: Organization, data: PlanCreate, actor_id: str
 ) -> MembershipPlan:
+    offer_kind, spec = _resolve_offer(org, data)
     plan = MembershipPlan(
         organization_id=org.id,
         name=data.name,
@@ -48,11 +95,15 @@ async def create_plan(
         visibility=data.visibility,
         featured=data.featured,
         status=PlanStatus.DRAFT,
+        offer_kind=offer_kind.value,
+        org_industry=org.industry or "gym",
+        spec_json=json.dumps(spec) if spec is not None else None,
     )
     session.add(plan)
     await session.flush()
     await record_audit(session, action="plan.created", organization_id=org.id, actor_user_id=actor_id,
-                       entity_type="plan", entity_id=plan.id, new_values={"name": plan.name})
+                       entity_type="plan", entity_id=plan.id,
+                       new_values={"name": plan.name, "offer_kind": plan.offer_kind})
     return plan
 
 
@@ -181,14 +232,13 @@ async def duplicate_plan(
     return copy
 
 
-async def list_plans(session: AsyncSession, *, org_id: str) -> list[MembershipPlan]:
-    return list(
-        (
-            await session.execute(
-                select(MembershipPlan).where(MembershipPlan.organization_id == org_id)
-            )
-        ).scalars()
-    )
+async def list_plans(
+    session: AsyncSession, *, org_id: str, offer_kind: OfferKind | None = None
+) -> list[MembershipPlan]:
+    query = select(MembershipPlan).where(MembershipPlan.organization_id == org_id)
+    if offer_kind is not None:
+        query = query.where(MembershipPlan.offer_kind == offer_kind.value)
+    return list((await session.execute(query)).scalars())
 
 
 async def list_public_plans(session: AsyncSession, *, org_id: str) -> list[MembershipPlan]:

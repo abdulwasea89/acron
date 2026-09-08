@@ -20,6 +20,7 @@ dependencies = [
     "python-multipart>=0.0.20",
     "sqlmodel>=0.0.38",
     "resend>=2.0",
+    "jsonschema>=4.23",
 ]
 
 [dependency-groups]

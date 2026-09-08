@@ -142,10 +142,18 @@ def require_role(*roles: Role):
 
 
 def require_capability(capability: Capability):
-    """Dependency factory: require the tenant's role to hold ``capability``."""
+    """Dependency factory: require the tenant's role to hold ``capability``.
 
-    async def _dep(ctx: TenantContext = Depends(get_tenant)) -> TenantContext:
-        if not role_has(ctx.role, capability):
+    Industry-aware: the check runs against the org's industry overrides, so
+    office/academy verticals unlock their own capabilities while gym behavior
+    stays exactly the base matrix.
+    """
+
+    async def _dep(
+        ctx: TenantContext = Depends(get_tenant),
+        org: Organization = Depends(get_org),
+    ) -> TenantContext:
+        if not role_has(ctx.role, capability, industry=org.industry):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="This action is not permitted for your role.",
