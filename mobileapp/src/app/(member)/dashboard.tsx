@@ -14,9 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Stagger } from "@/components/motion";
 import { useGet } from "@/hooks/use-api";
 import { useOrgStore } from "@/stores/org-store";
-import { formatDay, formatTime, firstName, greeting } from "@/lib/format";
+import { getIndustry } from "@/lib/industries";
+import { formatDay, formatTime, firstName, greeting, money } from "@/lib/format";
 import type {
   ClassSessionOut,
+  InvoiceOut,
   MeResponse,
   OrganizationOut,
   ProfileOut,
@@ -37,6 +39,15 @@ const STATUS_BANNER: Partial<
   banned: { tone: "danger", title: "Access blocked", message: "Please contact the gym for support." },
 };
 
+const INVOICE_TONE: Record<string, "success" | "warning" | "danger" | "info" | "neutral"> = {
+  paid: "success",
+  partial: "warning",
+  sent: "info",
+  draft: "neutral",
+  overdue: "danger",
+  void: "neutral",
+};
+
 function upcoming(sessions: ClassSessionOut[]): ClassSessionOut[] {
   const now = Date.now();
   return sessions
@@ -47,16 +58,21 @@ function upcoming(sessions: ClassSessionOut[]): ClassSessionOut[] {
 
 export default function Screen_dashboard() {
   const activeOrg = useOrgStore((s) => s.activeOrg);
+  const isOffice = getIndustry(activeOrg?.industry).key === "office";
 
   const realtime = ["membership.changed", "payment.recorded", "plan.changed", "class.changed", "gym_status.changed"];
 
   const me = useGet<MeResponse>("/auth/me", realtime);
   const profile = useGet<ProfileOut>("/auth/me/profile", realtime);
   const org = useGet<OrganizationOut>("/organizations/me", realtime);
-  const classes = useGet<ClassSessionOut[]>("/classes", ["class.changed"]);
+  // A seat-holder's company is billed on invoices, not via a personal card, so
+  // the office home reads the company's open invoices and skips the gym class
+  // schedule entirely.
+  const classes = useGet<ClassSessionOut[]>(isOffice ? null : "/classes", ["class.changed"]);
+  const bills = useGet<InvoiceOut[]>(isOffice ? "/invoices/my-company" : null, ["payment.recorded", "invoice.sent"]);
 
-  const loading = me.loading || profile.loading || org.loading || classes.loading;
-  const error = me.error ?? profile.error ?? org.error ?? classes.error;
+  const loading = me.loading || profile.loading || org.loading || classes.loading || bills.loading;
+  const error = me.error ?? profile.error ?? org.error ?? classes.error ?? bills.error;
 
   const orgName = org.data?.name ?? activeOrg?.name ?? "";
   const status = me.data?.member_status ?? null;
@@ -70,9 +86,12 @@ export default function Screen_dashboard() {
     profile.refetch();
     org.refetch();
     classes.refetch();
+    bills.refetch();
   };
 
-  const goTo = (path: "/classes" | "/payments") => () => router.navigate(path);
+  const goTo = (path: "/classes" | "/payments" | "/space") => () => router.navigate(path);
+
+  const invoices = isOffice ? (bills.data ?? []) : [];
 
   return (
     <AppScreen
@@ -83,6 +102,58 @@ export default function Screen_dashboard() {
         <DashboardSkeleton />
       ) : error ? (
         <DashboardError message={error} onRetry={refresh} />
+      ) : isOffice ? (
+        <>
+          <Stagger gap={80}>
+            <View className="mb-6">
+              <SeatBanner orgName={orgName} status={status} />
+            </View>
+
+            <SectionCard title="Quick actions">
+              <View className="gap-3">
+                <Button onPress={goTo("/space")}>
+                  Book a desk or room
+                </Button>
+              </View>
+            </SectionCard>
+
+            <SectionCard
+              title="Your company’s bills"
+              action={invoices.length > 0 ? <Badge tone="warning" label={`${invoices.length} open`} /> : undefined}
+            >
+              {invoices.length === 0 ? (
+                <View className="rounded-2xl bg-surface px-4 py-6">
+                  <Text type="body-sm" color="muted" className="text-center">
+                    No open invoices — your company is all settled.
+                  </Text>
+                </View>
+              ) : (
+                <View className="overflow-hidden rounded-2xl bg-surface">
+                  {invoices.map((inv, i) => (
+                    <View
+                      key={inv.id}
+                      className="px-4 py-3.5"
+                      style={i > 0 ? { borderTopWidth: 0.5, borderTopColor: "rgba(128,128,128,0.25)" } : undefined}
+                    >
+                      <View className="flex-row items-center justify-between gap-2">
+                        <Text type="body" weight="medium" className="flex-1 text-foreground" numberOfLines={1}>
+                          {inv.invoice_number}
+                        </Text>
+                        <Badge tone={INVOICE_TONE[inv.status] ?? "neutral"} label={inv.status.replace(/_/g, " ")} />
+                      </View>
+                      <Text type="body-sm" color="muted" className="mt-0.5">
+                        {inv.company_name ?? "Your company"} · due {formatDay(inv.due_date)}
+                      </Text>
+                      <Text type="body" weight="semibold" className="mt-1 text-foreground">
+                        {money(inv.total - inv.paid_amount, inv.currency)} due
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </SectionCard>
+          </Stagger>
+        </>
       ) : (
         <>
           <Stagger gap={80}>
@@ -134,6 +205,50 @@ export default function Screen_dashboard() {
         </>
       )}
     </AppScreen>
+  );
+}
+
+/**
+ * Office seat-holder hero. Their company is billed, so there is no personal
+ * payment lane — the message points at the Space booking tab instead.
+ */
+function SeatBanner({ orgName, status }: { orgName: string; status: MemberStatus | null }) {
+  const active = status === "active";
+  const tone = active ? "success" : status === "frozen" ? "warning" : "danger";
+  const tileClass = {
+    success: "bg-success text-success-foreground",
+    warning: "bg-warning text-warning-foreground",
+    danger: "bg-danger text-danger-foreground",
+  }[tone];
+
+  return (
+    <View className="overflow-hidden rounded-3xl bg-surface">
+      <View className="flex-row items-start gap-3 p-4">
+        <View className={`h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${tileClass}`}>
+          <Icon
+            name={active ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"}
+            android={active ? "check_circle" : "warning"}
+            size={22}
+            color="currentColor"
+          />
+        </View>
+        <View className="flex-1 pt-0.5">
+          <View className="flex-row items-center justify-between gap-2">
+            <Text type="body" weight="semibold" className="text-foreground">
+              {active ? "Your seat is active" : `Seat ${(status ?? "").replace(/_/g, " ")}`}
+            </Text>
+            <Badge tone={active ? "success" : status === "frozen" ? "warning" : "danger"} label={active ? "active" : (status ?? "").replace(/_/g, " ")} />
+          </View>
+          <Text type="body-sm" color="muted" className="mt-1">
+            {active
+              ? orgName
+                ? `${orgName} — book a desk or room on the Space tab.`
+                : "Book a desk or room on the Space tab."
+              : "Please contact your space manager."}
+          </Text>
+        </View>
+      </View>
+    </View>
   );
 }
 

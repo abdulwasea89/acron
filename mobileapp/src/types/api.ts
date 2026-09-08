@@ -468,6 +468,48 @@ export interface ReconciliationRequest {
   notes?: string | null;
 }
 
+// --- Office vertical: space slots & B2B invoices (seat-holder view) ----
+// Shapes mirror the backend office API (app/schemas/space.py, app/schemas/invoices.py).
+
+/** A bookable desk/room slot (ClassSession row with category="space_slot"). */
+export interface SpaceSlotOut {
+  id: string;
+  category: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  capacity: number;
+  booked_count: number;
+  cancelled: boolean;
+}
+
+/** A seat-holder's space booking joined with its slot. */
+export interface SpaceBookingOut {
+  booking_id: string;
+  status: string;
+  slot: SpaceSlotOut;
+}
+
+/** A company invoice (B2B). `GET /invoices/my-company` returns sent/partial. */
+export interface InvoiceOut {
+  id: string;
+  invoice_number: string;
+  company_id: string;
+  company_name: string | null;
+  contract_id: string | null;
+  issue_date: string;
+  due_date: string;
+  status: string;
+  subtotal: number;
+  tax_amount: number;
+  total: number;
+  currency: string;
+  line_items: Record<string, unknown>[];
+  notes: string | null;
+  paid_amount: number;
+  paid_at: string | null;
+}
+
 export interface ReconciliationOut {
   id: string;
   business_date: string;

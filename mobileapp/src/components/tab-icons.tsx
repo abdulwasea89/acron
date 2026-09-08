@@ -25,7 +25,8 @@ export type TabGlyph =
   | "receipt"
   | "storefront"
   | "checkbox"
-  | "checkmark-circle";
+  | "checkmark-circle"
+  | "business";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -40,6 +41,7 @@ const GLYPHS: Record<TabGlyph, { line: IoniconName; active: IoniconName }> = {
   storefront: { line: "storefront-outline", active: "storefront" },
   checkbox: { line: "checkbox-outline", active: "checkbox" },
   "checkmark-circle": { line: "checkmark-circle-outline", active: "checkmark-circle" },
+  business: { line: "business-outline", active: "business" },
 };
 
 interface TabGlyphIconProps {
