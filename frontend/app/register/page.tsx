@@ -7,23 +7,31 @@ import { AuthShell } from "@/components/AuthShell";
 import { Alert, Button, Input, Select } from "@/components/ui";
 import { accountSchema, personalSchema, collectErrors } from "@/lib/validation/register";
 import { checkPwned } from "@/lib/hibp";
+import { INDUSTRY_LIST, getIndustry, pluralize, type IndustryKey } from "@/lib/industries";
 
-const TIERS = [
-  { id: "starter", name: "Starter", price: "$29", cap: "Up to 25 members" },
-  { id: "pro", name: "Pro", price: "$79", cap: "Up to 100 members" },
-  { id: "enterprise", name: "Enterprise", price: "Custom", cap: "Unlimited" },
-];
+function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
 
-const STEP_LABELS = ["Account", "About you", "Verify", "Your gym"];
+// Tier caps are expressed in the vertical's own member noun ("members" for
+// gyms, "seat-holders" for office space, "students" for academies). The three
+// tiers themselves are shared across the platform.
+function tiersFor(memberNoun: string) {
+  return [
+    { id: "starter", name: "Starter", price: "$29", cap: `Up to 25 ${pluralize(memberNoun)}` },
+    { id: "pro", name: "Pro", price: "$79", cap: `Up to 100 ${pluralize(memberNoun)}` },
+    { id: "enterprise", name: "Enterprise", price: "Custom", cap: "Unlimited" },
+  ];
+}
 
 function cx(...parts: (string | false | undefined | null)[]): string {
   return parts.filter(Boolean).join(" ");
 }
 
-function Steps({ current }: { current: number }) {
+function Steps({ current, labels }: { current: number; labels: string[] }) {
   return (
-    <ol className="mb-8 flex items-center gap-2" aria-label={`Step ${current} of ${STEP_LABELS.length}`}>
-      {STEP_LABELS.map((label, i) => {
+    <ol className="mb-8 flex items-center gap-2" aria-label={`Step ${current} of ${labels.length}`}>
+      {labels.map((label, i) => {
         const n = i + 1;
         const done = n < current;
         const active = n === current;
@@ -77,9 +85,15 @@ export default function RegisterPage() {
   const [checkingBreach, setCheckingBreach] = useState(false);
   const breachTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [code, setCode] = useState("");
-  const [gymName, setGymName] = useState("");
+  const [industry, setIndustry] = useState<IndustryKey>("gym");
+  const [venueName, setVenueName] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [tier, setTier] = useState("pro");
+
+  // Industry metadata drives the venue-specific copy on the final step.
+  const ind = getIndustry(industry);
+  const stepLabels = ["Account", "About you", "Verify", `Your ${ind.shortNoun}`];
+  const TIERS = tiersFor(ind.memberNoun);
 
 
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -225,12 +239,12 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     setFieldErrors({});
-    if (!gymName.trim()) { setFieldErrors({ gymName: "Required" }); return; }
+    if (!venueName.trim()) { setFieldErrors({ venueName: "Required" }); return; }
     setLoading(true);
     try {
       await post("/api/auth/register-gym", {
         owner_email: email,
-        details: { name: gymName, default_currency: currency },
+        details: { name: venueName, default_currency: currency, industry },
         tier,
       });
       router.push("/app");
@@ -242,24 +256,24 @@ export default function RegisterPage() {
     }
   }
 
-  const titles = ["Create your account", "Tell us about you", "Check your inbox", "Set up your gym"];
+  const titles = ["Create your account", "Tell us about you", "Check your inbox", `Set up your ${ind.shortNoun}`];
   const descriptions = [
     "Start with your name, email, and a strong password.",
     "A few details we need to set up your owner profile.",
     `We sent a 6-digit code to ${email}.`,
-    "Name your gym, pick your currency, and choose a plan.",
+    `Name your ${ind.shortNoun}, pick your currency, and choose a plan.`,
   ];
 
   return (
     <AuthShell
       wide={step === 2}
-      eyebrow={`Step ${step} of ${STEP_LABELS.length}`}
+      eyebrow={`Step ${step} of ${stepLabels.length}`}
       title={titles[step - 1]}
       description={descriptions[step - 1]}
       footer={<>Already have an account? <Link href="/login" className="auth-link">Sign in</Link></>}
     >
       <div className="auth-form-card">
-        <Steps current={step} />
+        <Steps current={step} labels={stepLabels} />
 
         {error && (
           <div className="mb-5">
@@ -493,17 +507,55 @@ export default function RegisterPage() {
           </form>
         )}
 
-        {/* Step 4 — Gym setup */}
+        {/* Step 4 — Venue setup */}
         {step === 4 && (
           <form onSubmit={submitGym} className="space-y-5">
+            <div>
+              <span className="mb-2 block text-[13px] font-medium text-[var(--foreground)]">What kind of place is this?</span>
+              <div className="grid gap-2.5">
+                {INDUSTRY_LIST.map((o) => {
+                  const selected = industry === o.key;
+                  return (
+                    <button
+                      type="button"
+                      key={o.key}
+                      onClick={() => setIndustry(o.key)}
+                      className={`tier-option flex items-center justify-between rounded-xl border px-4 py-3 text-left transition duration-200 ${
+                        selected
+                          ? "border-[var(--primary)] bg-[var(--primary-light)] ring-2 ring-[var(--ring)]"
+                          : "border-[var(--border)] hover:bg-foreground/5"
+                      }`}
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-[var(--foreground)]">{o.label}</div>
+                        <div className="mt-0.5 text-xs text-[var(--muted)]">{o.tagline}</div>
+                      </div>
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                          selected ? "border-[var(--primary)] bg-[var(--primary)] text-white" : "border-[var(--border)]"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {selected && (
+                          <svg className="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="5 10.5 8.5 14 15 6.5" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <Input
               ref={firstInputRef}
-              label="Gym name"
+              label={`${capitalize(ind.shortNoun)} name`}
               required
-              value={gymName}
-              onChange={(e) => { setGymName(e.target.value); clearField("gymName"); }}
-              placeholder="Iron Pulse Boxing"
-              error={fieldErrors.gymName}
+              value={venueName}
+              onChange={(e) => { setVenueName(e.target.value); clearField("venueName"); }}
+              placeholder={ind.sampleName}
+              error={fieldErrors.venueName}
             />
 
             <Select label="Default currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
@@ -542,7 +594,7 @@ export default function RegisterPage() {
 
             <div className="flex items-center gap-3">
               <Button type="button" variant="secondary" onClick={goBack}>Back</Button>
-              <Button type="submit" loading={loading} className="flex-1">Create gym</Button>
+              <Button type="submit" loading={loading} className="flex-1">Create {ind.shortNoun}</Button>
             </div>
           </form>
         )}

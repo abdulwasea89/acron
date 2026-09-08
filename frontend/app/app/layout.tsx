@@ -26,6 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             orgCode={org.org_code}
             orgId={org.id}
             gymStatus={org.gym_status}
+            industry={org.industry}
           />
           <div className="relative flex min-w-0 flex-1 flex-col">
             <OfflineBanner />

@@ -37,6 +37,8 @@ export interface OrganizationOut {
   accent_color: string | null;
   logo_url: string | null;
   mfa_required: boolean;
+  /** Venue vertical: gym | office | academy (defaults to "gym"). */
+  industry: string;
 }
 
 export interface SetupChecklist {
@@ -62,6 +64,10 @@ export interface PlanOut {
   visibility: string;
   status: string;
   featured: boolean;
+  /** Offer kind (membership | space | course); defaults to membership. */
+  offer_kind?: string;
+  /** Industry-specific attributes for space/course offers (validated server-side). */
+  spec?: Record<string, unknown> | null;
 }
 
 export interface PlanCreate {

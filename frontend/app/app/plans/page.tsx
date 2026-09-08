@@ -7,7 +7,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
-import type { PlanOut } from "@/lib/types";
+import type { OrganizationOut, PlanOut } from "@/lib/types";
+import { getIndustry } from "@/lib/industries";
 
 function KebabIcon() {
   return (
@@ -196,6 +197,7 @@ export default function PlansPage() {
   const [search, setSearch] = useState("");
   const [viewing, setViewing] = useState<PlanOut | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [industry, setIndustry] = useState<string>("gym");
 
   async function load() {
     setError("");
@@ -209,6 +211,15 @@ export default function PlansPage() {
 
   useEffect(() => {
     queueMicrotask(() => void load());
+  }, []);
+
+  // The offer/plan vocabulary and builder are industry-shaped. Fetch the org's
+  // venue type so the header + empty states use the right nouns.
+  useEffect(() => {
+    api
+      .get<OrganizationOut>("/organizations/me")
+      .then((org) => setIndustry(org.industry ?? "gym"))
+      .catch(() => setIndustry("gym"));
   }, []);
 
   useRealtimeEvent(["plan.changed"], () => void load());
@@ -255,15 +266,20 @@ export default function PlansPage() {
     );
   }, [statusFiltered, search]);
 
+  const ind = getIndustry(industry);
+  const isGym = ind.key === "gym";
+
   return (
     <>
       <PageHeader
-        title="Membership plans"
-        subtitle="Owner-defined plans shown to members at signup"
+        title={ind.offerPageTitle}
+        subtitle={ind.offerPageSubtitle}
         action={
-          <Button onClick={() => setShowForm((s) => !s)} variant={showForm ? "secondary" : "primary"}>
-            {showForm ? "Close" : "+ New plan"}
-          </Button>
+          isGym ? (
+            <Button onClick={() => setShowForm((s) => !s)} variant={showForm ? "secondary" : "primary"}>
+              {showForm ? "Close" : ind.offerNewLabel}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -294,6 +310,27 @@ export default function PlansPage() {
               <div>
                 <span className="mb-1.5 block text-[13px] font-medium text-[var(--foreground)]">Description</span>
                 <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--foreground-muted)]">{viewing.public_description}</p>
+              </div>
+            )}
+            {viewing.offer_kind && viewing.offer_kind !== "membership" && (
+              <div className="rounded-lg border border-info/45 px-3.5 py-3">
+                <span className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-info">
+                  {titleCase(viewing.offer_kind)} offer attributes
+                </span>
+                {viewing.spec && Object.keys(viewing.spec).length > 0 ? (
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                    {Object.entries(viewing.spec).map(([k, v]) => (
+                      <div key={k} className="min-w-0">
+                        <dt className="text-[11px] font-medium text-[var(--muted)]">{titleCase(k)}</dt>
+                        <dd className="break-words text-sm text-[var(--foreground)]">
+                          {typeof v === "object" && v !== null ? JSON.stringify(v) : String(v)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="text-xs text-[var(--muted)]">No spec captured for this offer.</p>
+                )}
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
@@ -392,19 +429,30 @@ export default function PlansPage() {
         </div>
 
         {filtered === null ? (
-          <Spinner label="Loading plans..." />
+          <Spinner label="Loading offers..." />
         ) : filtered.length === 0 && filter === "active" && plans?.length === 0 ? (
           <div className="px-5 pb-10">
-            <EmptyState
-              title="No plans yet"
-              hint="Create your first plan — members can't sign up until one is published."
-              icon={<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)]"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg></span>}
-              action={
-                <Button onClick={() => setShowForm(true)} size="lg">
-                  + Create your first plan
-                </Button>
-              }
-            />
+            {isGym ? (
+              <EmptyState
+                title="No plans yet"
+                hint="Create your first plan — members can't sign up until one is published."
+                icon={<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)]"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg></span>}
+                action={
+                  <Button onClick={() => setShowForm(true)} size="lg">
+                    + Create your first plan
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center border border-dashed border-[var(--border)] px-6 py-16 text-center">
+                <p className="text-sm font-semibold text-[var(--foreground)]">
+                  No {ind.offerKind} offers yet
+                </p>
+                <p className="mt-1 max-w-xs text-sm text-[var(--muted)]">
+                  The {ind.label} offer builder is rolling out in an upcoming release. Your venue's offers will appear here.
+                </p>
+              </div>
+            )}
           </div>
         ) : filtered.length === 0 ? (
           <div className="px-5 pb-10">
@@ -438,6 +486,11 @@ export default function PlansPage() {
                             {p.featured && (
                               <span className="inline-flex items-center gap-0.5 rounded-full border border-warning/45 bg-warning-bg px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-widest text-warning">
                                 <StarIcon /> Featured
+                              </span>
+                            )}
+                            {p.offer_kind && p.offer_kind !== "membership" && (
+                              <span className="rounded-full border border-info/45 bg-info-bg px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-info">
+                                {titleCase(p.offer_kind)}
                               </span>
                             )}
                           </div>

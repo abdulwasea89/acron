@@ -8,12 +8,21 @@ import { LiveIndicator } from "./Realtime";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 import type { GymStatus } from "@/lib/types";
+import {
+  NAV_LABEL_OVERRIDES,
+  NAV_MODULE_BY_HREF,
+  getIndustry,
+} from "@/lib/industries";
 
 function cx(...parts: (string | false | undefined | null)[]): string {
   return parts.filter(Boolean).join(" ");
 }
 
-const NAV = [
+type NavItem = { href: string; label: string; icon: string };
+
+// The gym-reference navigation, in order. Each route is gated by the registry
+// module it belongs to; venue verticals filter this list and swap labels.
+const NAV: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1" },
   { href: "/app/analytics", label: "Analytics", icon: "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" },
   { href: "/app/plans", label: "Plans", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
@@ -32,9 +41,30 @@ const NAV = [
   { href: "/app/settings", label: "Settings", icon: "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
-export function Sidebar({ orgName, orgCode, orgId, gymStatus }: { orgName: string; orgCode: string; orgId?: string; gymStatus: GymStatus }) {
+/** Registry-driven nav for an org's industry. gym (the reference) is returned
+ *  byte-for-byte unchanged; office/academy drop routes whose module is off and
+ *  relabel venue-specific pages. */
+function navFor(industry?: string): NavItem[] {
+  const meta = getIndustry(industry);
+  const overrides = NAV_LABEL_OVERRIDES[meta.key] ?? {};
+  return NAV.filter((item) => meta.modules.includes(NAV_MODULE_BY_HREF[item.href])).map(
+    (item) => ({ ...item, label: overrides[item.href] ?? item.label }),
+  );
+}
+
+interface SidebarProps {
+  orgName: string;
+  orgCode: string;
+  orgId?: string;
+  gymStatus: GymStatus;
+  /** Venue vertical (gym | office | academy). Drives which nav modules show. */
+  industry?: string;
+}
+
+export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const items = navFor(industry);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -44,7 +74,7 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus }: { orgName: strin
 
   return (
     <>
-      <MobileNavigation orgName={orgName} orgCode={orgCode} />
+      <MobileNavigation orgName={orgName} orgCode={orgCode} items={items} />
       <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col border-r border-foreground/10 bg-background/70 backdrop-blur">
         {/* Brand lockup — dot + serif wordmark (§10.2) */}
         <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-foreground/10 px-6">
@@ -65,7 +95,7 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus }: { orgName: strin
 
         {/* Navigation — active state is a solid brand pill (§10.3) */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {NAV.map((item) => {
+          {items.map((item) => {
             const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
             return (
               <Link
@@ -121,7 +151,15 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus }: { orgName: strin
   );
 }
 
-function MobileNavigation({ orgName, orgCode }: { orgName: string; orgCode: string }) {
+function MobileNavigation({
+  orgName,
+  orgCode,
+  items,
+}: {
+  orgName: string;
+  orgCode: string;
+  items: NavItem[];
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -187,7 +225,7 @@ function MobileNavigation({ orgName, orgCode }: { orgName: string; orgCode: stri
             aria-label="Mobile navigation"
             className="fixed right-4 top-[calc(3.5rem+0.5rem)] z-40 max-h-[calc(100dvh-4.5rem)] w-[min(19rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-lg border border-foreground/10 bg-surface p-2 shadow-lg lg:hidden"
           >
-            {NAV.map((item) => {
+            {items.map((item) => {
               const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
               return (
                 <Link
