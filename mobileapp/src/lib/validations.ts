@@ -56,6 +56,8 @@ export const gymDetailsSchema = z.object({
   logo_url: z.string().nullable().optional(),
   accent_color: z.string().nullable().optional(),
   working_hours: z.string().nullable().optional(),
+  /** Venue vertical (gym | office | academy) — gym is the default reference. */
+  industry: z.enum(["gym", "office", "academy"]).optional().default("gym"),
 });
 
 export const tierSchema = z.enum(["starter", "pro", "enterprise"]);

@@ -658,6 +658,9 @@ async def list_user_organizations(
                 "org_code": o.org_code,
                 "role": m.role.value,
                 "member_status": m.member_status.value if m.member_status else None,
+                # Venue vertical (gym | office | academy) — lets clients theme the
+                # org switcher / tab bars without a second round-trip.
+                "industry": o.industry,
             })
     return result
 

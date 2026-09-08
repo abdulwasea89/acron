@@ -11,6 +11,7 @@ import { api, ApiError } from "@/lib/api";
 import { useRegisterStore } from "@/stores/register-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { getPalette } from "@/lib/theme";
+import { capitalize, getIndustry } from "@/lib/industries";
 import { OWNER_FLOW, flowPosition } from "@/lib/flow";
 import type { RegisterGymResponse } from "@/types/api";
 
@@ -117,7 +118,10 @@ export default function PaymentScreen() {
       ) : null}
 
       <View className="gap-3 rounded-2xl bg-surface p-5">
-        <SummaryRow label="Gym" value={gymDetails.name} />
+        <SummaryRow
+          label={capitalize(getIndustry(gymDetails.industry).shortNoun)}
+          value={gymDetails.name}
+        />
         <SummaryRow
           label="Plan"
           value={selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)}

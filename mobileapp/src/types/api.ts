@@ -14,6 +14,8 @@ export interface OrganizationOut {
   logo_url?: string;
   address?: string;
   country?: string;
+  /** Venue vertical: gym | office | academy (default gym). */
+  industry?: string;
 }
 
 export interface AuthUserResponse {
@@ -33,12 +35,15 @@ export interface LoginResponse {
   requires_mfa?: boolean;
 }
 
+/** One row of `GET /auth/my-organizations` (org switcher). */
 export interface OrgSummaryResponse {
-  id: string;
+  organization_id: string;
   name: string;
   org_code: string;
   role: string;
   member_status?: string | null;
+  /** Venue vertical: gym | office | academy (default gym). */
+  industry?: string;
 }
 
 export interface HeadlineMetrics {
@@ -252,6 +257,8 @@ export interface GymDetails {
   logo_url?: string | null;
   accent_color?: string | null;
   working_hours?: string | null;
+  /** Venue vertical: gym | office | academy (default gym). */
+  industry?: string;
 }
 
 export interface RegisterGymRequest {

@@ -14,7 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { HeroUINativeProvider } from "heroui-native";
 
 import { useAuthStore } from "@/stores/auth-store";
-import { useOrgStore } from "@/stores/org-store";
+import { toOrgSummary, useOrgStore } from "@/stores/org-store";
 import { useNotificationStore } from "@/stores/notification-store";
 import { api } from "@/lib/api";
 import { restartRealtime, stopRealtime } from "@/lib/realtime";
@@ -73,10 +73,11 @@ export default function RootLayout() {
     const init = async () => {
       try {
         cleanupStaleKeys();
-        const orgs = await api.get<OrgSummaryResponse[]>("/auth/my-organizations");
-        setOrgs(orgs as any);
+        const rows = await api.get<OrgSummaryResponse[]>("/auth/my-organizations");
+        const orgs = rows.map(toOrgSummary);
+        setOrgs(orgs);
         if (orgs.length > 0) {
-          setActiveOrg(orgs[0] as any);
+          setActiveOrg(orgs[0]);
         }
       } catch {
         // Not authenticated or network error — fine

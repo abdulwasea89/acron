@@ -5,14 +5,22 @@ import { router } from "expo-router";
 import { AuthScreen } from "@/components/auth-screen";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup } from "@/components/auth/field-group";
+import { IndustryPicker } from "@/components/auth/industry-picker";
 import { AccentPicker, DEFAULT_ACCENT } from "@/components/auth/accent-picker";
 import { useRegisterStore } from "@/stores/register-store";
 import { gymDetailsSchema } from "@/lib/validations";
 import { OWNER_FLOW, flowPosition } from "@/lib/flow";
+import { capitalize, getIndustry, pluralize, type IndustryKey } from "@/lib/industries";
 import type { GymDetails } from "@/types/api";
 
 export default function GymDetailsScreen() {
   const { gymDetails, setGymDetails } = useRegisterStore();
+  const [industry, setIndustry] = useState<IndustryKey>(
+    // gym is the reference venue; persist whichever vertical the owner picked.
+    getIndustry(gymDetails?.industry).key,
+  );
+  const ind = getIndustry(industry);
+  const membersNoun = pluralize(ind.memberNoun);
   const [form, setForm] = useState({
     name: gymDetails?.name ?? "",
     country: gymDetails?.country ?? "US",
@@ -37,6 +45,7 @@ export default function GymDetailsScreen() {
   const handleContinue = () => {
     const data = {
       ...form,
+      industry,
       address: form.address || null,
       working_hours: form.working_hours || null,
       accent_color: form.accent_color || null,
@@ -53,22 +62,33 @@ export default function GymDetailsScreen() {
       return;
     }
 
-    setGymDetails(data as GymDetails);
+    setGymDetails(parse.data as GymDetails);
     router.push("/(auth)/register/tier");
   };
 
+  const base = flowPosition(OWNER_FLOW, "/(auth)/register/gym-details");
+
   return (
     <AuthScreen
-      title="About your gym"
-      subtitle="Members see this name and these hours. You can change it all later."
+      title={`About your ${ind.shortNoun}`}
+      subtitle={`${capitalize(membersNoun)} see this name and these hours. You can change it all later.`}
       back
-      progress={flowPosition(OWNER_FLOW, "/(auth)/register/gym-details")}
+      progress={base ? { ...base, label: `Your ${ind.shortNoun}` } : null}
       footer={<Button onPress={handleContinue}>Continue</Button>}
     >
+      {/* The venue vertical drives every label below — the gym reference is
+          selected by default and its copy is unchanged. */}
+      <FieldGroup
+        title="What kind of place is this?"
+        caption="This sets the venue defaults. You can change them later."
+      >
+        <IndustryPicker value={industry} onChange={setIndustry} />
+      </FieldGroup>
+
       <FieldGroup title="The basics">
         <Field
-          label="Gym name"
-          placeholder="Iron Pulse Boxing"
+          label={`${capitalize(ind.shortNoun)} name`}
+          placeholder={ind.sampleName}
           value={form.name}
           onChangeText={(t) => update("name", t)}
           returnKeyType="next"
