@@ -60,6 +60,7 @@ class OrganizationOut(BaseModel):
     logo_url: str | None = None
     mfa_required: bool = False
     industry: str = "gym"
+    default_currency: str = "USD"
 
 
 class RegisterGymResponse(BaseModel):

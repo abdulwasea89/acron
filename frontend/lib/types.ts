@@ -39,6 +39,7 @@ export interface OrganizationOut {
   mfa_required: boolean;
   /** Venue vertical: gym | office | academy (defaults to "gym"). */
   industry: string;
+  default_currency: string;
 }
 
 export interface SetupChecklist {
@@ -50,6 +51,8 @@ export interface SetupChecklist {
   staff_invited: boolean;
   office_configured: boolean;
   member_signup_unblocked: boolean;
+  /** Industry-ordered onboarding steps: [{code,label,done},...] (backend-built). */
+  steps?: { code: string; label: string; done: boolean }[];
 }
 
 export interface PlanOut {
@@ -81,6 +84,9 @@ export interface PlanCreate {
   pack_size?: number | null;
   validity_days?: number | null;
   featured?: boolean;
+  /** Multi-industry offer shape (defaults to the org's industry offer kind). */
+  offer_kind?: string;
+  spec?: Record<string, unknown> | null;
 }
 
 export interface MemberDirectoryItem {
@@ -165,6 +171,12 @@ export interface HeadlineMetrics {
   pending_receipts: number;
   pending_approvals: number;
   active_members: number;
+  // Office vertical KPIs — present only for industry "office" orgs (the
+  // backend returns an industry-shaped payload, gym keys absent for office).
+  occupied_seats?: number;
+  occupancy_pct?: number;
+  space_mrr?: number;
+  outstanding_invoices?: number;
 }
 
 export interface RevenueAnalytics {
@@ -414,4 +426,132 @@ export interface AuditLogPage {
 export interface AuditActionGroup {
   domain: string;
   actions: string[];
+}
+
+// ------------------------------------------------------------- office (B2B)
+// Mirrors backend/app/schemas/{companies,invoices,space}.py. Company = the
+// paying tenant; a seat-holder is a member row bound to a company via contract.
+
+export interface CompanyOut {
+  id: string;
+  name: string;
+  status: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  billing_email: string | null;
+  tax_id: string | null;
+  address: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface CompanyListItem extends CompanyOut {
+  seat_capacity: number;
+  occupied_seats: number;
+  outstanding_total: number;
+}
+
+export interface CompanyContractOut {
+  id: string;
+  company_id: string;
+  plan_id: string;
+  plan_name: string;
+  seats: number;
+  price_per_seat: number;
+  currency: string;
+  term: string;
+  room_credits_remaining: number;
+  start_date: string;
+  end_date: string | null;
+  next_billing_at: string;
+  status: string;
+  notes: string | null;
+}
+
+export interface SeatHolderOut {
+  member_id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  display_name: string | null;
+  member_status: string;
+  company_id: string | null;
+  profile_complete: boolean;
+  joined_at: string | null;
+}
+
+export interface SeatHolderInviteOut {
+  member_id: string;
+  email: string;
+  member_status: string;
+  email_delivered: boolean;
+  invite_code: string;
+}
+
+export interface CompanyDetailOut {
+  company: CompanyOut;
+  contracts: CompanyContractOut[];
+  seat_holders: SeatHolderOut[];
+}
+
+export interface OfficeInvoiceOut {
+  id: string;
+  invoice_number: string;
+  company_id: string;
+  company_name: string | null;
+  contract_id: string | null;
+  issue_date: string;
+  due_date: string;
+  status: string;
+  subtotal: number;
+  tax_amount: number;
+  total: number;
+  currency: string;
+  line_items: Record<string, unknown>[];
+  notes: string | null;
+  paid_amount: number;
+  paid_at: string | null;
+}
+
+export interface InvoiceLineItem {
+  description: string;
+  quantity: number;
+  unit_amount: number;
+  amount: number;
+}
+
+export interface OfficeInvoicePaymentOut {
+  id: string;
+  invoice_id: string;
+  method: string;
+  amount: number;
+  currency: string;
+  note: string | null;
+  paid_at: string;
+}
+
+export interface SpaceSlotOut {
+  id: string;
+  category: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  capacity: number;
+  booked_count: number;
+  cancelled: boolean;
+}
+
+export interface SpaceBookingOut {
+  booking_id: string;
+  status: string;
+  slot: SpaceSlotOut;
+}
+
+/** Org B2B invoice template — what appears on an issued invoice. */
+export interface InvoiceSettings {
+  legal_name: string | null;
+  address: string | null;
+  tax_id: string | null;
+  payment_terms_days: number | null;
 }

@@ -43,6 +43,7 @@ def _to_out(org: Organization) -> OrganizationOut:
         accent_color=org.accent_color,
         logo_url=org.logo_url,
         industry=org.industry,
+        default_currency=org.default_currency or "USD",
     )
 
 

@@ -219,6 +219,9 @@ export const NAV_MODULE_BY_HREF: Record<string, string> = {
   "/app": "dashboard",
   "/app/analytics": "analytics",
   "/app/plans": "offers",
+  "/app/companies": "companies",
+  "/app/invoices": "invoices",
+  "/app/space": "space",
   "/app/members": "members",
   "/app/payments": "payments",
   "/app/cash": "cash",
@@ -240,9 +243,18 @@ export const NAV_LABEL_OVERRIDES: Partial<Record<IndustryKey, Record<string, str
   office: {
     "/app/plans": "Space plans",
     "/app/members": "Seat-holders",
+    "/app/space": "Desks & rooms",
   },
   academy: {
     "/app/plans": "Fee plans",
     "/app/members": "Students",
   },
+};
+
+/** Which vertical an admin page belongs to (for module gating). Pages whose
+ *  module isn't enabled for the active org's industry redirect to /app. */
+export const PAGE_MODULE_BY_HREF: Record<string, string> = {
+  "/app/companies": "companies",
+  "/app/invoices": "invoices",
+  "/app/space": "space",
 };

@@ -268,6 +268,8 @@ export default function PlansPage() {
 
   const ind = getIndustry(industry);
   const isGym = ind.key === "gym";
+  const isOffice = ind.key === "office";
+  const canBuild = isGym || isOffice; // academy offer builder is still rolling out
 
   return (
     <>
@@ -275,7 +277,7 @@ export default function PlansPage() {
         title={ind.offerPageTitle}
         subtitle={ind.offerPageSubtitle}
         action={
-          isGym ? (
+          canBuild ? (
             <Button onClick={() => setShowForm((s) => !s)} variant={showForm ? "secondary" : "primary"}>
               {showForm ? "Close" : ind.offerNewLabel}
             </Button>
@@ -286,7 +288,7 @@ export default function PlansPage() {
       {error && <div className="mb-5"><Alert>{error}</Alert></div>}
 
       <Dialog open={showForm} onClose={() => { setShowForm(false); setEditing(null); }} title={editing ? "Edit plan" : "Create plan"} subtitle={editing ? "Update plan details" : "Saved as a draft — publish it when ready"} className="max-w-xl">
-        <PlanForm plan={editing} onCreated={() => { setShowForm(false); setEditing(null); load(); }} />
+        <PlanForm plan={editing} industryKey={ind.key} onCreated={() => { setShowForm(false); setEditing(null); load(); }} />
       </Dialog>
 
       <Dialog open={deleteId !== null} onClose={() => setDeleteId(null)} title="Delete plan" className="max-w-sm">
@@ -443,6 +445,17 @@ export default function PlansPage() {
                   </Button>
                 }
               />
+            ) : isOffice ? (
+              <EmptyState
+                title="No space plans yet"
+                hint="Publish a space plan so companies can sign seat contracts and get billed."
+                icon={<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--primary)]/10 text-[var(--primary)]"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18" /><path d="M9 7h6M9 11h6M9 15h4" /></svg></span>}
+                action={
+                  <Button onClick={() => setShowForm(true)} size="lg">
+                    + Create your first space plan
+                  </Button>
+                }
+              />
             ) : (
               <div className="flex flex-col items-center justify-center border border-dashed border-[var(--border)] px-6 py-16 text-center">
                 <p className="text-sm font-semibold text-[var(--foreground)]">
@@ -555,13 +568,18 @@ export default function PlansPage() {
   );
 }
 
-function PlanForm({ plan, onCreated }: { plan?: PlanOut | null; onCreated: () => void }) {
+function PlanForm({ plan, industryKey = "gym", onCreated }: { plan?: PlanOut | null; industryKey?: string; onCreated: () => void }) {
   const [name, setName] = useState(plan?.name ?? "");
   const [price, setPrice] = useState(plan ? String(plan.price) : "0");
   const [billing, setBilling] = useState(plan?.billing_type ?? "recurring");
   const [visibility, setVisibility] = useState(plan?.visibility ?? "public");
   const [desc, setDesc] = useState(plan?.public_description ?? "");
   const [featured, setFeatured] = useState(plan?.featured ?? false);
+  // Office space-offer fields (offer_kind = space).
+  const isOffice = industryKey === "office";
+  const [spaceType, setSpaceType] = useState(isOffice && plan?.spec && "space_type" in plan.spec ? String(plan.spec.space_type) : "fixed_desk");
+  const [term, setTerm] = useState(isOffice && plan?.spec && "term" in plan.spec ? String(plan.spec.term) : "monthly");
+  const [roomCredits, setRoomCredits] = useState(isOffice && plan?.spec && "room_credits" in plan.spec ? String(plan.spec.room_credits) : "");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -570,13 +588,22 @@ function PlanForm({ plan, onCreated }: { plan?: PlanOut | null; onCreated: () =>
     setError("");
     setLoading(true);
     try {
-      const body = {
+      const spec = isOffice
+        ? {
+            space_type: spaceType,
+            term,
+            billing: "company_invoice",
+            ...(roomCredits !== "" && Number(roomCredits) > 0 ? { room_credits: Number(roomCredits) } : {}),
+          }
+        : undefined;
+      const body: Record<string, unknown> = {
         name,
         price: parseFloat(price) || 0,
         billing_type: billing,
         visibility,
         public_description: desc || null,
         featured: featured || undefined,
+        ...(isOffice ? { offer_kind: "space", spec } : {}),
         ...(billing === "recurring" ? { cycle_unit: "month", cycle_length: 1 } : {}),
       };
       if (plan) {
@@ -596,9 +623,32 @@ function PlanForm({ plan, onCreated }: { plan?: PlanOut | null; onCreated: () =>
     <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
       {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
 
-      <Input label="Plan name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Monthly Unlimited" />
+      <Input label={isOffice ? "Space plan name" : "Plan name"} required value={name} onChange={(e) => setName(e.target.value)} placeholder={isOffice ? "Fixed Desk" : "Monthly Unlimited"} />
 
-      <Input label="Price" type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
+      <Input label={isOffice ? "Price / seat / term" : "Price"} type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
+
+      {isOffice && (
+        <>
+          <Select label="Space type" value={spaceType} onChange={(e) => setSpaceType(e.target.value)}>
+            <option value="hot_desk">Hot desk</option>
+            <option value="fixed_desk">Fixed desk</option>
+            <option value="private_office">Private office</option>
+            <option value="meeting_room">Meeting room</option>
+            <option value="day_pass">Day pass</option>
+          </Select>
+          <Select label="Billing term" value={term} onChange={(e) => setTerm(e.target.value)}>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="annual">Annual</option>
+          </Select>
+          <div className="sm:col-span-2">
+            <Input label="Room credits per term (optional)" type="number" min="0" value={roomCredits} onChange={(e) => setRoomCredits(e.target.value)} />
+          </div>
+          <p className="text-xs text-[var(--muted)] sm:col-span-2">
+            Companies are billed by invoice each {term} term; the price above is per seat per term.
+          </p>
+        </>
+      )}
 
       <Select label="Billing type" value={billing} onChange={(e) => setBilling(e.target.value)}>
         <option value="recurring">Recurring</option>
@@ -613,7 +663,7 @@ function PlanForm({ plan, onCreated }: { plan?: PlanOut | null; onCreated: () =>
       </Select>
 
       <div className="sm:col-span-2">
-        <Textarea label="Public description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What members see on the signup screen" rows={3} />
+        <Textarea label="Public description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={isOffice ? "What companies see when choosing a plan" : "What members see on the signup screen"} rows={3} />
       </div>
 
       <div className="sm:col-span-2 flex items-center gap-2">

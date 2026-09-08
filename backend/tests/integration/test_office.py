@@ -166,6 +166,45 @@ async def test_office_company_contract_seat_holder_and_invoice(client):
     assert r.json()["total"] == 750.0
 
 
+# ------------------------------------------------------------------- invoice template
+@pytest.mark.asyncio
+async def test_office_invoice_settings_persist_and_flip_checklist(client):
+    headers, org_id, org_code, plan_id = await _provision_office(client)
+
+    # PUT persists each template field onto its Organization column.
+    r = await client.put("/api/v1/organizations/me/invoice-settings", headers=headers, json={
+        "legal_name": "Acme Suites LLC",
+        "address": "1 Market St, Springfield",
+        "tax_id": "US-12-3456789",
+        "payment_terms_days": 14,
+    })
+    assert r.status_code == 200, r.text
+    assert r.json() == {
+        "legal_name": "Acme Suites LLC",
+        "address": "1 Market St, Springfield",
+        "tax_id": "US-12-3456789",
+        "payment_terms_days": 14,
+    }
+
+    # Round-trip through a fresh read proves the columns actually persisted.
+    r = await client.get("/api/v1/organizations/me/invoice-settings", headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["legal_name"] == "Acme Suites LLC"
+    assert r.json()["payment_terms_days"] == 14
+
+    # Partial PUT is a legal merge (updates only the sent field).
+    r = await client.put("/api/v1/organizations/me/invoice-settings", headers=headers,
+                         json={"tax_id": "EU-XX-000"})
+    assert r.status_code == 200, r.text
+    assert r.json()["tax_id"] == "EU-XX-000"
+    assert r.json()["legal_name"] == "Acme Suites LLC"  # untouched
+
+    # Setting the template completes the office 'invoices' checklist step.
+    r = await client.get("/api/v1/organizations/me/checklist", headers=headers)
+    step = [s for s in r.json()["steps"] if s["code"] == "invoices"][0]
+    assert step["done"] is True
+
+
 # ------------------------------------------------------------------- headline KPIs
 @pytest.mark.asyncio
 async def test_office_headline_metrics(client):

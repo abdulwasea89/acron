@@ -387,8 +387,17 @@ async def update_invoice_settings(session: AsyncSession, org: Organization, data
     if not changes:
         raise HTTPException(status_code=422, detail="Nothing to update.")
     old = invoice_settings(org)
+    # Schema field names (legal_name/address/...) differ from the Organization
+    # column names (invoice_legal_name/invoice_address/...). Map explicitly so a
+    # PUT actually persists instead of raising on an unmapped attribute.
+    _FIELD_TO_COLUMN = {
+        "legal_name": "invoice_legal_name",
+        "address": "invoice_address",
+        "tax_id": "invoice_tax_id",
+        "payment_terms_days": "invoice_payment_terms_days",
+    }
     for field, value in changes.items():
-        setattr(org, field, value)
+        setattr(org, _FIELD_TO_COLUMN.get(field, field), value)
     org.checklist_invoice_template_set = True
     session.add(org)
     await record_audit(session, action="org.invoice_settings_updated", organization_id=org.id,

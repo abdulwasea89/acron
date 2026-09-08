@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, Select, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, Input, Select, Spinner } from "@/components/ui";
+import { getIndustry } from "@/lib/industries";
 import { api, ApiError } from "@/lib/api";
 import { statusTone, titleCase } from "@/lib/format";
-import type { OrganizationOut } from "@/lib/types";
+import type { InvoiceSettings, OrganizationOut } from "@/lib/types";
 
 export default function SettingsPage() {
   const [org, setOrg] = useState<OrganizationOut | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [enrollment, setEnrollment] = useState("open");
+  const [invoice, setInvoice] = useState<InvoiceSettings | null>(null);
+  const [savingInvoice, setSavingInvoice] = useState(false);
 
   async function load() {
     setError("");
@@ -19,6 +22,11 @@ export default function SettingsPage() {
       const o = await api.get<OrganizationOut>("/organizations/me");
       setOrg(o);
       setEnrollment(o.enrollment_mode);
+      if (o.industry === "office") {
+        setInvoice(await api.get<InvoiceSettings>("/organizations/me/invoice-settings"));
+      } else {
+        setInvoice(null);
+      }
     } catch (e) {
       setError((e as ApiError).message);
     }
@@ -64,11 +72,38 @@ export default function SettingsPage() {
     }
   }
 
+  async function saveInvoice() {
+    if (!invoice) return;
+    setError("");
+    setNotice("");
+    setSavingInvoice(true);
+    try {
+      await api.put("/organizations/me/invoice-settings", {
+        legal_name: invoice.legal_name || null,
+        address: invoice.address || null,
+        tax_id: invoice.tax_id || null,
+        payment_terms_days: invoice.payment_terms_days,
+      });
+      setNotice("Invoice details updated.");
+      await load();
+    } catch (e) {
+      setError((e as ApiError).message);
+    } finally {
+      setSavingInvoice(false);
+    }
+  }
+
+  function setInv<K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) {
+    setInvoice((v) => (v ? { ...v, [key]: value } : v));
+  }
+
+  const settingsNoun = titleCase(getIndustry(org?.industry).shortNoun);
+
   if (org === null && !error) return <Spinner label="Loading settings..." />;
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Gym configuration & security" />
+      <PageHeader title="Settings" subtitle={`${settingsNoun} configuration & security`} />
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
       {notice && <div className="mb-4 animate-slide-down"><Alert tone="success">{notice}</Alert></div>}
@@ -113,23 +148,59 @@ export default function SettingsPage() {
             </div>
           </Card>
 
-          <Card>
-            <CardHeader
-              title="Payments (Stripe Connect)"
-              subtitle="Member fees flow directly into your bank account"
-              action={
-                <Badge tone={statusTone(org.stripe_connect_status)}>
-                  {titleCase(org.stripe_connect_status)}
-                </Badge>
-              }
-            />
-            <div className="p-6">
-              <Button variant="secondary" onClick={connectStripe}>
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
-                {org.stripe_connect_status === "active" ? "Manage Stripe" : "Connect Stripe"}
-              </Button>
-            </div>
-          </Card>
+          {invoice && (
+            <Card>
+              <CardHeader
+                title="Invoice details"
+                subtitle="Legal name, address & tax ID printed on invoices to companies"
+                action={
+                  <Badge tone="neutral">B2B template</Badge>
+                }
+              />
+              <div className="space-y-5 p-6">
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Input label="Legal name" value={invoice.legal_name ?? ""} onChange={(e) => setInv("legal_name", e.target.value)} placeholder={org.name} />
+                  <Input label="Tax / VAT ID" value={invoice.tax_id ?? ""} onChange={(e) => setInv("tax_id", e.target.value)} placeholder="e.g. US-12-3456789" />
+                </div>
+                <Input label="Address" value={invoice.address ?? ""} onChange={(e) => setInv("address", e.target.value)} placeholder="Billing address on the invoice" />
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="min-w-0 sm:min-w-[280px]">
+                    <Select label="Payment terms" value={String(invoice.payment_terms_days ?? 0)} onChange={(e) => setInv("payment_terms_days", parseInt(e.target.value, 10))}>
+                      <option value="0">Due on receipt</option>
+                      <option value="7">Net 7</option>
+                      <option value="14">Net 14</option>
+                      <option value="30">Net 30</option>
+                      <option value="60">Net 60</option>
+                    </Select>
+                  </div>
+                  <Button onClick={saveInvoice} loading={savingInvoice} className="h-11">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    Save invoice details
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {org.industry !== "office" && (
+            <Card>
+              <CardHeader
+                title="Payments (Stripe Connect)"
+                subtitle="Member fees flow directly into your bank account"
+                action={
+                  <Badge tone={statusTone(org.stripe_connect_status)}>
+                    {titleCase(org.stripe_connect_status)}
+                  </Badge>
+                }
+              />
+              <div className="p-6">
+                <Button variant="secondary" onClick={connectStripe}>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                  {org.stripe_connect_status === "active" ? "Manage Stripe" : "Connect Stripe"}
+                </Button>
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardHeader

@@ -2,13 +2,15 @@ import { PageHeader } from "@/components/PageHeader";
 import { Badge, Card, CardHeader, StatCard } from "@/components/ui";
 import { backend } from "@/lib/backend";
 import { money, titleCase } from "@/lib/format";
-import type { HeadlineMetrics, SaasStatusOut, SetupChecklist } from "@/lib/types";
+import type { HeadlineMetrics, OrganizationOut, SaasStatusOut, SetupChecklist } from "@/lib/types";
 
 async function safe<T>(p: Promise<T>): Promise<T | null> {
   try { return await p; } catch { return null; }
 }
 
-const CHECKLIST_LABELS: Record<keyof SetupChecklist, string> = {
+type ChecklistFlag = Exclude<keyof SetupChecklist, "steps">;
+
+const CHECKLIST_LABELS: Record<ChecklistFlag, string> = {
   gym_registered: "Gym registered",
   saas_active: "SaaS plan active",
   stripe_connected: "Connect Stripe (member payments)",
@@ -20,33 +22,51 @@ const CHECKLIST_LABELS: Record<keyof SetupChecklist, string> = {
 };
 
 export default async function DashboardPage() {
-  const [metrics, checklist, saas] = await Promise.all([
+  const [metrics, checklist, saas, org] = await Promise.all([
     safe(backend<HeadlineMetrics>("/analytics/headline")),
     safe(backend<SetupChecklist>("/organizations/me/checklist")),
     safe(backend<SaasStatusOut>("/saas-billing/status")),
+    safe(backend<OrganizationOut>("/organizations/me")),
   ]);
 
-  const stats: { label: string; value: string; accent?: boolean }[] = [
-    { label: "Active members", value: metrics ? String(metrics.active_members) : "—" },
-    { label: "Today's revenue", value: metrics ? money(metrics.today_revenue, "USD") : "—", accent: true },
-    { label: "Check-ins today", value: metrics ? String(metrics.today_check_ins) : "—" },
-    { label: "Pending approvals", value: metrics ? String(metrics.pending_approvals) : "—" },
-  ];
+  const currency = org?.default_currency ?? "USD";
+  const isOffice = (org?.industry ?? "gym") === "office";
+  const pageSubtitle = isOffice ? "Occupancy & billing at a glance" : "Today at a glance";
 
-  const checklistItems = checklist
-    ? (Object.keys(CHECKLIST_LABELS) as (keyof SetupChecklist)[]).map((k) => ({
-        key: k,
-        label: CHECKLIST_LABELS[k],
-        done: checklist[k],
-      }))
-    : [];
+  // Per-industry headline tiles. Gym renders exactly today's labels/values;
+  // office uses the backend's office KPI set (occupied_seats etc.).
+  const stats: { label: string; value: string; accent?: boolean }[] = isOffice
+    ? [
+        { label: "Seats occupied", value: metrics ? String(metrics.occupied_seats ?? 0) : "—" },
+        { label: "Occupancy", value: metrics ? `${Math.round(metrics.occupancy_pct ?? 0)}%` : "—", accent: true },
+        { label: "Monthly space revenue", value: metrics ? money(metrics.space_mrr ?? 0, currency) : "—" },
+        { label: "Outstanding invoices", value: metrics ? money(metrics.outstanding_invoices ?? 0, currency) : "—" },
+      ]
+    : [
+        { label: "Active members", value: metrics ? String(metrics.active_members) : "—" },
+        { label: "Today's revenue", value: metrics ? money(metrics.today_revenue, currency) : "—", accent: true },
+        { label: "Check-ins today", value: metrics ? String(metrics.today_check_ins) : "—" },
+        { label: "Pending approvals", value: metrics ? String(metrics.pending_approvals) : "—" },
+      ];
+
+  const allSetCopy = isOffice ? "All set — your space is fully configured." : "All set — your gym is fully configured.";
+
+  const checklistItems = isOffice
+    ? (checklist?.steps ?? []).map((s) => ({ key: s.code, label: s.label, done: s.done }))
+    : checklist
+      ? (Object.keys(CHECKLIST_LABELS) as ChecklistFlag[]).map((k) => ({
+          key: k,
+          label: CHECKLIST_LABELS[k],
+          done: checklist[k],
+        }))
+      : [];
   const remaining = checklistItems.filter((i) => !i.done).length;
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        subtitle="Today at a glance"
+        subtitle={pageSubtitle}
         action={
           saas ? (
             <Badge tone={saas.read_only ? "danger" : "success"}>
@@ -100,7 +120,7 @@ export default async function DashboardPage() {
             title="Setup checklist"
             subtitle={
               remaining === 0
-                ? "All set — your gym is fully configured."
+                ? allSetCopy
                 : `${remaining} item${remaining === 1 ? "" : "s"} left before you're fully live.`
             }
           />

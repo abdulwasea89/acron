@@ -42,3 +42,42 @@ export function statusTone(status: string): Tone {
     return "warning";
   return "neutral";
 }
+
+/** Tone for a B2B invoice status ("overdue" is derived by the backend). */
+export function invoiceTone(status: string): Tone {
+  const s = status.toLowerCase();
+  if (s === "paid") return "success";
+  if (s === "overdue") return "danger";
+  if (s === "draft" || s === "partial") return "warning";
+  if (s === "sent") return "neutral";
+  return "neutral"; // void
+}
+
+/** Display label for an invoice status. */
+export function invoiceLabel(status: string): string {
+  const s = status.toLowerCase();
+  if (s === "paid") return "Paid";
+  if (s === "overdue") return "Overdue";
+  if (s === "partial") return "Part paid";
+  if (s === "sent") return "Sent";
+  if (s === "draft") return "Draft";
+  if (s === "void") return "Void";
+  return titleCase(s);
+}
+
+const DATE_FMT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+const DATETIME_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+});
+
+export function fmtDate(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : DATE_FMT.format(d);
+}
+
+export function fmtDateTime(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : DATETIME_FMT.format(d);
+}
