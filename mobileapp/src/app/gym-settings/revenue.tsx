@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { SectionCard } from "@/components/section-card";
 import { StatCard } from "@/components/stat-card";
 import { RevenueByMethodChart } from "@/components/revenue-chart";
-import { StatusChip, memberStatusTone, humanize } from "@/components/status-chip";
+import { StatusChip, memberStatusTone } from "@/components/status-chip";
 import { useGet } from "@/hooks/use-api";
 import { money } from "@/lib/format";
 import type { RevenueAnalytics } from "@/types/api";
@@ -125,7 +125,7 @@ export default function Revenue() {
               No members yet
             </Text>
             <Text type="body-sm" color="muted" className="mt-0.5">
-              {humanize("member_count_by_status")}
+              No status breakdown available yet.
             </Text>
           </View>
         )}
