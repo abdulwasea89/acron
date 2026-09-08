@@ -5,11 +5,12 @@ from __future__ import annotations
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core.constants import EnrollmentMode, GymStatus, SaasTier
+from app.core.industry import normalize_industry
 from app.schemas.auth import NAME_RE
 
 
 class GymDetails(BaseModel):
-    """Step 2 — gym details (Section 4.4)."""
+    """Step 2 — venue details (Section 4.4, multi-industry Phase 0)."""
 
     name: str
     country: str = "US"
@@ -19,6 +20,16 @@ class GymDetails(BaseModel):
     logo_url: str | None = None
     accent_color: str | None = None
     working_hours: str | None = None
+    # Venue vertical: gym | office | academy (canonical key, default gym).
+    industry: str = "gym"
+
+    @field_validator("industry")
+    @classmethod
+    def _normalize_industry(cls, v: str) -> str:
+        try:
+            return normalize_industry(v).value
+        except ValueError as exc:
+            raise ValueError("Unknown industry. Choose gym, office or academy.") from exc
 
 
 class RegisterGymRequest(BaseModel):
@@ -48,6 +59,7 @@ class OrganizationOut(BaseModel):
     accent_color: str | None = None
     logo_url: str | None = None
     mfa_required: bool = False
+    industry: str = "gym"
 
 
 class RegisterGymResponse(BaseModel):
@@ -66,6 +78,8 @@ class SetupChecklist(BaseModel):
     staff_invited: bool
     office_configured: bool
     member_signup_unblocked: bool
+    # Industry-ordered onboarding steps: [{code, label, done}, ...]
+    steps: list[dict] = []
 
 
 class EnrollmentModeUpdate(BaseModel):

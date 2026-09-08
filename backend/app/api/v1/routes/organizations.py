@@ -41,6 +41,7 @@ def _to_out(org: Organization) -> OrganizationOut:
         stripe_connect_status=org.stripe_connect_status.value,
         accent_color=org.accent_color,
         logo_url=org.logo_url,
+        industry=org.industry,
     )
 
 
@@ -72,6 +73,17 @@ async def create_organization(
 @router.get("/me", response_model=OrganizationOut)
 async def get_my_org(org: Organization = Depends(get_org)):
     return _to_out(org)
+
+
+@router.get("/me/industry")
+async def get_my_org_industry(org: Organization = Depends(get_org)):
+    """Registry metadata for the current org's industry.
+
+    Drives nav/module/label rendering on web + mobile after login. Never leaks
+    another industry's data — public metadata only, keyed by the org's industry.
+    """
+
+    return orgs.org_industry_detail(org)
 
 
 @router.get("/me/checklist", response_model=SetupChecklist)

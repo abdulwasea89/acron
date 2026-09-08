@@ -14,6 +14,7 @@ from app.api.v1.routes import (
     auth,
     cash,
     classes,
+    industries,
     members,
     memberships,
     notifications,
@@ -31,6 +32,7 @@ from app.api.v1.routes import (
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(industries.router, tags=["industries"])
 api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
 api_router.include_router(initial.router, prefix="", tags=["initial"])
 api_router.include_router(saas_billing.router, prefix="/saas-billing", tags=["saas-billing"])

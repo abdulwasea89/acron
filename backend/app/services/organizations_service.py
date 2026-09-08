@@ -23,6 +23,7 @@ from app.core.constants import (
     TIER_MEMBER_CAP,
     TIER_PRICE_USD,
 )
+from app.core.industry import CHECKLIST_LABELS, get_industry, public_industry_detail
 from app.core.security import now_utc
 from app.integrations.email import send_email_safe as send_email
 from app.integrations.stripe_client import platform_stripe
@@ -39,6 +40,15 @@ from app.schemas.organizations import (
 from app.services import auth_service
 from app.services.audit_service import record_audit
 from app.utils.org_code import generate_org_code
+
+
+def _welcome_email(org_name: str, org_code: str, *, industry_key: str, additional: bool = False) -> tuple[str, str]:
+    """Subject/body for the post-provisioning welcome email, industry-aware."""
+    noun = get_industry(industry_key).key_value  # gym | office | academy
+    prefix = "your new" if additional else "your"
+    subject = f"Welcome to {prefix} {noun}"
+    body = f"Your {noun} '{org_name}' is live. Org code: {org_code}. Log in to finish setup."
+    return subject, body
 
 
 async def _unique_org_code(session: AsyncSession, name: str) -> str:
@@ -93,6 +103,7 @@ async def register_gym(
         logo_url=d.logo_url,
         accent_color=d.accent_color,
         working_hours=d.working_hours,
+        industry=d.industry,
         saas_tier=data.tier,
         saas_status=SaasStatus.ACTIVE,
         member_cap=TIER_MEMBER_CAP[data.tier],
@@ -119,12 +130,11 @@ async def register_gym(
     await record_audit(
         session, action="org.provisioned", actor_user_id=user.id,
         organization_id=org.id, entity_type="organization", entity_id=org.id,
-        new_values={"tier": data.tier.value, "org_code": org.org_code}, ip_address=ip,
+        new_values={"tier": data.tier.value, "org_code": org.org_code, "industry": org.industry},
+        ip_address=ip,
     )
-    await send_email(
-        user.email, "Welcome to your gym",
-        f"Your gym '{org.name}' is live. Org code: {org.org_code}. Log in to finish setup.",
-    )
+    subject, body = _welcome_email(org.name, org.org_code, industry_key=org.industry)
+    await send_email(user.email, subject, body)
 
     access, refresh = await auth_service.create_session(
         session, user=user, org_id=org.id, role=Role.OWNER, ip=ip
@@ -171,6 +181,7 @@ async def create_organization_for_user(
         logo_url=d.logo_url,
         accent_color=d.accent_color,
         working_hours=d.working_hours,
+        industry=d.industry,
         saas_tier=tier,
         saas_status=SaasStatus.ACTIVE,
         member_cap=TIER_MEMBER_CAP[tier],
@@ -196,12 +207,11 @@ async def create_organization_for_user(
     await record_audit(
         session, action="org.provisioned", actor_user_id=user.id,
         organization_id=org.id, entity_type="organization", entity_id=org.id,
-        new_values={"tier": tier.value, "org_code": org.org_code}, ip_address=ip,
+        new_values={"tier": tier.value, "org_code": org.org_code, "industry": org.industry},
+        ip_address=ip,
     )
-    await send_email(
-        user.email, "Welcome to your new gym",
-        f"Your gym '{org.name}' is live. Org code: {org.org_code}. Log in to finish setup.",
-    )
+    subject, body = _welcome_email(org.name, org.org_code, industry_key=org.industry, additional=True)
+    await send_email(user.email, subject, body)
 
     access, refresh = await auth_service.create_session(
         session, user=user, org_id=org.id, role=Role.OWNER, ip=ip
@@ -209,8 +219,43 @@ async def create_organization_for_user(
     return org, access, refresh
 
 
+_CHECKLIST_FLAGS: dict[str, str] = {
+    "stripe": "checklist_stripe_connected",
+    "offer": "checklist_plan_published",
+    "enroll": "checklist_enrollment_configured",
+    "staff": "checklist_staff_invited",
+    "companies": "checklist_companies_added",
+    "courses": "checklist_courses_added",
+    "invoices": "checklist_invoice_template_set",
+}
+
+
+def _org_industry(org: Organization):
+    """Resolve the org's canonical Industry, defaulting legacy rows to gym."""
+    try:
+        return get_industry(org.industry or "gym")
+    except KeyError:
+        return get_industry("gym")
+
+
+def org_industry_detail(org: Organization) -> dict:
+    """Registry metadata for the org's industry (drives client nav/labels)."""
+    return public_industry_detail(_org_industry(org).key)
+
+
 def build_checklist(org: Organization) -> SetupChecklist:
     saas_active = org.saas_status in {SaasStatus.ACTIVE, SaasStatus.TRIALING}
+    ind = _org_industry(org)
+
+    steps: list[dict] = []
+    prerequisite_codes = [c for c in ind.checklist if c != "done"]
+    for code in ind.checklist:
+        if code == "done":
+            done = saas_active and all(getattr(org, _CHECKLIST_FLAGS[c]) for c in prerequisite_codes)
+            steps.append({"code": code, "label": CHECKLIST_LABELS["done"], "done": done})
+        else:
+            steps.append({"code": code, "label": CHECKLIST_LABELS[code], "done": getattr(org, _CHECKLIST_FLAGS[code])})
+
     return SetupChecklist(
         saas_active=saas_active,
         stripe_connected=org.checklist_stripe_connected,
@@ -220,6 +265,7 @@ def build_checklist(org: Organization) -> SetupChecklist:
         office_configured=org.checklist_office_configured,
         # Member signup is blocked until a plan is published (Section 6 constraint).
         member_signup_unblocked=org.checklist_plan_published and saas_active,
+        steps=steps,
     )
 
 
