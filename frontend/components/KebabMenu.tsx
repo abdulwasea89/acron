@@ -53,7 +53,7 @@ export function KebabMenu({ actions }: { actions: MenuAction[] }) {
         ref={btnRef}
         type="button"
         onClick={toggle}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+        className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
         aria-label="Row actions"
       >
         <KebabIcon />

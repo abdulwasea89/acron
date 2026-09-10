@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { GymStatusToggle } from "./GymStatusToggle";
@@ -66,16 +66,20 @@ interface SidebarProps {
   industry?: string;
 }
 
-export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: SidebarProps) {
-  const pathname = usePathname();
+/** Shared sign-out handler for the desktop sidebar strip and the mobile header. */
+function useLogout() {
   const router = useRouter();
-  const items = navFor(industry);
-
-  async function logout() {
+  return useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
-  }
+  }, [router]);
+}
+
+export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: SidebarProps) {
+  const pathname = usePathname();
+  const items = navFor(industry);
+  const logout = useLogout();
 
   return (
     <>
@@ -166,27 +170,18 @@ function MobileNavigation({
   items: NavItem[];
 }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const activeRef = useRef<HTMLAnchorElement | null>(null);
+  const logout = useLogout();
 
-  // Always close after navigating — a route change means the menu's job is done.
+  // Keep the current page's chip centered in the strip after navigation,
+  // the way native top tab bars behave.
   useEffect(() => {
-    setOpen(false);
+    activeRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
   }, [pathname]);
 
-  // Lock the page scroll while the sheet is open so a long list doesn't scroll
-  // the body underneath.
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
   return (
-    <>
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-foreground/10 bg-background/80 px-4 backdrop-blur lg:hidden">
+    <header className="sticky top-0 z-20 border-b border-foreground/10 bg-background/80 backdrop-blur lg:hidden">
+      <div className="flex h-14 items-center gap-3 px-4">
         <Link href="/app" className="flex shrink-0 items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
           <span className="font-heading text-lg leading-none tracking-tight text-foreground">Gym Ops</span>
@@ -197,59 +192,38 @@ function MobileNavigation({
         <ThemeToggle />
         <button
           type="button"
-          aria-expanded={open}
-          aria-controls="mobile-nav-panel"
-          onClick={() => setOpen((v) => !v)}
-          className="flex h-9 shrink-0 cursor-pointer list-none items-center gap-2 rounded-full border border-foreground/20 px-4 text-xs font-mono uppercase tracking-widest text-foreground transition-colors hover:border-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]/50"
+          onClick={logout}
+          className="shrink-0 cursor-pointer list-none font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]/50 rounded px-1 py-0.5"
         >
-          Menu
-          <svg
-            className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-          </svg>
+          Sign out
         </button>
-      </header>
+      </div>
 
-      {open && (
-        <>
-          {/* Tap-anywhere backdrop to dismiss */}
-          <button
-            type="button"
-            aria-label="Close menu"
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-30 bg-background/50 lg:hidden"
-          />
-          <nav
-            id="mobile-nav-panel"
-            aria-label="Mobile navigation"
-            className="fixed right-4 top-[calc(3.5rem+0.5rem)] z-40 max-h-[calc(100dvh-4.5rem)] w-[min(19rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-lg border border-foreground/10 bg-surface p-2 shadow-lg lg:hidden"
-          >
-            {items.map((item) => {
-              const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={cx(
-                    "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm transition-colors",
-                    active ? "bg-brand font-medium text-brand-foreground" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-                  )}
-                >
-                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={item.icon} /></svg>
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </>
-      )}
-    </>
+      {/* Horizontally-scrollable page chips — active state is a solid brand pill (§10.3) */}
+      <nav
+        aria-label="Mobile navigation"
+        className="no-scrollbar flex items-center gap-1.5 overflow-x-auto px-4 pb-2.5"
+      >
+        {items.map((item) => {
+          const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              ref={active ? activeRef : undefined}
+              aria-current={active ? "page" : undefined}
+              className={cx(
+                "flex h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors duration-150",
+                active
+                  ? "bg-brand font-medium text-brand-foreground"
+                  : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </header>
   );
 }

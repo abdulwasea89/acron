@@ -20,7 +20,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={() => { navigator.clipboard?.writeText(text).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
-      className="ml-2 rounded-md border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[var(--muted)] hover:text-[var(--foreground)]"
+      className="ml-2 rounded-full border border-[var(--border)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[var(--muted)] hover:text-[var(--foreground)]"
     >
       {copied ? "Copied" : "Copy"}
     </button>

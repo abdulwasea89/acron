@@ -1,9 +1,12 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Children, isValidElement } from "react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
+  KeyboardEvent as ReactKeyboardEvent,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
   ReactNode,
@@ -42,13 +45,13 @@ export function Button({
     primary:
       "rounded-full bg-brand text-brand-foreground hover:bg-brand/90 active:brightness-95",
     secondary:
-      "rounded-md border border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5 hover:border-foreground/40",
+      "rounded-full border border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5 hover:border-foreground/40",
     danger:
-      "rounded-md bg-danger text-white hover:bg-danger-hover active:brightness-95",
+      "rounded-full bg-danger text-white hover:bg-danger-hover active:brightness-95",
     ghost:
-      "rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+      "rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
     accent:
-      "rounded-md bg-accent text-accent-foreground hover:bg-accent-hover",
+      "rounded-full bg-accent text-accent-foreground hover:bg-accent-hover",
   };
   const sizes: Record<string, string> = {
     sm: "h-9 px-4 text-xs gap-1.5",
@@ -80,19 +83,115 @@ export function Button({
   );
 }
 
+/* ── CategoryTabs ─────────────────────────────────────────────────────────
+   The category switcher: a row of floating pills — no outer track. Active
+   tab is the solid brand pill (§10.3), same language as the mobile top-nav
+   chips. Counts ride along as sub-pills. Arrow keys move between tabs; the
+   row scrolls horizontally on overflow instead of wrapping. */
+export type CategoryTab<T extends string> = {
+  value: T;
+  label: string;
+  count?: number;
+};
+
+type CategoryTabsProps<T extends string> = {
+  tabs: CategoryTab<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  className?: string;
+};
+
+export function CategoryTabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+  className,
+}: CategoryTabsProps<T>) {
+  const index = tabs.findIndex((t) => t.value === value);
+
+  function move(next: number) {
+    const t = tabs[Math.min(tabs.length - 1, Math.max(0, next))];
+    if (t) onChange(t.value);
+  }
+
+  function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      move(index + 1);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      move(index - 1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      move(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      move(tabs.length - 1);
+    }
+  }
+
+  return (
+    <div
+      role="tablist"
+      onKeyDown={onKeyDown}
+      className={cx(
+        "no-scrollbar flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-foreground/15 bg-transparent p-1",
+        className,
+      )}
+    >
+      {tabs.map((t) => {
+        const active = t.value === value;
+        return (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            tabIndex={active || index === -1 ? 0 : -1}
+            onClick={() => onChange(t.value)}
+            className={cx(
+              "flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 font-mono text-xs uppercase tracking-widest transition-colors duration-150",
+              FOCUS,
+              active
+                ? "bg-brand font-medium text-brand-foreground"
+                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+            )}
+          >
+            {t.label}
+            {t.count !== undefined && (
+              <span
+                className={cx(
+                  "inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 text-[10px] tabular-nums",
+                  active
+                    ? "bg-brand-foreground/20 text-brand-foreground"
+                    : "bg-foreground/10 text-muted-foreground",
+                )}
+              >
+                {t.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ── Input ────────────────────────────────────────────────────────────────
    Hairline field: `border-foreground/20`, focus swaps to brand. Fills read
    flat (bg-card) so the hairline does the work. */
-type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
   label?: string;
   hint?: string;
   error?: string;
   prefix?: string;
   suffix?: string;
+  /** `sm` matches the CategoryTabs track height (38px) for filter rows. */
+  size?: "md" | "sm";
 };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, hint, error, className, id, prefix, suffix, ...rest },
+  { label, hint, error, className, id, prefix, suffix, size = "md", ...rest },
   ref,
 ) {
   return (
@@ -106,12 +205,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           ref={ref}
           id={id}
           className={cx(
-            "h-11 w-full rounded-md border bg-card text-sm text-foreground",
+            size === "sm"
+              ? "h-[38px] w-full rounded-full border bg-transparent text-xs text-foreground"
+              : "h-11 w-full rounded-full border bg-card text-sm text-foreground",
             "transition duration-150",
             "placeholder:text-muted-foreground",
             prefix && "pl-7",
             suffix && "pr-9",
-            !prefix && !suffix && "px-3.5",
+            !prefix && !suffix && (size === "sm" ? "px-4" : "px-3.5"),
             error
               ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/20"
               : "border-foreground/20 hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20",
@@ -126,7 +227,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         )}
       </div>
       {hint && !error && (
-        <span className="mt-1.5 block text-xs text-muted-foreground">{hint}</span>
+        <span className="mt-1.5 block truncate text-xs text-muted-foreground">{hint}</span>
       )}
       {error && (
         <span className="auth-field-error">
@@ -140,31 +241,218 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   );
 });
 
-/* ── Select ─────────────────────────────────────────────────────────────── */
-type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & { label?: string; error?: string };
+/* ── Select ───────────────────────────────────────────────────────────────
+   Custom listbox, not a native <select>: the OS menu can't be themed, so the
+   open state looked generic HTML. Same props API as before (children are
+   <option>s, onChange receives e.target.value) — call sites unchanged. The
+   popup portals to <body> so scrolling dialogs and cards never clip it. */
+type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "size" | "onChange"> & {
+  label?: string;
+  error?: string;
+  /** `sm` matches the CategoryTabs track height (38px) for filter rows. */
+  size?: "md" | "sm";
+  onChange?: (e: { target: { value: string } }) => void;
+};
 
-export function Select({ label, error, className, children, ...rest }: SelectProps) {
+type SelectOption = { value: string; label: string; disabled?: boolean };
+
+export function Select({
+  label,
+  error,
+  className,
+  size = "md",
+  children,
+  value,
+  onChange,
+  disabled,
+  id,
+}: SelectProps) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [rect, setRect] = useState<{ left: number; top?: number; bottom?: number; width: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const listboxId = useId();
+
+  // Options arrive as <option> children — parse them once per render.
+  const options: SelectOption[] = useMemo(() => {
+    const out: SelectOption[] = [];
+    Children.toArray(children).forEach((child) => {
+      if (!isValidElement(child)) return;
+      const p = child.props as { value?: string | number; children?: ReactNode; disabled?: boolean };
+      const text = typeof p.children === "string" ? p.children : String(p.value ?? "");
+      out.push({ value: String(p.value ?? ""), label: text, disabled: p.disabled });
+    });
+    return out;
+  }, [children]);
+
+  const selected = options.find((o) => o.value === String(value ?? ""));
+  const selectedLabel = selected?.label ?? "Select…";
+
+  // Keep the popup glued to the trigger through scrolls and resizes. When
+  // there's no room below (select near the bottom of the viewport), flip it
+  // open above the trigger instead.
+  function syncRect() {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const POPUP_MAX = 288; // max-h-72
+    const flip = r.bottom + POPUP_MAX > window.innerHeight && r.top > r.bottom;
+    setRect(
+      flip
+        ? { left: r.left, bottom: window.innerHeight - r.top + 6, width: r.width }
+        : { left: r.left, top: r.bottom + 6, width: r.width },
+    );
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    syncRect();
+    const onDoc = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("resize", syncRect);
+    window.addEventListener("scroll", syncRect, true);
+    document.addEventListener("mousedown", onDoc);
+    return () => {
+      window.removeEventListener("resize", syncRect);
+      window.removeEventListener("scroll", syncRect, true);
+      document.removeEventListener("mousedown", onDoc);
+    };
+  }, [open]);
+
+  // Highlight the current selection when opening; scroll it into view.
+  function openMenu() {
+    setActive(Math.max(0, options.findIndex((o) => o.value === String(value ?? ""))));
+    setOpen(true);
+    requestAnimationFrame(() => {
+      const i = Math.max(0, options.findIndex((o) => o.value === String(value ?? "")));
+      listRef.current?.children[i]?.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  function choose(o: SelectOption) {
+    if (o.disabled) return;
+    onChange?.({ target: { value: o.value } });
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function onKeyDown(e: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openMenu();
+      }
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => Math.min(options.length - 1, i + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => Math.max(0, i - 1));
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setActive(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setActive(options.length - 1);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      choose(options[active]);
+    }
+  }
+
+  const triggerBase =
+    size === "sm"
+      ? "h-[38px] w-full rounded-full border border-foreground/20 bg-transparent pl-4 pr-9 text-[13px] text-foreground hover:border-foreground/35"
+      : "h-11 w-full rounded-full border border-foreground/20 bg-card pl-3.5 pr-10 text-sm text-foreground hover:border-foreground/35";
+
   return (
-    <label className="block">
+    <label className="block" htmlFor={id}>
       {label && <span className={LABEL}>{label}</span>}
-      <div className="relative">
-        <select
+      <div ref={rootRef} className="relative">
+        <button
+          ref={triggerRef}
+          type="button"
+          id={id}
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={listboxId}
+          disabled={disabled}
+          onClick={() => (open ? setOpen(false) : openMenu())}
+          onKeyDown={onKeyDown}
           className={cx(
-            "h-11 w-full appearance-none rounded-md border border-foreground/20 bg-card px-3.5 pr-10 text-sm text-foreground hover:border-foreground/35",
+            "relative flex cursor-pointer items-center text-left",
             "transition duration-150",
+            triggerBase,
             error
-              ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/20"
-              : "focus:border-brand focus:ring-2 focus:ring-brand/20",
-            "focus:outline-none",
+              ? "border-danger focus-visible:border-danger"
+              : "focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/20",
+            "focus-visible:outline-none",
+            "disabled:opacity-40 disabled:cursor-not-allowed",
             className,
           )}
-          {...rest}
         >
-          {children}
-        </select>
-        <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+          <span className="min-w-0 truncate">{selectedLabel}</span>
+          <svg
+            className={`pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {open &&
+          rect &&
+          createPortal(
+            <ul
+              ref={listRef}
+              id={listboxId}
+              role="listbox"
+              aria-label={label}
+              style={{ left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width }}
+              className="fixed z-[60] max-h-72 animate-fade-in overflow-y-auto overscroll-contain rounded-xl border border-foreground/15 bg-surface p-1.5 shadow-xl shadow-black/10"
+            >
+              {options.map((o, i) => {
+                const isSelected = o.value === String(value ?? "");
+                const isActive = i === active;
+                return (
+                  <li
+                    key={o.value}
+                    role="option"
+                    aria-selected={isSelected}
+                    aria-disabled={o.disabled}
+                    onClick={() => choose(o)}
+                    onMouseEnter={() => setActive(i)}
+                    className={cx(
+                      "flex min-h-10 cursor-pointer items-center justify-between gap-2.5 rounded-lg px-3 text-sm",
+                      o.disabled && "cursor-not-allowed opacity-40",
+                      isSelected
+                        ? "bg-brand/10 font-medium text-brand"
+                        : isActive
+                          ? "bg-foreground/5 text-foreground"
+                          : "text-foreground",
+                    )}
+                  >
+                    <span className="min-w-0 truncate">{o.label}</span>
+                    {isSelected && (
+                      <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>,
+            document.body,
+          )}
       </div>
       {error && (
         <span className="auth-field-error">
@@ -185,7 +473,7 @@ export function Textarea({ label, error, className, ...rest }: TextareaProps) {
       {label && <span className={LABEL}>{label}</span>}
       <textarea
         className={cx(
-          "w-full rounded-md border border-foreground/20 bg-card px-3.5 py-2.5 text-sm text-foreground hover:border-foreground/35",
+          "w-full rounded-xl border border-foreground/20 bg-card px-3.5 py-2.5 text-sm text-foreground hover:border-foreground/35",
           "transition-all duration-150",
           error
             ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/20"

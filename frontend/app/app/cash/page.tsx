@@ -35,7 +35,7 @@ export default function CashPage() {
         <WorkflowStep number="3" title="Reconcile daily" hint="Flag discrepancies before close" />
       </section>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
         <LogPayment />
         <Reconcile />
       </div>
@@ -107,7 +107,7 @@ function MemberCombobox({
           <button
             type="button"
             onClick={onClear}
-            className="shrink-0 rounded-lg p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+            className="shrink-0 rounded-full p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
             title="Change member"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -130,7 +130,7 @@ function MemberCombobox({
         onChange={(e) => { onQueryChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         placeholder="Search by name or email…"
-        className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-light)]"
+        className="w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-light)]"
       />
       {open && trimmed.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-64 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
@@ -187,7 +187,8 @@ function MethodCard({ value, selected, onSelect }: { value: string; selected: bo
     <button
       type="button"
       onClick={onSelect}
-      className={`flex flex-1 items-center gap-2 rounded-lg border-2 px-3 py-2 transition-all ${
+      aria-pressed={selected}
+      className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-full border-2 px-4 whitespace-nowrap transition-all duration-150 ${
         selected
           ? "border-[var(--primary)] bg-[var(--primary-light)]"
           : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--background)]"
@@ -196,7 +197,7 @@ function MethodCard({ value, selected, onSelect }: { value: string; selected: bo
       <svg className={`h-4 w-4 shrink-0 ${selected ? "text-[var(--primary)]" : "text-[var(--muted)]"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d={METHOD_ICONS[value]} />
       </svg>
-      <span className={`text-[11px] font-semibold leading-none ${selected ? "text-[var(--primary)]" : "text-[var(--foreground-muted)]"}`}>
+      <span className={`text-xs font-semibold leading-none whitespace-nowrap ${selected ? "text-[var(--primary)]" : "text-[var(--foreground-muted)]"}`}>
         {METHOD_LABELS[value]}
       </span>
     </button>
@@ -321,7 +322,7 @@ function SuccessPanel({
         {result.receipt_pdf_url && (
           <a
             href={`/api/download${result.receipt_pdf_url}`}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -500,12 +501,13 @@ function LogPayment() {
               required
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
               hint={selectedPlan ? `Plan price: ${money(selectedPlan.price, selectedPlan.currency)}` : "Enter the amount actually received."}
-              className="text-lg font-semibold tabular-nums [&_input]:text-lg [&_input]:font-semibold"
+              className="tabular-nums"
             />
             <div>
               <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Method</p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {methods.map((m) => (
                   <MethodCard key={m} value={m} selected={method === m} onSelect={() => setMethod(m)} />
                 ))}
@@ -524,11 +526,16 @@ function LogPayment() {
 
           {/* Submit */}
           <div className="flex flex-col-reverse gap-3 border-t border-[var(--border)] pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs leading-5 text-[var(--foreground-muted)]">
+            <p className="flex-1 text-xs leading-5 text-[var(--foreground-muted)]">
               The member is activated immediately. Confirm the amount before saving.
             </p>
-            <Button type="submit" loading={loading} disabled={!memberId || !planId} className="w-full sm:w-auto">
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <Button
+              type="submit"
+              loading={loading}
+              disabled={!memberId || !planId}
+              className="w-full shrink-0 whitespace-nowrap px-8 sm:w-auto"
+            >
+              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Record payment

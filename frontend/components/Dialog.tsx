@@ -63,7 +63,7 @@ export function Dialog({ open, onClose, title, subtitle, children, className, hi
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
+              className="rounded-full p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
               aria-label="Close"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

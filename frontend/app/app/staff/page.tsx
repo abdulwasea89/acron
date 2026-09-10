@@ -576,7 +576,7 @@ export default function StaffPage() {
                           <button
                             type="button"
                             onClick={(e) => openMenu(s, e)}
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
                           >
                             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                               <circle cx="12" cy="5" r="1.5" />
@@ -989,7 +989,7 @@ export default function StaffPage() {
                       <button
                         type="button"
                         onClick={(e) => openInviteMenu(inv, e)}
-                        className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+                        className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
                       >
                         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                           <circle cx="12" cy="5" r="1.5" />

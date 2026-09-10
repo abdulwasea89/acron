@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Dialog } from "@/components/Dialog";
 import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { OrganizationOut, PlanOut } from "@/lib/types";
@@ -70,7 +70,7 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
         ref={btnRef}
         type="button"
         onClick={toggle}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+        className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
       >
         <KebabIcon />
       </button>
@@ -372,61 +372,36 @@ export default function PlansPage() {
           subtitle={plans ? `${filtered?.length ?? 0} ${filter}` : undefined}
         />
 
-        <div className="flex items-center justify-between gap-4 px-5 pb-5 pt-2">
-          <div className="flex gap-1 rounded-xl bg-[var(--background)] p-0.5">
-            <button
-              type="button"
-              onClick={() => setFilter("active")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                filter === "active"
-                  ? "bg-[var(--surface)] text-[var(--foreground)] shadow-xs"
-                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
-              }`}
-            >
-              Active
-              {plans !== null && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
-                  filter === "active"
-                    ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                    : "bg-[var(--background)] text-[var(--muted)]"
-                }`}>
-                  {plans.filter((p) => p.status !== "archived").length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter("archived")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                filter === "archived"
-                  ? "bg-[var(--surface)] text-[var(--foreground)] shadow-xs"
-                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
-              }`}
-            >
-              Archived
-              {plans !== null && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
-                  filter === "archived"
-                    ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                    : "bg-[var(--background)] text-[var(--muted)]"
-                }`}>
-                  {plans.filter((p) => p.status === "archived").length}
-                </span>
-              )}
-            </button>
-          </div>
+        <div className="flex items-center justify-between gap-4 px-5 pb-5 pt-4">
+          <CategoryTabs
+            className="shrink-0"
+            tabs={[
+              {
+                value: "active" as const,
+                label: "Active",
+                count: plans?.filter((p) => p.status !== "archived").length,
+              },
+              {
+                value: "archived" as const,
+                label: "Archived",
+                count: plans?.filter((p) => p.status === "archived").length,
+              },
+            ]}
+            value={filter}
+            onChange={setFilter}
+          />
 
           <div className="relative flex-1 max-w-xs">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[var(--muted)]">
-              <SearchIcon />
-            </div>
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search plans..."
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1.5 pl-8 pr-3 text-xs text-[var(--foreground)] placeholder-[var(--muted)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/20"
+              className="w-full rounded-full border border-foreground/20 bg-transparent h-[38px] pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground outline-none transition-colors hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+              <SearchIcon />
+            </div>
           </div>
         </div>
 

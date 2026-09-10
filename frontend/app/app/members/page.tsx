@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Select, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { statusTone, titleCase } from "@/lib/format";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -62,7 +62,7 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
         ref={btnRef}
         type="button"
         onClick={toggle}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+        className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
       >
         <KebabIcon />
       </button>
@@ -257,30 +257,6 @@ export default function MembersPage() {
     return !q || m.email.toLowerCase().includes(q) || (m.display_name || m.full_name || "").toLowerCase().includes(q);
   });
 
-  function tabBtn(t: "all" | "approvals", label: string, count: number) {
-    const active = tab === t;
-    return (
-      <button
-        onClick={() => setTab(t)}
-        aria-pressed={active}
-        className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 font-mono text-xs transition-colors ${
-          active
-            ? "border-brand bg-brand text-brand-foreground"
-            : "border-foreground/20 text-muted-foreground hover:border-foreground/50 hover:text-foreground"
-        }`}
-      >
-        {label}
-        <span className={`inline-flex h-[18px] items-center rounded-full px-1.5 text-[10px] font-mono ${
-          active
-            ? "bg-brand-foreground/20 text-brand-foreground"
-            : "bg-foreground/5 text-muted-foreground"
-        }`}>
-          {count}
-        </span>
-      </button>
-    );
-  }
-
   return (
     <>
       <PageHeader
@@ -436,12 +412,18 @@ export default function MembersPage() {
                 placeholder="Search…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="!h-9 w-[130px]"
+                size="sm"
+                className="w-[150px]"
               />
-              <div className="flex items-center gap-1.5 shrink-0">
-                {tabBtn("all", "All", members?.length ?? 0)}
-                {tabBtn("approvals", "Approvals", pending.length)}
-              </div>
+              <CategoryTabs
+                className="shrink-0"
+                tabs={[
+                  { value: "all" as const, label: "All", count: members?.length ?? 0 },
+                  { value: "approvals" as const, label: "Approvals", count: pending.length },
+                ]}
+                value={tab}
+                onChange={setTab}
+              />
             </div>
           }
         />

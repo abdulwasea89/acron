@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import type { TaskOut, MemberDirectoryItem } from "@/lib/types";
 
@@ -186,23 +186,12 @@ export default function TasksPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      <div className="mb-4 flex w-fit items-center gap-1 rounded-full border border-[var(--border)] p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => setFilter(t.value)}
-            aria-pressed={filter === t.value}
-            className={`rounded-full px-3.5 py-1.5 font-mono text-xs uppercase tracking-widest transition-colors ${
-              filter === t.value
-                ? "bg-brand text-brand-foreground"
-                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <CategoryTabs
+        tabs={tabs}
+        value={filter}
+        onChange={setFilter}
+        className="mb-4"
+      />
 
       {/* Create / Edit dialog */}
       <Dialog
@@ -385,7 +374,7 @@ export default function TasksPage() {
                           <button
                             type="button"
                             onClick={(e) => openMenu(task, e)}
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
                           >
                             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                               <circle cx="12" cy="5" r="1.5" />

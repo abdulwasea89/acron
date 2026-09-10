@@ -122,19 +122,19 @@ export default function AuditPage() {
 
       {/* Filters */}
       <Card className="mb-4">
-        <div className="p-4">
-          <div className="flex flex-wrap items-end gap-3">
+        <div className="p-5">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="min-w-[200px] flex-1">
               <Input
-                label="Search"
-                placeholder="Search actions, entities, IDs..."
+                placeholder="Search actions, entities, IDs…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+                size="sm"
               />
             </div>
             <div className="w-40">
-              <Select label="Domain" value={actionDomain} onChange={(e) => handleDomainChange(e.target.value)}>
+              <Select aria-label="Domain" value={actionDomain} onChange={(e) => handleDomainChange(e.target.value)} size="sm">
                 <option value="">All domains</option>
                 {actionGroups.map((g) => (
                   <option key={g.domain} value={g.domain}>{g.domain}</option>
@@ -142,7 +142,7 @@ export default function AuditPage() {
               </Select>
             </div>
             <div className="w-48">
-              <Select label="Action" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+              <Select aria-label="Action" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} size="sm">
                 <option value="">All actions</option>
                 {availableActions.map((a) => (
                   <option key={a} value={a}>{actionShort(a)}</option>
@@ -150,7 +150,7 @@ export default function AuditPage() {
               </Select>
             </div>
             <div className="w-36">
-              <Select label="Entity" value={entityType} onChange={(e) => setEntityType(e.target.value)}>
+              <Select aria-label="Entity" value={entityType} onChange={(e) => setEntityType(e.target.value)} size="sm">
                 <option value="">All entities</option>
                 {entityTypes.map((t) => (
                   <option key={t} value={t}>{t}</option>

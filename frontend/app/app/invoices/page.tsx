@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Select, Spinner } from "@/components/ui";
 import { KebabMenu } from "@/components/KebabMenu";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
@@ -117,17 +117,24 @@ function InvoicesContent() {
         <CardHeader title="Invoices" subtitle={invoices ? `${filtered?.length ?? 0} results` : undefined} />
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 px-5 pb-5 pt-2">
-          <Select label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-40">
-            <option value="all">All statuses</option>
-            <option value="draft">Draft</option>
-            <option value="sent">Sent</option>
-            <option value="partial">Part paid</option>
-            <option value="overdue">Overdue</option>
-            <option value="paid">Paid</option>
-            <option value="void">Void</option>
-          </Select>
-          <Select label="Company" value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} className="w-52">
+        <div className="flex flex-wrap items-center gap-3 px-5 pb-5 pt-4">
+          {/* Fixed-width track: 7 statuses overflow on purpose and scroll horizontally. */}
+          <div className="w-full sm:w-auto sm:max-w-[26rem]">
+            <CategoryTabs
+              tabs={[
+                { value: "all", label: "All" },
+                { value: "draft", label: "Draft" },
+                { value: "sent", label: "Sent" },
+                { value: "partial", label: "Part paid" },
+                { value: "overdue", label: "Overdue" },
+                { value: "paid", label: "Paid" },
+                { value: "void", label: "Void" },
+              ]}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+          </div>
+          <Select aria-label="Company" value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} size="sm" className="w-52">
             <option value="">All companies</option>
             {companyOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
@@ -137,7 +144,7 @@ function InvoicesContent() {
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               placeholder="Search invoice # or company..."
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1.5 pl-3 pr-3 text-xs text-[var(--foreground)] placeholder-[var(--muted)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/20"
+              className="w-full rounded-full border border-foreground/20 bg-transparent h-[38px] px-4 text-xs text-foreground placeholder:text-muted-foreground outline-none transition-colors hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
           </div>
         </div>

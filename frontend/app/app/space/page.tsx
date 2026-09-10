@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Spinner } from "@/components/ui";
 import { KebabMenu } from "@/components/KebabMenu";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
@@ -101,20 +101,16 @@ export default function SpacePage() {
       <Card>
         <CardHeader title="Slots" subtitle={slots ? `${filtered.length} shown` : undefined} />
 
-        <div className="flex gap-1 rounded-xl bg-[var(--background)] p-0.5 px-5 pb-5">
-          {(["upcoming", "past", "cancelled"] as Filter[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-all ${
-                filter === f ? "bg-[var(--surface)] text-[var(--foreground)] shadow-xs" : "text-[var(--muted)] hover:text-[var(--foreground)]"
-              }`}
-            >
-              {f}
-              <span className="rounded-full px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--muted)]">{counts[f]}</span>
-            </button>
-          ))}
+        <div className="px-5 pb-5 pt-4">
+          <CategoryTabs
+            tabs={[
+              { value: "upcoming" as const, label: "Upcoming", count: counts.upcoming },
+              { value: "past" as const, label: "Past", count: counts.past },
+              { value: "cancelled" as const, label: "Cancelled", count: counts.cancelled },
+            ]}
+            value={filter}
+            onChange={setFilter}
+          />
         </div>
 
         {slots === null ? (
