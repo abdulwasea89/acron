@@ -306,26 +306,26 @@ export default function RegisterPage() {
               error={fieldErrors.email}
             />
 
-            <div className="password-field">
-              <Input
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); clearField("password"); }}
-                placeholder="Create a strong password"
-                error={fieldErrors.password}
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
+            <Input
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              required
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); clearField("password"); }}
+              placeholder="Create a strong password"
+              error={fieldErrors.password}
+              trailing={
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              }
+            />
 
             <div>
               <div className="password-strength">

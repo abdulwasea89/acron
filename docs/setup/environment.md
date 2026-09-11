@@ -11,7 +11,7 @@
 | STRIPE_CONNECT_CLIENT_ID | Stripe Connect OAuth client ID | (required) |
 | SENTRY_DSN | Error tracking | None |
 | RESEND_API_KEY | Email delivery | None |
-| APP_NAME | Application name | Gym Ops |
+| APP_NAME | Application name | Acron |
 | CORS_ORIGINS | Allowed CORS origins | http://localhost:3000 |
 
 ## Frontend (.env.local)

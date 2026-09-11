@@ -133,25 +133,25 @@ export default function ForgotPasswordPage() {
               placeholder="Paste the token from your email"
             />
 
-            <div className="password-field">
-              <Input
-                label="New password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="12+ chars, mixed case, number, symbol"
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
+            <Input
+              label="New password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="12+ chars, mixed case, number, symbol"
+              trailing={
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              }
+            />
 
             <Input
               label="Confirm password"

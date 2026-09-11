@@ -92,7 +92,7 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: Sideba
             href="/app"
             className="font-heading text-[17px] leading-none tracking-tight text-foreground"
           >
-            Gym Ops
+            Acron
           </Link>
         </div>
 
@@ -184,7 +184,7 @@ function MobileNavigation({
       <div className="flex h-14 items-center gap-3 px-4">
         <Link href="/app" className="flex shrink-0 items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
-          <span className="font-heading text-lg leading-none tracking-tight text-foreground">Gym Ops</span>
+          <span className="font-heading text-lg leading-none tracking-tight text-foreground">Acron</span>
         </Link>
         <p className="min-w-0 flex-1 truncate text-right font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
           {orgName} · {orgCode}

@@ -793,21 +793,19 @@ body {
 .auth-divider-wrap .auth-divider + * { margin-top: 16px; }
 
 /* Password field */
-.password-field { position: relative; }
-.password-field input { padding-right: 48px; }
-
+/* Show/Hide sits in the field's `trailing` slot, which anchors it to the input
+   (see components/ui.tsx) — so this only styles the button itself. */
 .password-toggle {
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  min-width: 36px;
-  min-height: 34px;
-  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: 10px;
   font-family: var(--font-jetbrains), monospace;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   background: transparent;
   border: none;
   cursor: pointer;

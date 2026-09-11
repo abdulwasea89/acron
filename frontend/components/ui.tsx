@@ -188,10 +188,14 @@ type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
   suffix?: string;
   /** `sm` matches the CategoryTabs track height (38px) for filter rows. */
   size?: "md" | "sm";
+  /** Interactive control inside the field, right-aligned (e.g. Show/Hide).
+   *  Unlike `suffix` this stays clickable and is anchored to the input itself,
+   *  so it never drifts when a hint or error appears below. */
+  trailing?: ReactNode;
 };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, hint, error, className, id, prefix, suffix, size = "md", ...rest },
+  { label, hint, error, className, id, prefix, suffix, trailing, size = "md", ...rest },
   ref,
 ) {
   return (
@@ -212,7 +216,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
             "placeholder:text-muted-foreground",
             prefix && "pl-7",
             suffix && "pr-9",
-            !prefix && !suffix && (size === "sm" ? "px-4" : "px-3.5"),
+            !!trailing && "pr-14",
+            !prefix && !suffix && !trailing && (size === "sm" ? "px-4" : "px-3.5"),
+            // A trailing control reserves the right side; the free left side
+            // keeps its default padding.
+            !!trailing && !prefix && !suffix && (size === "sm" ? "pl-4" : "pl-3.5"),
             error
               ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/20"
               : "border-foreground/20 hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20",
@@ -224,6 +232,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         />
         {suffix && (
           <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{suffix}</span>
+        )}
+        {trailing && (
+          <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center">{trailing}</span>
         )}
       </div>
       {hint && !error && (

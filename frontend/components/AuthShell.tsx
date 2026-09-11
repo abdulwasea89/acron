@@ -22,14 +22,14 @@ export function AuthShell({ children, eyebrow, title, description, footer, wide 
   return (
     <main className="auth-shell">
       <div className={`auth-frame${wide ? " auth-frame-wide" : ""}`}>
-        <section className="auth-brand-panel" aria-label="About Gym Ops">
+        <section className="auth-brand-panel" aria-label="About Acron">
           <div className="auth-ribbon auth-ribbon-one" aria-hidden="true" />
           <div className="auth-ribbon auth-ribbon-two" aria-hidden="true" />
           <div className="auth-ribbon auth-ribbon-three" aria-hidden="true" />
           <div className="auth-brand-panel-inner">
             <div className="auth-brand-header">
               <Mark />
-              <span className="auth-brand-name">Gym Ops</span>
+              <span className="auth-brand-name">Acron</span>
             </div>
 
             <blockquote className="auth-brand-quote">
@@ -54,7 +54,7 @@ export function AuthShell({ children, eyebrow, title, description, footer, wide 
           <div className="auth-form-panel-inner">
             <div className="auth-mobile-brand">
               <Mark />
-              <span className="auth-brand-name">Gym Ops</span>
+              <span className="auth-brand-name">Acron</span>
             </div>
 
             <header className="auth-heading">

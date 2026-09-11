@@ -632,7 +632,7 @@ async def recover_org_codes(session: AsyncSession, email: str) -> None:
         return
 
     body = (
-        "Here are your gyms on Gym Ops:\n\n"
+        "Here are your gyms on Acron:\n\n"
         + "\n".join(lines)
         + "\n\n"
         + "Use any code on the login page to go straight to that gym.\n"

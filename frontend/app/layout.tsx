@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gym Ops — Admin",
+  title: "Acron — Admin",
   description: "Gym Operations Platform admin portal",
 };
 

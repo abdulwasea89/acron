@@ -28,7 +28,7 @@
 | Schedule entity | `class_sessions` + `class_bookings` (`app/models/class_session.py`): title, `trainer_member_id`, `starts_at/ends_at`, `capacity`, `booked_count`, `trainer_checked_in`, `cancelled`; booking carries `idempotency_key` | Trainer-centric |
 | Money | `payments` (`app/models/payment.py`): `kind∈saas_subscription|member_fee|trainer_payout`, `method∈card|cash|bank_transfer|mobile_wallet`, idempotency, refunds | `kind`/`method` need `space|tuition`-ish semantics + `invoice` |
 | Money engine | `memberships_service.pay_and_activate`, `cash_service.log_cash_payment`, `receipts_service`, `payroll_service`, `classes_service.book_class` — all idempotent via `idempotency_service.claim/complete/fail` | Activation logic is membership-hardcoded |
-| Web nav | `frontend/components/Sidebar.tsx:16-33` hardcoded `NAV` (16 items), "Gym Ops" wordmark | Nav not data-driven |
+| Web nav | `frontend/components/Sidebar.tsx:16-33` hardcoded `NAV` (16 items), "Acron" wordmark | Nav not data-driven |
 | Mobile routing | `mobileapp/src/components/auth-guard.tsx` `routeForRole()`; per-role tab bars in `(member)/_layout.tsx`, `(staff)/_layout.tsx`, `(admin)/_layout.tsx` | Hardcoded by role only |
 | Analytics | `analytics_service.headline_metrics / revenue_analytics`; frontend `app/app/analytics/page.tsx`; mobile `gym-settings/revenue.tsx` | Revenue/churn assumptions |
 
@@ -407,7 +407,7 @@ Built by **`frontend/lib/industry-nav.ts`** from the registry + module flags. Ex
 - **office:** Dashboard · Analytics · **Companies** · **Space plans** · **Desks & rooms** · **Invoices** · Payments · Cash · Tasks · Staff · Audit · Approvals · Payroll · Billing · Account · Settings. *(Receipts/Classes hidden.)*
 - **academy:** Dashboard · Analytics · **Fee plans** · **Courses & batches** · **Enrollments** (folded into Courses page or its own route) · **Attendance** · Members(Students) · Payments · Cash · Receipts · Tasks · Staff(Teachers) · Audit · Approvals · Payroll · Billing · Account · Settings. *(Classes hidden.)*
 
-Wordmark/empty states pull from org (`logo_url`/`accent_color`, already in `OrganizationOut`) so no "Gym Ops" hardcode remains branding-wise — brand default stays for gym.
+Wordmark/empty states pull from org (`logo_url`/`accent_color`, already in `OrganizationOut`) so no "Acron" hardcode remains branding-wise — brand default stays for gym.
 
 ### 5.3 Mobile per-industry role routing (what `auth-guard.routeForRole` + tab bars become)
 
