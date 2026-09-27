@@ -128,6 +128,18 @@ class Settings(BaseSettings):
     ocr_provider_api_key: str = ""
     openai_api_key: str = ""
 
+    # ------------------------------------------------------------- assistant
+    # Groq serves an OpenAI-compatible API, so we talk to it over httpx rather
+    # than pulling in the groq/openai SDKs. Absent key => deterministic stub
+    # (same degrade-gracefully convention as ocr.py / email.py).
+    groq_api_key: str = ""
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    assistant_model: str = "openai/gpt-oss-120b"
+    assistant_temperature: float = 1.0
+    assistant_max_completion_tokens: int = 2048
+    # How many prior turns to replay as conversation history.
+    assistant_history_limit: int = 20
+
     # ------------------------------------------------------------------- hibp
     hibp_api_url: str = "https://api.pwnedpasswords.com"
     hibp_enabled: bool = True
@@ -155,6 +167,11 @@ class Settings(BaseSettings):
     def stripe_live(self) -> bool:
         """True when a real Stripe key is configured (else stub mode)."""
         return bool(self.stripe_secret_key) and self.stripe_secret_key != "sk_test_xxx"
+
+    @property
+    def assistant_live(self) -> bool:
+        """True when a real Groq key is configured (else deterministic stub)."""
+        return bool(self.groq_api_key)
 
     @property
     def smtp_active(self) -> bool:

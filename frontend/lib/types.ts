@@ -555,3 +555,37 @@ export interface InvoiceSettings {
   tax_id: string | null;
   payment_terms_days: number | null;
 }
+
+// ---- Assistant (grounded chat over this org's data) ----
+
+export interface AssistantMessageOut {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  /** Model that produced the turn; null for the offline stub. */
+  model: string | null;
+  error: string | null;
+  created_at: string;
+}
+
+export interface AssistantConversationOut {
+  id: string;
+  title: string;
+  last_message_at: string;
+  created_at: string;
+}
+
+export interface AssistantConversationDetailOut extends AssistantConversationOut {
+  messages: AssistantMessageOut[];
+}
+
+/** Frames the stream endpoint emits, in order: thinking and/or deltas, then done or error.
+ *
+ *  `thinking` carries the model's reasoning trace, which lands *before* any
+ *  answer text and is not persisted — it exists so the UI can show real
+ *  progress through the part of the wait where there is nothing else to show. */
+export type AssistantFrame =
+  | { delta: string }
+  | { thinking: string }
+  | { done: true; message_id: string | null; title: string | null }
+  | { error: string };

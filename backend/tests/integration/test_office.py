@@ -227,6 +227,49 @@ async def test_office_headline_metrics(client):
     assert r.status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_office_headline_with_an_open_invoice(client):
+    """Regression: an org holding a *sent* invoice used to 500.
+
+    The outstanding-balance branch only runs when there is at least one open
+    invoice, so the zero-invoice test above never reached it.
+    """
+
+    headers, org_id, org_code, plan_id = await _provision_office(client)
+    setup = await _add_company_and_contract(client, headers, plan_id, seats=2)
+
+    # Signing the contract already drafted the first term's invoice; sending it
+    # is what turns it into an "open" one.
+    invoices = (
+        await client.get(f"/api/v1/invoices?company_id={setup['company_id']}", headers=headers)
+    ).json()
+    assert len(invoices) == 1, invoices
+    invoice_id, total = invoices[0]["id"], invoices[0]["total"]
+
+    r = await client.post(f"/api/v1/invoices/{invoice_id}/send", headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "sent"
+
+    r = await client.get("/api/v1/analytics/headline", headers=headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["outstanding_invoices"] == total
+    assert data["occupied_seats"] == 0
+
+    # Part-settling moves the balance, still through the same branch.
+    r = await client.post(
+        f"/api/v1/invoices/{invoice_id}/record-payment",
+        headers={**headers, "Idempotency-Key": "office-open-invoice-payment"},
+        json={"amount": 100.0, "method": "bank_transfer"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "partial"
+
+    r = await client.get("/api/v1/analytics/headline", headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["outstanding_invoices"] == round(total - 100.0, 2)
+
+
 # ------------------------------------------------------------------- seat cap
 @pytest.mark.asyncio
 async def test_office_seat_capacity_enforced(client):

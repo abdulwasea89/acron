@@ -38,3 +38,84 @@ export const api = {
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
   del: <T>(path: string) => request<T>("DELETE", path),
 };
+
+/** One decoded Server-Sent Events frame. */
+function parseFrame(raw: string): unknown {
+  const data = raw
+    .split("\n")
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trim())
+    .join("\n");
+  if (!data) return undefined;
+  try {
+    return JSON.parse(data);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * POST and consume a Server-Sent Events response, yielding each frame's JSON.
+ *
+ * Unlike `api.post`, the URL is used as-is: streaming replies have their own
+ * route handler (`/api/assistant/stream`), because the generic /api/proxy
+ * buffers the body. Frames split on a blank line; a partial frame stays in the
+ * buffer until the rest of it lands, so a token straddling two network chunks
+ * is never lost or double-counted.
+ *
+ * Errors surface from the first `next()` as an `ApiError`, so a caller can
+ * `throw`-handle it around the `for await`.
+ */
+export async function* streamPost<T>(
+  url: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+  signal?: AbortSignal,
+): AsyncGenerator<T> {
+  const h: Record<string, string> = { ...headers };
+  if (body !== undefined) h["Content-Type"] = "application/json";
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: h,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => "");
+    let detail = `Request failed (${res.status})`;
+    try {
+      const parsed = JSON.parse(text) as { detail?: unknown };
+      if (typeof parsed?.detail === "string") detail = parsed.detail;
+    } catch {
+      /* non-JSON error body — keep the generic message */
+    }
+    throw new ApiError(res.status, detail);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let split = buffer.indexOf("\n\n");
+      while (split !== -1) {
+        const payload = parseFrame(buffer.slice(0, split));
+        buffer = buffer.slice(split + 2);
+        if (payload !== undefined) yield payload as T;
+        split = buffer.indexOf("\n\n");
+      }
+    }
+  } finally {
+    // Reached on a normal end and on a caller that breaks out early. In the
+    // second case this tears down the connection, which is what stops the
+    // backend from generating tokens nobody will read.
+    void reader.cancel().catch(() => {});
+  }
+}

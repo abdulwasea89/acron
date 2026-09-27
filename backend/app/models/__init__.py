@@ -9,6 +9,8 @@ from app.models.cash import CashReconciliation
 from app.models.class_session import ClassBooking, ClassSession
 from app.models.company import Company
 from app.models.company_contract import CompanyContract
+from app.models.conversation import Conversation
+from app.models.conversation_message import ConversationMessage
 from app.models.idempotency_key import IdempotencyKey
 from app.models.invoice import Invoice
 from app.models.member_trainer import MemberTrainer
@@ -34,6 +36,8 @@ __all__ = [
     "ClassSession",
     "Company",
     "CompanyContract",
+    "Conversation",
+    "ConversationMessage",
     "IdempotencyKey",
     "Invoice",
     "MemberTrainer",

@@ -76,16 +76,17 @@ async def _office_headline(session: AsyncSession, *, org_id: str) -> dict:
 
     occupancy_pct = round(occupied_seats / seat_capacity * 100, 1) if seat_capacity else 0.0
 
-    open_ids = [
-        i.id for i in (
-            await session.execute(
-                select(Invoice.id).where(
-                    Invoice.organization_id == org_id,
-                    Invoice.status.in_(["sent", "partial"]),
-                )
+    # select(Invoice.id) already yields the ids themselves — there is no row
+    # object to pull `.id` off. Reading it as one raised on any org with an
+    # open invoice, which took the whole headline payload down with it.
+    open_ids = (
+        await session.execute(
+            select(Invoice.id).where(
+                Invoice.organization_id == org_id,
+                Invoice.status.in_(["sent", "partial"]),
             )
-        ).scalars().all()
-    ]
+        )
+    ).scalars().all()
     outstanding = 0.0
     if open_ids:
         gross = (

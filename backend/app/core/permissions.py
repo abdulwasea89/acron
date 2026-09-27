@@ -33,6 +33,7 @@ class Capability(str, Enum):
     VIEW_ASSIGNED_MEMBERS = "view_assigned_members"
     VIEW_AUDIT_LOG = "view_audit_log"
     VIEW_PLANS = "view_plans"
+    USE_ASSISTANT = "use_assistant"          # AI assistant over org data
 
     # ---- Multi-industry capabilities (office/academy, Phase 0) ----
     MANAGE_COMPANIES = "manage_companies"    # office: tenant companies & contracts
@@ -65,6 +66,9 @@ _MATRIX: dict[Capability, set[Role]] = {
     Capability.VIEW_ASSIGNED_MEMBERS: {Role.OWNER, Role.MANAGER, Role.TRAINER},
     Capability.VIEW_AUDIT_LOG: {Role.OWNER, Role.MANAGER},
     Capability.VIEW_PLANS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+    # The assistant sees revenue, payroll-adjacent metrics and member counts, so
+    # it stays with the roles that can already read analytics.
+    Capability.USE_ASSISTANT: {Role.OWNER, Role.MANAGER},
 }
 
 # Per-industry deltas over the base matrix (multi-industry Phase 0). The gym
