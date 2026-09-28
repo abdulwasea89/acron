@@ -1,5 +1,3 @@
-import { AssistantDock } from "@/components/assistant/AssistantDock";
-import { ChatInput } from "@/components/ChatInput";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge, Card, CardHeader, StatCard } from "@/components/ui";
 import { backend } from "@/lib/backend";
@@ -65,9 +63,7 @@ export default async function DashboardPage() {
   const remaining = checklistItems.filter((i) => !i.done).length;
 
   return (
-    // The assistant opens in place here — the dock wraps the dashboard rather
-    // than routing away from it, so the URL stays /app while you chat.
-    <AssistantDock>
+    <>
       <PageHeader
         title="Dashboard"
         subtitle={pageSubtitle}
@@ -155,8 +151,6 @@ export default async function DashboardPage() {
           </ul>
         </Card>
       </div>
-
-      <ChatInput />
-    </AssistantDock>
+    </>
   );
 }

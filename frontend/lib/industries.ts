@@ -77,8 +77,8 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     defaultAccent: "brand",
     checklist: ["stripe", "offer", "enroll", "staff", "done"],
     modules: [
-      "dashboard", "analytics", "offers", "members", "payments", "cash",
-      "receipts", "tasks", "classes", "staff", "audit", "approvals",
+      "dashboard", "assistant", "analytics", "offers", "members", "payments",
+      "cash", "receipts", "tasks", "classes", "staff", "audit", "approvals",
       "payroll", "billing", "account", "settings",
     ],
     rolesLabels: ROLE_LABELS,
@@ -105,9 +105,9 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     defaultAccent: "brand",
     checklist: ["companies", "offer", "invoices", "staff", "done"],
     modules: [
-      "dashboard", "analytics", "offers", "companies", "invoices", "space",
-      "members", "payments", "cash", "tasks", "staff", "audit", "approvals",
-      "payroll", "billing", "account", "settings",
+      "dashboard", "assistant", "analytics", "offers", "companies", "invoices",
+      "space", "members", "payments", "cash", "tasks", "staff", "audit",
+      "approvals", "payroll", "billing", "account", "settings",
     ],
     rolesLabels: {
       owner: "Owner",
@@ -139,7 +139,7 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     defaultAccent: "brand",
     checklist: ["courses", "offer", "enroll", "staff", "done"],
     modules: [
-      "dashboard", "analytics", "offers", "courses", "attendance",
+      "dashboard", "assistant", "analytics", "offers", "courses", "attendance",
       "members", "payments", "cash", "receipts", "tasks", "staff", "audit",
       "approvals", "payroll", "billing", "account", "settings",
     ],
@@ -217,6 +217,7 @@ export function roleLabelOf(meta: IndustryMeta, role: string): string {
 /** Maps each sidebar route to the registry module that gates it. */
 export const NAV_MODULE_BY_HREF: Record<string, string> = {
   "/app": "dashboard",
+  "/app/assistant": "assistant",
   "/app/analytics": "analytics",
   "/app/plans": "offers",
   "/app/companies": "companies",

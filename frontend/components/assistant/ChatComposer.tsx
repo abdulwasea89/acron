@@ -35,6 +35,10 @@ interface ChatComposerProps {
   className?: string;
   autoFocus?: boolean;
   ariaLabel?: string;
+  /** Bump this to focus the field without remounting (keyboard shortcut). */
+  focusSignal?: number;
+  /** Optional key hint shown in the empty field, e.g. "⌘K". */
+  hint?: string;
 }
 
 export function ChatComposer({
@@ -47,6 +51,8 @@ export function ChatComposer({
   className = "",
   autoFocus = false,
   ariaLabel = "Ask the assistant",
+  focusSignal = 0,
+  hint,
 }: ChatComposerProps) {
   const [capped, setCapped] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
@@ -73,6 +79,12 @@ export function ChatComposer({
   useEffect(() => {
     if (autoFocus) areaRef.current?.focus();
   }, [autoFocus]);
+
+  // A shortcut elsewhere bumps focusSignal; focus the field without stealing
+  // focus on the initial render (signal 0 is ignored).
+  useEffect(() => {
+    if (focusSignal > 0) areaRef.current?.focus();
+  }, [focusSignal]);
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     // Enter sends; Shift+Enter inserts a newline (ChatGPT convention).
@@ -108,6 +120,14 @@ export function ChatComposer({
             capped ? "overflow-y-auto" : "overflow-hidden"
           }`}
         />
+
+        {/* Key hint — only while the field is empty, so it never competes
+            with what's being typed. */}
+        {!value && hint && (
+          <kbd className="mb-2.5 hidden shrink-0 select-none items-center rounded-md border border-foreground/15 px-1.5 py-1 font-mono text-[10px] leading-none text-muted-foreground sm:flex">
+            {hint}
+          </kbd>
+        )}
 
         {/* Send: the brand pill, square-marked like the other CTAs (§10.8). */}
         <button

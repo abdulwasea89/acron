@@ -54,6 +54,11 @@ export function ChatPanel({
 
   // Lets a switch (or unmount) cancel a reply still arriving.
   const streamRef = useRef<AbortController | null>(null);
+  // Which thread the reply in flight belongs to. Needed because a switch
+  // *away* from a thread must cancel its stream, while the null -> id moment
+  // of a thread being created must not — that transition is the new thread
+  // arriving, not the old one leaving.
+  const streamConvRef = useRef<string | null>(null);
   // The trailing user turn we have already answered. Effects can run twice
   // (React StrictMode in dev); without this the same question streams twice.
   const answeredRef = useRef("");
@@ -75,6 +80,7 @@ export function ChatPanel({
 
       const controller = new AbortController();
       streamRef.current = controller;
+      streamConvRef.current = id;
 
       let text = "";
       let streamError: string | null = null;
@@ -107,6 +113,7 @@ export function ChatPanel({
         }
       } finally {
         streamRef.current = null;
+        if (streamConvRef.current === id) streamConvRef.current = null;
         setSending(false);
         // The trace is live-only: it is dropped with the stream that produced
         // it, whether that stream finished or was cancelled.
@@ -217,10 +224,24 @@ export function ChatPanel({
     };
   }, [conversationId, loadDetail, runStream]);
 
-  // Switching threads (or closing the chat) cancels a reply still arriving for
-  // the old one — nothing is on screen to receive the remaining tokens, and the
-  // backend stops generating the moment the connection drops.
-  useEffect(() => () => streamRef.current?.abort(), [conversationId]);
+  // Switching threads cancels a reply still arriving for the *old* one —
+  // nothing is on screen to receive the remaining tokens, and the backend stops
+  // generating the moment the connection drops.
+  //
+  // This runs in the effect body, not its cleanup, deliberately. A cleanup sees
+  // the conversationId it was created with (still null while a brand-new thread
+  // is being created), so it would abort that thread's own first reply — which
+  // is exactly what used to swallow every answer: the request succeeded and the
+  // reply was stored, but the client cancelled its stream microseconds into the
+  // wait and rendered nothing.
+  useEffect(() => {
+    if (streamConvRef.current && streamConvRef.current !== conversationId) {
+      streamRef.current?.abort();
+    }
+  }, [conversationId]);
+
+  // Closing the chat cancels whatever is in flight.
+  useEffect(() => () => streamRef.current?.abort(), []);
 
   const send = useCallback(async () => {
     const text = value.trim();

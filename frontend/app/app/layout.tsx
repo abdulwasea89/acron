@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
+import { AssistantShell } from "@/components/assistant/AssistantShell";
 import { OfflineBanner, RealtimeProvider } from "@/components/Realtime";
 import { backend } from "@/lib/backend";
 import { isAuthenticated } from "@/lib/session";
@@ -32,7 +33,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <OfflineBanner />
             {/* Content column: centered, capped at 1240 (DESIGN §10.2). */}
             <main className="w-full flex-1 self-center px-5 py-8 sm:px-8 lg:max-w-[1240px] lg:py-10">
-              {children}
+              {/* The assistant dock wraps every page here, so the prompt bar
+                  is one mount for the whole shell. It stays mounted on
+                  /app/assistant too — that is where it hands a prompt over. */}
+              <AssistantShell orgId={org.id}>{children}</AssistantShell>
             </main>
           </div>
         </div>
