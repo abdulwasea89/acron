@@ -13,10 +13,7 @@ import { AssistantDock } from "./AssistantDock";
 
    Keyed by org id: switching orgs refreshes the layout without remounting it,
    so without the key the dock would keep the previous tenant's pending
-   prompt. The key drops that state and reloads against the new org.
-
-   The bottom padding clears the floating entry bar so it never covers the
-   last row of a dense table. */
+   prompt. The key drops that state and reloads against the new org. */
 
 export function AssistantShell({
   orgId,
@@ -25,9 +22,5 @@ export function AssistantShell({
   orgId: string;
   children: React.ReactNode;
 }) {
-  return (
-    <AssistantDock key={orgId}>
-      <div className="pb-20">{children}</div>
-    </AssistantDock>
-  );
+  return <AssistantDock key={orgId}>{children}</AssistantDock>;
 }

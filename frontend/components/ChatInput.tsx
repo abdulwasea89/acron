@@ -14,6 +14,16 @@ import { useAssistantDock } from "@/components/assistant/AssistantDock";
    section. To re-flow it into the page instead, drop the `fixed` shell and
    render the inner card inline.
 
+   Centring follows the *content column*, not the viewport. Below `lg` there
+   is no sidebar and the two coincide exactly. From `lg` up the sidebar holds
+   the left edge at a fixed `lg:w-64` — 16rem — so the content column's centre
+   sits exactly half that, 8rem, right of the viewport's centre. Hence
+   `lg:left-[calc(50%+8rem)]`. Keep that 8rem in step with the sidebar's
+   `lg:w-64` in components/Sidebar.tsx; they are two halves of one fact.
+
+   The bar keeps its own width (max-w-2xl) rather than stretching to fill the
+   column — it is centred *within* the content, not sized to it.
+
    The box fill is the default `bg-surface`, hairline border, shadow.
 
    Submitting hands the prompt to AssistantDock, which carries it to the
@@ -83,7 +93,7 @@ export function ChatInput() {
   }, [value, dock]);
 
   return (
-    <div className="pointer-events-none fixed bottom-6 left-1/2 z-40 w-[calc(100%-2.5rem)] max-w-2xl -translate-x-1/2">
+    <div className="pointer-events-none fixed bottom-6 left-1/2 z-40 w-[calc(100%-2.5rem)] max-w-2xl -translate-x-1/2 lg:left-[calc(50%+8rem)]">
       <ChatComposer
         value={value}
         onChange={setValue}

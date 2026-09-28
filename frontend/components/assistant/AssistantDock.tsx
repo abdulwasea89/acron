@@ -59,14 +59,21 @@ export function AssistantDock({ children }: { children: React.ReactNode }) {
     [prompt, ask, clearPrompt],
   );
 
+  const onAssistantPage = pathname === ASSISTANT_PATH;
+
   return (
     <AssistantDockContext.Provider value={value}>
-      {children}
+      {/* The padding clears the floating bar so it never covers the last row
+          of a dense table. The assistant page has no bar AND manages its own
+          full height, so padding it would push the page 80px past the
+          viewport — which is what made the whole page scroll and drag its
+          toolbar and composer off-screen. */}
+      <div className={onAssistantPage ? undefined : "pb-20"}>{children}</div>
 
       {/* On the assistant page the bar is withheld: that page already has the
           composer for the thread you are looking at, and a second input onto
           the same conversation would only be ambiguous. */}
-      {pathname !== ASSISTANT_PATH && <ChatInput />}
+      {!onAssistantPage && <ChatInput />}
     </AssistantDockContext.Provider>
   );
 }
