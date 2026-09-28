@@ -44,6 +44,8 @@ def _to_out(org: Organization) -> OrganizationOut:
         logo_url=org.logo_url,
         industry=org.industry,
         default_currency=org.default_currency or "USD",
+        timezone=org.timezone or "UTC",
+        created_at=org.created_at,
     )
 
 

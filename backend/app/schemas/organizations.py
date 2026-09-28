@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core.constants import EnrollmentMode, GymStatus, SaasTier
@@ -61,6 +63,8 @@ class OrganizationOut(BaseModel):
     mfa_required: bool = False
     industry: str = "gym"
     default_currency: str = "USD"
+    timezone: str = "UTC"
+    created_at: datetime
 
 
 class RegisterGymResponse(BaseModel):

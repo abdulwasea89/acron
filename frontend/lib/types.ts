@@ -40,6 +40,8 @@ export interface OrganizationOut {
   /** Venue vertical: gym | office | academy (defaults to "gym"). */
   industry: string;
   default_currency: string;
+  timezone: string;
+  created_at: string;
 }
 
 export interface SetupChecklist {
