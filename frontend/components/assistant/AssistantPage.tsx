@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { PageHeader } from "@/components/PageHeader";
 import { api } from "@/lib/api";
 import type { AssistantConversationOut } from "@/lib/types";
 import { useAssistantDock } from "./AssistantDock";
@@ -12,11 +11,14 @@ import { SessionList } from "./SessionList";
    The assistant as a page of its own (/app/assistant), sitting in the shell
    exactly like Dashboard or Members.
 
-   Layout mirrors the docked chat the dashboard already has — recents on the
-   left, thread and composer on the right — but as two persistent columns
-   instead of an overlay, because a full page has the width to show the
-   history rather than tuck it behind a dropdown. On narrow screens the
-   history column collapses into a header dropdown.
+   Deliberately headerless: a slim toolbar carries the only two controls —
+   recents on the left, new chat on the right — and the thread takes
+   everything else. There is no page title, because the sidebar already says
+   where you are and a chat wants the height more than it wants a heading.
+
+   Recents is a dropdown rather than a permanent column, so the transcript
+   gets the full width whether or not you are looking at your history. It
+   opens over the thread instead of pushing it aside.
 
    The thread is a real page here, so it fills the viewport (minus the shell's
    own vertical padding) and scrolls internally; the page itself never grows. */
@@ -69,77 +71,78 @@ export function AssistantPage() {
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col lg:h-[calc(100dvh-5rem)]">
-      <PageHeader
-        title="Assistant"
-        subtitle="Grounded in this organization's data — ask about members, revenue, or payroll."
-        action={
-          <div className="flex items-center gap-2">
-            {/* History, only while the recents column is hidden. */}
-            <div className="relative lg:hidden">
-              <button
-                type="button"
-                onClick={() => setHistoryOpen((v) => !v)}
-                aria-label="Recent chats"
-                aria-expanded={historyOpen}
-                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-foreground/15 bg-surface text-muted-foreground transition-colors duration-150 hover:border-foreground/30 hover:text-foreground"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 6v6l4 2" />
-                  <path d="M3.05 11a9 9 0 1 0 2.6-6.35M3 4v4h4" />
-                </svg>
-              </button>
-            </div>
+      {/* Slim toolbar — the page's only chrome. */}
+      <div className="relative mb-4 flex shrink-0 items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((v) => !v)}
+          aria-expanded={historyOpen}
+          aria-haspopup="menu"
+          className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-foreground/15 bg-surface px-3.5 text-[13px] text-foreground transition-colors duration-150 hover:border-foreground/30"
+        >
+          <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 6v6l4 2" />
+            <path d="M3.05 11a9 9 0 1 0 2.6-6.35M3 4v4h4" />
+          </svg>
+          Recents
+          <svg
+            className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 ${historyOpen ? "rotate-180" : ""}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
 
+        <button
+          type="button"
+          onClick={newChat}
+          className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-foreground/15 bg-surface px-3.5 text-[13px] text-foreground transition-colors duration-150 hover:border-foreground/30"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New chat
+        </button>
+
+        {/* Recents, as a dropdown over the thread. The scrim is what makes a
+            click anywhere else close it — it sits under the panel (z-30) and
+            over the page (z-20). */}
+        {historyOpen && (
+          <>
             <button
               type="button"
-              onClick={newChat}
-              className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-foreground/15 bg-surface px-3.5 text-[13px] text-foreground transition-colors duration-150 hover:border-foreground/30"
+              aria-label="Close recent chats"
+              onClick={() => setHistoryOpen(false)}
+              className="fixed inset-0 z-20 cursor-default"
+            />
+            <div
+              role="menu"
+              className="absolute left-0 top-full z-30 mt-2 w-80 overflow-hidden rounded-xl border border-[var(--border)] bg-card shadow-xl shadow-black/10"
             >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              New chat
-            </button>
-          </div>
-        }
-      />
-
-      <div className="flex min-h-0 flex-1 gap-6">
-        {/* Recents — a permanent column on desktop. */}
-        <aside className="hidden w-64 shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-card lg:flex">
-          <p className="shrink-0 border-b border-[var(--border)] px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-            Recent
-          </p>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <SessionList conversations={conversations} activeId={activeId ?? ""} onPick={pick} />
-          </div>
-        </aside>
-
-        {/* Thread + composer. */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <ChatPanel
-            conversationId={activeId}
-            initialPrompt={dock?.prompt ?? null}
-            onCreated={handleCreated}
-            onRailRefresh={refresh}
-          />
-        </div>
+              <SessionList
+                conversations={conversations}
+                activeId={activeId ?? ""}
+                onPick={pick}
+              />
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Mobile recents: click-anywhere-else closes the dropdown. */}
-      {historyOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="Close chat list"
-            onClick={() => setHistoryOpen(false)}
-            className="fixed inset-0 z-20 cursor-default lg:hidden"
-          />
-          <div className="fixed right-4 top-28 z-30 w-72 overflow-hidden rounded-xl border border-[var(--border)] bg-card shadow-xl shadow-black/10 lg:hidden">
-            <SessionList conversations={conversations} activeId={activeId ?? ""} onPick={pick} />
-          </div>
-        </>
-      )}
+      {/* Thread + composer. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ChatPanel
+          conversationId={activeId}
+          initialPrompt={dock?.prompt ?? null}
+          onCreated={handleCreated}
+          onRailRefresh={refresh}
+        />
+      </div>
     </div>
   );
 }

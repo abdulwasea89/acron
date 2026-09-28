@@ -90,7 +90,7 @@ export function ChatInput() {
         onSubmit={submit}
         focusSignal={focusSignal}
         hint={isMac ? "⌘K" : "Ctrl K"}
-        className="pointer-events-auto animate-fade-in rounded-3xl border border-foreground/15 bg-surface p-2 shadow-xl shadow-black/10 transition-colors duration-150 focus-within:border-foreground/30"
+        className="pointer-events-auto animate-fade-in rounded-[28px] border border-foreground/15 bg-surface p-2 shadow-xl shadow-black/10 transition-colors duration-150 focus-within:border-foreground/30"
       />
     </div>
   );

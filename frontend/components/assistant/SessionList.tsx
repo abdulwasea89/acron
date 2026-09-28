@@ -9,9 +9,18 @@ import type { AssistantConversationOut } from "@/lib/types";
    Items are buttons, not links — picking a chat swaps the thread in place
    rather than navigating, so the dashboard URL never changes. */
 
+/** The API sends naive UTC — "2026-09-28T11:24:51.773591", with no offset.
+ *  `new Date` reads a bare date-time as *local*, so a chat made a minute ago
+ *  would report as many hours old (and land in the wrong bucket). Pin the
+ *  zone to UTC unless the string already carries one. */
+function parseUTC(iso: string): number {
+  const hasZone = /(z|[+-]\d{2}:?\d{2})$/i.test(iso);
+  return Date.parse(hasZone ? iso : `${iso}Z`);
+}
+
 /** Coarse relative age — enough to order a list by eye. */
 function relTime(iso: string): string {
-  const then = new Date(iso).getTime();
+  const then = parseUTC(iso);
   if (Number.isNaN(then)) return "";
   const mins = Math.floor((Date.now() - then) / 60_000);
   if (mins < 1) return "just now";
@@ -20,12 +29,12 @@ function relTime(iso: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(then).toLocaleDateString();
 }
 
 /** Which bucket a conversation's last activity falls into. */
 function bucketOf(iso: string): string {
-  const then = new Date(iso).getTime();
+  const then = parseUTC(iso);
   if (Number.isNaN(then)) return "Older";
 
   const now = new Date();

@@ -325,7 +325,7 @@ export function ChatPanel({
             sending={sending}
             autoFocus
             placeholder={conversationId ? "Reply…" : "Ask about members, revenue, or payroll…"}
-            className="rounded-2xl border border-foreground/15 bg-surface p-1.5 transition-colors duration-150 focus-within:border-foreground/30"
+            className="rounded-[28px] border border-foreground/15 bg-surface p-1.5 transition-colors duration-150 focus-within:border-foreground/30"
           />
         </div>
       </div>
