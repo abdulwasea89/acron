@@ -5,13 +5,18 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { OrganizationBrief } from "@/lib/types";
 
-interface OrgSwitcherProps {
-  currentOrgName: string;
-  currentOrgCode: string;
-  currentOrgId?: string;
+function cx(...parts: (string | false | undefined | null)[]): string {
+  return parts.filter(Boolean).join(" ");
 }
 
-export function OrgSwitcher({ currentOrgName, currentOrgCode, currentOrgId }: OrgSwitcherProps) {
+interface OrgSwitcherProps {
+  currentOrgName: string;
+  currentOrgId?: string;
+  /** Render just the workspace tile (collapsed sidebar rail). */
+  compact?: boolean;
+}
+
+export function OrgSwitcher({ currentOrgName, currentOrgId, compact }: OrgSwitcherProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [orgs, setOrgs] = useState<OrganizationBrief[]>([]);
@@ -21,27 +26,35 @@ export function OrgSwitcher({ currentOrgName, currentOrgCode, currentOrgId }: Or
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Escape closes the menu.
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   async function toggle() {
     if (open) {
       setOpen(false);
       return;
     }
+    // Open immediately so the loading/error state is visible inside the menu.
+    setOpen(true);
     setLoading(true);
     setError("");
     try {
-      const data = await api.get<OrganizationBrief[]>("/auth/my-organizations");
-      setOrgs(data);
-      setOpen(true);
+      setOrgs(await api.get<OrganizationBrief[]>("/auth/my-organizations"));
     } catch {
-      setError("Could not load organizations");
+      setError("Could not load workspaces.");
     } finally {
       setLoading(false);
     }
@@ -59,88 +72,153 @@ export function OrgSwitcher({ currentOrgName, currentOrgCode, currentOrgId }: Or
       router.push("/app");
       router.refresh();
     } catch {
-      setError("Failed to switch organization");
+      setError("Failed to switch workspace.");
     }
+  }
+
+  function go(path: string) {
+    setOpen(false);
+    router.push(path);
   }
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={toggle}
-        className="flex w-full items-center gap-3 rounded-lg px-1 py-1 text-left transition-colors hover:bg-[var(--background)]"
+        title={currentOrgName}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={
+          compact
+            ? "mx-auto flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-foreground/5"
+            : "flex h-9 w-full items-center gap-2 rounded-md px-2 text-left transition-colors hover:bg-foreground/5"
+        }
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]">
-          <svg className="h-5 w-5 text-[var(--primary-foreground)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-bold text-[var(--foreground)]">{currentOrgName}</div>
-          <div className="mt-0.5 font-mono text-[11px] text-[var(--muted)] tracking-wide">{currentOrgCode}</div>
-        </div>
-        <svg className={`h-4 w-4 shrink-0 text-[var(--muted)] transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        <Tile name={currentOrgName} />
+        {!compact && (
+          <>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+              {currentOrgName}
+            </span>
+            <Icon
+              d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"
+              className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </>
+        )}
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-lg">
+        <div
+          role="menu"
+          className="absolute left-0 top-full z-50 mt-1 w-64 animate-fade-in rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg shadow-black/10"
+        >
+          {/* Current workspace header + quick settings. */}
+          <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
+            <Tile name={currentOrgName} />
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+              {currentOrgName}
+            </span>
+            <button
+              type="button"
+              aria-label="Settings"
+              onClick={() => go("/app/settings")}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+            >
+              <Icon
+                d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"
+                className="h-4 w-4"
+              />
+            </button>
+          </div>
+
+          <Divider />
+
           {loading && (
-            <div className="px-3 py-2.5 text-[13px] text-[var(--muted)]">Loading...</div>
+            <p className="px-2 py-2 text-[13px] text-muted-foreground">Loading…</p>
           )}
-          {error && (
-            <div className="px-3 py-2.5 text-[13px] text-[var(--danger)]">{error}</div>
-          )}
+          {error && <p className="px-2 py-2 text-[13px] text-[var(--danger)]">{error}</p>}
           {!loading && !error && (
-            <>
+            <div className="max-h-64 overflow-y-auto">
               {orgs.map((org) => {
                 const isCurrent = org.organization_id === currentOrgId;
                 return (
                   <button
                     key={org.organization_id}
+                    role="menuitem"
                     onClick={() => switchOrg(org.organization_id)}
-                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] transition-colors ${
-                      isCurrent
-                        ? "bg-[var(--primary-light)] text-[var(--foreground)] font-semibold"
-                        : "text-[var(--foreground)] hover:bg-[var(--background)]"
-                    }`}
+                    className={cx(
+                      "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors",
+                      isCurrent ? "bg-foreground/[0.06]" : "hover:bg-foreground/5",
+                    )}
                   >
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--background)] text-[11px] font-bold text-[var(--foreground-muted)]">
-                      {org.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate">{org.name}</div>
-                      <div className="mt-0.5 font-mono text-[11px] text-[var(--muted)]">
+                    <Tile name={org.name} muted={!isCurrent} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-foreground">{org.name}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">
                         {org.org_code} · {org.role}
-                      </div>
-                    </div>
+                      </span>
+                    </span>
                     {isCurrent && (
-                      <svg className="h-4 w-4 shrink-0 text-[var(--foreground)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m5 13 4 4L19 7" />
-                      </svg>
+                      <Icon d="M4.5 12.75l6 6 9-13.5" className="h-4 w-4 shrink-0 text-foreground" />
                     )}
                   </button>
                 );
               })}
-
-              <div className="mt-1 border-t border-[var(--border)] pt-1">
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    router.push("/app/create-gym");
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--background)]"
-                >
-                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  Create New Gym
-                </button>
-              </div>
-            </>
+            </div>
           )}
+
+          <Divider />
+
+          <button
+            role="menuitem"
+            onClick={() => go("/app/create-gym")}
+            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] text-foreground transition-colors hover:bg-foreground/5"
+          >
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground">
+              <Icon d="M12 4.5v15m7.5-7.5h-15" className="h-[18px] w-[18px]" />
+            </span>
+            Create new workspace
+          </button>
         </div>
       )}
     </div>
+  );
+}
+
+/** Workspace tile: rounded square with the workspace initial. */
+function Tile({ name, muted }: { name: string; muted?: boolean }) {
+  return (
+    <span
+      className={cx(
+        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold",
+        muted
+          ? "bg-foreground/[0.08] text-foreground/70"
+          : "bg-[var(--primary)] text-[var(--primary-foreground)]",
+      )}
+    >
+      {name.charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+function Divider() {
+  return <div className="my-1 h-px bg-[var(--border)]" />;
+}
+
+function Icon({ d, className }: { d: string; className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
   );
 }

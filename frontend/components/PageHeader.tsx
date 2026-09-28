@@ -12,11 +12,10 @@ function humanize(seg: string): string {
 }
 
 /**
- * Admin page header in the Lexsus voice (DESIGN §7.3 / §10.4): a mono-caps
- * micro-breadcrumb above a serif display title.
+ * Admin page header: a small muted label above a sans-semibold title.
  *
- * The breadcrumb is derived from the current route: `/app/payroll` →
- * "/app · Payroll", `/app` → "/app · Overview".
+ * The label is derived from the current route: `/app/payroll` → "Payroll",
+ * `/app` → "Overview".
  */
 export function PageHeader({
   title,
@@ -39,8 +38,8 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <p className="mb-2.5 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-          /app · {eyebrow ?? crumbLabel}
+        <p className="mb-1.5 text-[13px] font-medium text-muted-foreground">
+          {eyebrow ?? crumbLabel}
         </p>
         <h1 className="font-heading text-[26px] leading-tight tracking-tight text-foreground sm:text-3xl">
           {title}

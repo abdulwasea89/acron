@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { GymStatusToggle } from "./GymStatusToggle";
-import { LiveIndicator } from "./Realtime";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 import type { GymStatus } from "@/lib/types";
@@ -58,6 +57,35 @@ function navFor(industry?: string): NavItem[] {
   );
 }
 
+// Sidebar sections (Notion-style grouping). Kept as a lookup so the NAV list
+// above stays the single ordered source of routes. "Overview" renders in the
+// top quick-icon row; the rest render as labelled sections below it.
+type NavGroup = "Overview" | "Operations" | "Money" | "Organization";
+const QUICK_GROUP: NavGroup = "Overview";
+const NAV_GROUP_ORDER: NavGroup[] = ["Operations", "Money", "Organization"];
+const NAV_GROUP_BY_HREF: Record<string, NavGroup> = {
+  "/app": "Overview",
+  "/app/assistant": "Overview",
+  "/app/analytics": "Overview",
+  "/app/members": "Operations",
+  "/app/plans": "Operations",
+  "/app/classes": "Operations",
+  "/app/space": "Operations",
+  "/app/tasks": "Operations",
+  "/app/approvals": "Operations",
+  "/app/payments": "Money",
+  "/app/cash": "Money",
+  "/app/receipts": "Money",
+  "/app/payroll": "Money",
+  "/app/invoices": "Money",
+  "/app/billing": "Money",
+  "/app/staff": "Organization",
+  "/app/companies": "Organization",
+  "/app/audit": "Organization",
+  "/app/account": "Organization",
+  "/app/settings": "Organization",
+};
+
 interface SidebarProps {
   orgName: string;
   orgCode: string;
@@ -81,83 +109,191 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: Sideba
   const pathname = usePathname();
   const items = navFor(industry);
   const logout = useLogout();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const quickItems = items.filter((item) => NAV_GROUP_BY_HREF[item.href] === QUICK_GROUP);
+  const isActive = (item: NavItem) =>
+    item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
 
   return (
     <>
       <MobileNavigation orgName={orgName} orgCode={orgCode} items={items} />
-      <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col border-r border-foreground/10 bg-background/70 backdrop-blur">
-        {/* Brand lockup — dot + serif wordmark (§10.2) */}
-        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-foreground/10 px-6">
-          <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
-          <Link
-            href="/app"
-            className="font-heading text-[17px] leading-none tracking-tight text-foreground"
+      <aside
+        className={cx(
+          "hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:flex-col border-r border-foreground/10 bg-surface transition-[width] duration-150",
+          collapsed ? "lg:w-[52px]" : "lg:w-64",
+        )}
+      >
+        {/* Brand + collapse */}
+        <div className={cx("flex h-11 shrink-0 items-center px-2", collapsed ? "justify-center" : "justify-between")}>
+          {!collapsed && (
+            <Link
+              href="/app"
+              className="flex items-center gap-2 px-1.5 font-display text-[16px] leading-none tracking-tight text-foreground"
+            >
+              <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
+              Acron
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
           >
-            Acron
-          </Link>
+            <svg className={cx("h-4 w-4 transition-transform", collapsed && "rotate-180")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18.75 19.5l-7.5-7.5 7.5-7.5M12.75 19.5l-7.5-7.5 7.5-7.5" />
+            </svg>
+          </button>
         </div>
 
-        {/* Org context + live status */}
-        <div className="space-y-2 border-b border-foreground/10 px-4 py-4">
-          <OrgSwitcher currentOrgName={orgName} currentOrgCode={orgCode} currentOrgId={orgId} />
-          <GymStatusToggle initialStatus={gymStatus} />
+        {/* Workspace row */}
+        <div className="px-2 pb-1">
+          <OrgSwitcher
+            currentOrgName={orgName}
+            currentOrgId={orgId}
+            compact={collapsed}
+          />
         </div>
 
-        {/* Navigation — active state is a solid brand pill (§10.3) */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {items.map((item) => {
-            const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
+        {!collapsed && (
+          <div className="px-2 pb-1">
+            <GymStatusToggle initialStatus={gymStatus} />
+          </div>
+        )}
+
+        {/* Quick-icon row (Overview) */}
+        <div className={cx("flex items-center gap-0.5 px-2 pt-1", collapsed && "flex-col")}>
+          {quickItems.map((item) => {
+            const active = isActive(item);
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                title={item.label}
                 aria-current={active ? "page" : undefined}
                 className={cx(
-                  "group flex h-10 items-center gap-3 rounded-lg px-3.5 text-sm transition-colors duration-150",
+                  "flex h-8 items-center rounded-md text-sm transition-colors",
                   active
-                    ? "bg-brand font-medium text-brand-foreground"
-                    : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+                    ? cx("gap-2 bg-foreground/[0.06] font-medium text-foreground", collapsed ? "w-8 justify-center px-0" : "px-2.5")
+                    : "w-8 justify-center text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
                 )}
               >
-                <svg
-                  className={cx(
-                    "h-4 w-4 shrink-0 transition-colors",
-                    active ? "text-brand-foreground" : "text-foreground/45 group-hover:text-foreground/80",
-                  )}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d={item.icon} />
-                </svg>
-                {item.label}
+                <Icon d={item.icon} className={cx("h-[18px] w-[18px] shrink-0", active && "text-foreground/80")} />
+                {active && !collapsed && <span>{item.label}</span>}
               </Link>
+            );
+          })}
+        </div>
+
+        {/* Labelled sections */}
+        <nav className={cx("mt-3 flex-1 overflow-y-auto pb-2", collapsed ? "px-2" : "px-2")}>
+          {NAV_GROUP_ORDER.map((group) => {
+            const groupItems = items.filter((item) => NAV_GROUP_BY_HREF[item.href] === group);
+            if (groupItems.length === 0) return null;
+            return (
+              <div key={group} className="mb-3">
+                {!collapsed && (
+                  <p className="px-2.5 pb-1 text-[11px] font-semibold text-muted-foreground/80">
+                    {group}
+                  </p>
+                )}
+                <div className="space-y-0.5">
+                  {groupItems.map((item) => {
+                    const active = isActive(item);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={item.label}
+                        aria-current={active ? "page" : undefined}
+                        className={cx(
+                          "flex h-8 items-center rounded-md text-sm transition-colors",
+                          collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
+                          active
+                            ? "bg-foreground/[0.06] font-medium text-foreground"
+                            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+                        )}
+                      >
+                        <Icon
+                          d={item.icon}
+                          className={cx("h-4 w-4 shrink-0", active ? "text-foreground/80" : "text-foreground/50")}
+                        />
+                        {!collapsed && item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </nav>
 
-        {/* Account strip + theme + sign out (§10.2) */}
-        <div className="shrink-0 border-t border-foreground/10 px-6 py-4">
-          <p className="mb-3 truncate font-mono text-xs text-muted-foreground">{orgCode}</p>
-          <div className="mb-2 flex items-center justify-between">
-            <LiveIndicator />
-            <ThemeToggle />
+        {/* New chat + account */}
+        <div className="shrink-0 p-2">
+          <div className={cx("flex items-center gap-1.5", collapsed && "flex-col")}>
+            <Link
+              href="/app/assistant"
+              title="New chat"
+              className={cx(
+                "flex h-9 items-center rounded-full bg-secondary text-sm text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground",
+                collapsed ? "w-9 justify-center" : "flex-1 gap-2 px-3",
+              )}
+            >
+              <Icon
+                d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
+                className="h-[18px] w-[18px] shrink-0"
+              />
+              {!collapsed && "New chat"}
+            </Link>
+            {!collapsed && (
+              <Link
+                href="/app/assistant"
+                aria-label="New chat"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground"
+              >
+                <Icon
+                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM16.862 4.487L19.5 7.125"
+                  className="h-[18px] w-[18px] shrink-0"
+                />
+              </Link>
+            )}
           </div>
           <button
             onClick={logout}
-            className="flex w-full items-center gap-2.5 rounded-md px-1 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+            title="Sign out"
+            className={cx(
+              "mt-0.5 flex items-center rounded-md text-[13px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground",
+              collapsed ? "h-9 w-full justify-center px-0" : "w-full gap-2.5 px-2.5 py-2",
+            )}
           >
-            <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-            </svg>
-            Sign out
+            <Icon
+              d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
+              className="h-4 w-4 shrink-0"
+            />
+            {!collapsed && "Sign out"}
           </button>
         </div>
       </aside>
     </>
+  );
+}
+
+/** Shared inline line icon. */
+function Icon({ d, className }: { d: string; className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
   );
 }
 
@@ -185,7 +321,7 @@ function MobileNavigation({
       <div className="flex h-14 items-center gap-3 px-4">
         <Link href="/app" className="flex shrink-0 items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
-          <span className="font-heading text-lg leading-none tracking-tight text-foreground">Acron</span>
+          <span className="font-display text-lg leading-none tracking-tight text-foreground">Acron</span>
         </Link>
         <p className="min-w-0 flex-1 truncate text-right font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
           {orgName} · {orgCode}

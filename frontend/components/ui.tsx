@@ -43,15 +43,15 @@ export function Button({
 }: ButtonProps) {
   const variants: Record<string, string> = {
     primary:
-      "rounded-full bg-brand text-brand-foreground hover:bg-brand/90 active:brightness-95",
+      "rounded-md bg-brand text-brand-foreground hover:bg-brand/90 active:brightness-95",
     secondary:
-      "rounded-full border border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5 hover:border-foreground/40",
+      "rounded-md border border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5 hover:border-foreground/40",
     danger:
-      "rounded-full bg-danger text-white hover:bg-danger-hover active:brightness-95",
+      "rounded-md bg-danger text-white hover:bg-danger-hover active:brightness-95",
     ghost:
-      "rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+      "rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
     accent:
-      "rounded-full bg-accent text-accent-foreground hover:bg-accent-hover",
+      "rounded-md bg-accent text-accent-foreground hover:bg-accent-hover",
   };
   const sizes: Record<string, string> = {
     sm: "h-9 px-4 text-xs gap-1.5",

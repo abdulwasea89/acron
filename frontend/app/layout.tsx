@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
-const instrumentSans = Instrument_Sans({
+// Body/UI is Inter (the shipped look is Notion-like). Instrument Serif is kept
+// for the brand wordmark only; JetBrains Mono for code and tabular numbers.
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-instrument",
+  variable: "--font-inter",
 });
 
 const instrumentSerif = Instrument_Serif({
@@ -31,7 +33,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans">
         <ThemeProvider>{children}</ThemeProvider>
