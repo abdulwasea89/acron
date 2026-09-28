@@ -7,12 +7,23 @@ import { useEffect, useRef, useState } from "react";
    the dashboard's floating bar (`ChatInput`) and the in-session composer so
    the grow-and-cap behaviour has exactly one implementation.
 
-   The send button sits on the field's last-line axis and holds a fixed screen
-   position: the row is `items-end` (NOT `items-center` — the box is
-   bottom-anchored and grows upward, so a centred button would re-centre on
-   every new line and visibly drift up as you type), and its `mb-1.5` (= 6px)
-   optically centres the 36px button against a one-line 48px field:
-   (48 - 36) / 2.
+   The send button is inset from the box by the container's padding on every
+   side — top, right and bottom all measure the same. That falls out of one
+   rule: the button must be exactly as tall as the field, so no centring gap
+   is left over above or below it. A one-line field is `py-2` + `leading-6` =
+   40px, so the button is `h-10` and the row is button-height. The container's
+   padding is then the only inset there is, and it applies to all three sides.
+
+   Two things break that equality, both of which look plausible until you
+   measure. An `mb-*` on the button (an optical nudge against a taller field)
+   adds to the bottom gap alone. And a field taller than the button leaves
+   `(field - button) / 2` of slack above and below, but not on the right — so
+   if either size moves, move both.
+
+   The row stays `items-end` rather than `items-center`: the box is bottom-
+   anchored and grows upward, so keeping the button on the last-line axis
+   holds it still as you type. Centring it would make it slide down the box
+   with every new line.
 
    Once the textarea caps out it scrolls, and that scrollbar is tinted to the
    send button's brand green so the two read as one control. Nothing is drawn
@@ -22,6 +33,15 @@ import { useEffect, useRef, useState } from "react";
 
 /** Grow one line at a time until this many, then stop and scroll. */
 const MAX_ROWS = 5;
+
+/* The bordered shell around the row. Defined once and imported by both the
+   dashboard bar (`ChatInput`) and the in-session composer (`ChatPanel`) so the
+   dock is identical wherever it appears. At rest the row is one line: a 40px
+   field (`py-2` + `leading-6`) plus this `p-2` on all sides plus the 1px
+   border gives a 58px box, which `rounded-[28px]` fills to a full pill — the
+   same shape as the circular send button. */
+export const CHAT_COMPOSER_SHELL =
+  "rounded-[28px] border border-foreground/15 bg-surface p-2 transition-colors duration-150 focus-within:border-foreground/30";
 
 interface ChatComposerProps {
   value: string;
@@ -37,8 +57,6 @@ interface ChatComposerProps {
   ariaLabel?: string;
   /** Bump this to focus the field without remounting (keyboard shortcut). */
   focusSignal?: number;
-  /** Optional key hint shown in the empty field, e.g. "⌘K". */
-  hint?: string;
 }
 
 export function ChatComposer({
@@ -52,7 +70,6 @@ export function ChatComposer({
   autoFocus = false,
   ariaLabel = "Ask the assistant",
   focusSignal = 0,
-  hint,
 }: ChatComposerProps) {
   const [capped, setCapped] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
@@ -116,25 +133,17 @@ export function ChatComposer({
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           aria-label={ariaLabel}
-          className={`w-full resize-none bg-transparent px-3 py-3 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 [scrollbar-color:var(--brand)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[3px] ${
+          className={`w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 [scrollbar-color:var(--brand)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[3px] ${
             capped ? "overflow-y-auto" : "overflow-hidden"
           }`}
         />
-
-        {/* Key hint — only while the field is empty, so it never competes
-            with what's being typed. */}
-        {!value && hint && (
-          <kbd className="mb-2.5 hidden shrink-0 select-none items-center rounded-md border border-foreground/15 px-1.5 py-1 font-mono text-[10px] leading-none text-muted-foreground sm:flex">
-            {hint}
-          </kbd>
-        )}
 
         {/* Send: the brand pill, square-marked like the other CTAs (§10.8). */}
         <button
           type="submit"
           disabled={!canSend}
           aria-label="Send"
-          className="mb-1.5 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-brand-foreground transition duration-150 hover:bg-brand/90 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60"
+          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-brand-foreground transition duration-150 hover:bg-brand/90 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60"
         >
           {sending ? (
             <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">

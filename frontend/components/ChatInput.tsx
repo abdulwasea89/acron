@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChatComposer } from "@/components/assistant/ChatComposer";
+import { CHAT_COMPOSER_SHELL, ChatComposer } from "@/components/assistant/ChatComposer";
 import { useAssistantDock } from "@/components/assistant/AssistantDock";
 
 /* ── ChatInput ────────────────────────────────────────────────────────────
@@ -34,7 +34,8 @@ import { useAssistantDock } from "@/components/assistant/AssistantDock";
 
    Keyboard: ⌘K / Ctrl+K (or "/") focuses the bar from anywhere on the page,
    so the assistant is one keystroke away. "/" is ignored while the user is
-   already typing in a field. */
+   already typing in a field. The shortcut is deliberately unadvertised — the
+   field carries no key badge, so nothing competes with the placeholder. */
 
 /** True when the event target is a field that should keep its keystrokes. */
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -52,14 +53,6 @@ export function ChatInput() {
   const dock = useAssistantDock();
   const [value, setValue] = useState("");
   const [focusSignal, setFocusSignal] = useState(0);
-  const [isMac, setIsMac] = useState(false);
-
-  // Read the platform after mount so SSR/hydration agree (both start false).
-  // Deferred because a setState in an effect body cascades renders
-  // (react-hooks/set-state-in-effect).
-  useEffect(() => {
-    queueMicrotask(() => setIsMac(/Mac|iPhone|iPad/.test(navigator.userAgent)));
-  }, []);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -99,8 +92,7 @@ export function ChatInput() {
         onChange={setValue}
         onSubmit={submit}
         focusSignal={focusSignal}
-        hint={isMac ? "⌘K" : "Ctrl K"}
-        className="pointer-events-auto animate-fade-in rounded-[28px] border border-foreground/15 bg-surface p-2 shadow-xl shadow-black/10 transition-colors duration-150 focus-within:border-foreground/30"
+        className={`pointer-events-auto animate-fade-in ${CHAT_COMPOSER_SHELL} shadow-xl shadow-black/10`}
       />
     </div>
   );
