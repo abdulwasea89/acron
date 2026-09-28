@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui";
 import { Markdown } from "./Markdown";
+import { randomThinkingWord } from "@/lib/thinkingWords";
 import type { AssistantMessageOut, AssistantStep } from "@/lib/types";
 
 /* ── ChatThread ───────────────────────────────────────────────────────────
@@ -52,6 +53,16 @@ export function ChatThread({
 }: ChatThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  const lastCount = useRef(messages.length);
+
+  // A fresh random word each turn, so the wait reads as activity. Chosen once
+  // when a turn starts (not per render) so it does not flicker mid-answer.
+  const [waitWord, setWaitWord] = useState(() => randomThinkingWord());
+  const wasGenerating = useRef(false);
+  useEffect(() => {
+    if (generating && !wasGenerating.current) setWaitWord(randomThinkingWord());
+    wasGenerating.current = generating;
+  }, [generating]);
 
   function onScroll() {
     const el = scrollRef.current;
@@ -61,8 +72,16 @@ export function ChatThread({
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || !pinned.current) return;
-    el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    // When you send, snap back to the bottom even if you had scrolled away —
+    // your own message must be visible. A streaming reply only follows if you
+    // are already at the bottom.
+    const grew = messages.length > lastCount.current;
+    lastCount.current = messages.length;
+    if (grew && messages[messages.length - 1]?.role === "user") {
+      pinned.current = true;
+    }
+    if (pinned.current) el.scrollTop = el.scrollHeight;
   }, [messages, draft, steps, generating, approval]);
 
   const empty = messages.length === 0 && draft === null && steps.length === 0;
@@ -83,7 +102,13 @@ export function ChatThread({
           ))}
 
           {steps.length > 0 && (
-            <ActivityPanel steps={steps} elapsedMs={elapsedMs} answerStarted={!!draft} live />
+            <ActivityPanel
+              steps={steps}
+              elapsedMs={elapsedMs}
+              answerStarted={!!draft}
+              liveWord={waitWord}
+              live
+            />
           )}
 
           {draft && (
@@ -98,11 +123,7 @@ export function ChatThread({
           {approval && onDecide && <ApprovalCard approval={approval} onDecide={onDecide} />}
 
           {showTyping && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl rounded-bl-md border border-[var(--border)] bg-card px-4 py-3">
-                <TypingDots />
-              </div>
-            </div>
+            <div className="px-1 text-sm leading-6 text-[var(--foreground)]">{waitWord}…</div>
           )}
         </div>
       )}
@@ -134,11 +155,13 @@ function ActivityPanel({
   elapsedMs = null,
   answerStarted = false,
   live = false,
+  liveWord = "Working",
 }: {
   steps: AssistantStep[];
   elapsedMs?: number | null;
   answerStarted?: boolean;
   live?: boolean;
+  liveWord?: string;
 }) {
   const [open, setOpen] = useState(live);
   const userToggled = useRef(false);
@@ -152,8 +175,7 @@ function ActivityPanel({
     setOpen((v) => !v);
   }
 
-  const running = steps.some((s) => s.type === "tool" && !s.done);
-  const header = live ? liveLabel(steps, running) : doneLabel(elapsedMs);
+  const header = live ? `${liveWord}…` : doneLabel(elapsedMs);
 
   return (
     <div className="flex justify-start">
@@ -162,13 +184,17 @@ function ActivityPanel({
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          className="flex w-full items-center gap-2 rounded-lg px-1 py-2 text-left text-xs text-muted-foreground transition-colors hover:text-[var(--foreground)]"
+          className={`flex w-full items-center gap-2 rounded-lg px-1 py-2 text-left transition-colors ${
+            live
+              ? "text-sm leading-6 text-[var(--foreground)] hover:opacity-80"
+              : "text-xs text-muted-foreground hover:text-[var(--foreground)]"
+          }`}
         >
           <Chevron open={open} />
-          <span className="font-medium">{header}</span>
+          <span className={live ? "" : "font-medium"}>{header}</span>
         </button>
         {open && (
-          <div className="space-y-2 px-1 pb-2">
+          <div className="ml-1.5 space-y-2 border-l border-[var(--border)] py-1 pl-3">
             {steps.map((step, i) =>
               step.type === "thinking" ? (
                 <ThinkingBlock key={`t-${i}`} text={step.text} />
@@ -199,7 +225,7 @@ function ToolStep({ step }: { step: Extract<AssistantStep, { type: "tool" }> }) 
         {!step.done && <span className="text-muted-foreground">running…</span>}
       </button>
       {open && (
-        <div className="space-y-2 py-1 pl-6 text-xs">
+        <div className="ml-4 space-y-2 border-l border-[var(--border)] py-1 pl-3 text-xs">
           {step.args && Object.keys(step.args).length > 0 && (
             <Mono label="Input" value={JSON.stringify(step.args, null, 2)} />
           )}
@@ -212,25 +238,10 @@ function ToolStep({ step }: { step: Extract<AssistantStep, { type: "tool" }> }) 
   );
 }
 
+/** The model's reasoning, in full. */
 function ThinkingBlock({ text }: { text: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [text]);
   return (
-    <div className="px-1 py-1">
-      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-        Thinking
-      </p>
-      <div
-        ref={ref}
-        aria-live="polite"
-        className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap text-xs leading-5 text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {text}
-      </div>
-    </div>
+    <div className="whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{text}</div>
   );
 }
 
@@ -260,12 +271,6 @@ function Chevron({ open }: { open: boolean }) {
       <path d="M9 18l6-6-6-6" />
     </svg>
   );
-}
-
-/** Header while the turn is still running. */
-function liveLabel(steps: AssistantStep[], running: boolean): string {
-  if (running) return "Working…";
-  return steps.some((s) => s.type === "thinking") ? "Thinking…" : "Working…";
 }
 
 /** Header once the turn is done. */
@@ -312,6 +317,54 @@ function ApprovalCard({
   );
 }
 
+/** A user's own message: collapsed to a few lines when it is long, with a
+ *  "Show more" toggle. A pasted wall of text otherwise dominates the thread.
+ *  Clamped with `line-clamp` (no scroll container); the toggle only appears
+ *  when the text actually overflows. */
+function UserText({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setOverflowing(el.scrollHeight > el.clientHeight + 1);
+  }, [content, expanded]);
+
+  return (
+    <>
+      <div
+        ref={ref}
+        className={`whitespace-pre-wrap ${expanded ? "" : "line-clamp-6"}`}
+      >
+        {content}
+      </div>
+      {(overflowing || expanded) && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 inline-flex items-center gap-1 text-xs font-medium opacity-80 hover:underline"
+        >
+          {expanded ? "Show less" : "Show more"}
+          <svg
+            className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      )}
+    </>
+  );
+}
+
 function Bubble({ message }: { message: AssistantMessageOut }) {
   const isUser = message.role === "user";
   return (
@@ -319,12 +372,12 @@ function Bubble({ message }: { message: AssistantMessageOut }) {
       <div
         className={
           isUser
-            ? "max-w-[85%] rounded-2xl rounded-br-md border border-brand/20 bg-brand/10 px-4 py-2.5 text-sm leading-6 text-[var(--foreground)]"
-            : "max-w-[85%] px-1 py-1 text-sm leading-6 text-[var(--foreground)]"
+            ? "w-fit max-w-[85%] break-words rounded-3xl border border-brand/20 bg-brand/10 px-4 py-2.5 text-sm leading-6 text-[var(--foreground)]"
+            : "w-fit max-w-[85%] break-words px-1 py-1 text-sm leading-6 text-[var(--foreground)]"
         }
       >
         {isUser ? (
-          <div className="whitespace-pre-wrap">{message.content}</div>
+          <UserText content={message.content} />
         ) : (
           <Markdown content={message.content} />
         )}
@@ -340,20 +393,6 @@ function Bubble({ message }: { message: AssistantMessageOut }) {
   );
 }
 
-function TypingDots() {
-  return (
-    <span className="flex items-center gap-1" aria-label="Thinking">
-      {[0, 150, 300].map((delay) => (
-        <span
-          key={delay}
-          className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--muted)]"
-          style={{ animationDelay: `${delay}ms` }}
-        />
-      ))}
-    </span>
-  );
-}
-
 function EmptyThread() {
   return (
     <div className="mx-auto flex h-full max-w-md flex-col items-center justify-center px-6 text-center">
@@ -362,7 +401,7 @@ function EmptyThread() {
           <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
         </svg>
       </div>
-      <h2 className="mt-4 font-display text-lg text-[var(--foreground)]">Ask about your gym</h2>
+      <h2 className="mt-4 font-heading text-lg text-[var(--foreground)]">Ask about your gym</h2>
       <p className="mt-1.5 text-sm text-[var(--muted)]">
         I can look up members, revenue, plans and payroll — and propose actions
         like refunds for your approval.
