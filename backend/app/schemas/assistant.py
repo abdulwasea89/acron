@@ -39,6 +39,25 @@ class MessageOut(BaseModel):
     model: str | None = None
     error: str | None = None
     created_at: datetime
+    # Reasoning + tool steps that produced this turn (ADR 018), or None.
+    steps: list[dict] | None = None
+
+
+class ResumeRequest(BaseModel):
+    """The human decision that resumes a paused run (ADR 018).
+
+    ``resume`` is passed through to LangGraph's ``Command(resume=...)`` and
+    becomes the return value of the ``interrupt()`` call inside the write tool —
+    for our tools, ``{"approved": bool}``.
+    """
+
+    resume: dict
+
+
+class BriefingOut(BaseModel):
+    """A generated weekly briefing (deterministic fetch + one model summary)."""
+
+    briefing: str
 
 
 class ConversationOut(BaseModel):

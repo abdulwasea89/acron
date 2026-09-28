@@ -7,6 +7,11 @@ isolation (Security Rule #1).
 ``error`` is set when generation failed part-way; the partial ``content`` that
 did stream is kept so the UI can show what arrived rather than silently losing
 the turn.
+
+``steps_json`` stores the turn's reasoning + tool trace (ADR 018) so the
+transcript can show the steps that produced an answer after a reload, the way a
+chat assistant does. It is a JSON list of step objects; ``NULL`` for a plain
+turn that ran no tools.
 """
 
 from __future__ import annotations
@@ -28,3 +33,4 @@ class ConversationMessage(UUIDModel, TimestampModel, table=True):
 
     model: str | None = Field(default=None)
     error: str | None = Field(default=None)
+    steps_json: str | None = Field(default=None)

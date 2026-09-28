@@ -558,6 +558,21 @@ export interface InvoiceSettings {
 
 // ---- Assistant (grounded chat over this org's data) ----
 
+/** One reasoning or tool step in an assistant turn (ADR 018).
+ *
+ *  Stored with the message so the transcript can show the steps behind an
+ *  answer after a reload, the way a chat assistant does. */
+export type AssistantStep =
+  | { type: "thinking"; text: string }
+  | {
+      type: "tool";
+      name: string;
+      args?: Record<string, unknown>;
+      summary?: string;
+      /** False while the tool is still running. */
+      done?: boolean;
+    };
+
 export interface AssistantMessageOut {
   id: string;
   role: "user" | "assistant";
@@ -566,6 +581,8 @@ export interface AssistantMessageOut {
   model: string | null;
   error: string | null;
   created_at: string;
+  /** Reasoning + tool steps that produced this turn, or null. */
+  steps?: AssistantStep[] | null;
 }
 
 export interface AssistantConversationOut {
@@ -582,10 +599,18 @@ export interface AssistantConversationDetailOut extends AssistantConversationOut
 /** Frames the stream endpoint emits, in order: thinking and/or deltas, then done or error.
  *
  *  `thinking` carries the model's reasoning trace, which lands *before* any
- *  answer text and is not persisted — it exists so the UI can show real
- *  progress through the part of the wait where there is nothing else to show. */
+ *  answer text. Reasoning and tool steps are shown in an activity panel ahead
+ *  of the answer and are persisted with the turn (see AssistantStep).
+ *
+ *  Agent runs (ADR 018) add tool activity and a confirmation pause:
+ *  `tool_start`/`tool_result` narrate what the assistant looked up, and
+ *  `interrupt` marks a write awaiting the user's approval (resumed through
+ *  /api/assistant/resume). */
 export type AssistantFrame =
   | { delta: string }
   | { thinking: string }
+  | { tool_start: { name: string; args: Record<string, unknown> } }
+  | { tool_result: { name: string; summary: string } }
+  | { interrupt: { id: string | null; value: unknown }; awaiting_approval?: true }
   | { done: true; message_id: string | null; title: string | null }
   | { error: string };

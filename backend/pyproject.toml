@@ -21,6 +21,16 @@ dependencies = [
     "sqlmodel>=0.0.38",
     "resend>=2.0",
     "jsonschema>=4.23",
+    # Assistant agent runtime (ADR 018). LangGraph is the orchestration layer;
+    # langchain-core supplies the message/tool/model interfaces; langchain-groq
+    # is the swappable provider adapter (a factory in app/agent/model.py is the
+    # only place that names it).
+    "langgraph>=1.2",
+    "langchain-core>=1.6",
+    "langchain-groq>=1.1",
+    # Durable checkpointing for human-in-the-loop in production. Dev/tests use
+    # the in-memory saver, so this is only imported when a Postgres org runs.
+    "langgraph-checkpoint-postgres>=3.1",
 ]
 
 [dependency-groups]

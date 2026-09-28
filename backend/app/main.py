@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
+from app.agent.checkpointer import close_checkpointer
 from app.core.config import settings
 from app.db.session import engine, init_db
 
@@ -27,6 +28,9 @@ async def lifespan(app: FastAPI):
     if settings.is_sqlite:
         await init_db()
     yield
+    # Release the assistant's Postgres checkpoint pool (no-op for the memory
+    # saver) before the DB engine itself is disposed.
+    await close_checkpointer()
     await engine.dispose()
 
 

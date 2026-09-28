@@ -156,8 +156,12 @@ async def test_stream_with_content_appends_then_answers(client):
     assert detail["messages"][2]["content"] == "Second question"
 
 
-async def test_grounding_carries_this_orgs_data(client, db):
-    """The system prompt must describe *this* gym, not gyms in general."""
+async def test_grounding_carries_this_orgs_identity(client, db):
+    """The prompt names *this* gym and its money context, and nothing more.
+
+    Org data (plans, metrics) moved behind tools (ADR 018), so the prompt holds
+    identity + policy only. The data itself is asserted in the tool tests.
+    """
 
     _, headers, org_id = await _provision_org(
         client, email="owner@g.com", name="Iron Pulse Boxing"
@@ -179,13 +183,12 @@ async def test_grounding_carries_this_orgs_data(client, db):
 
     assert "Iron Pulse Boxing" in prompt
     assert "USD" in prompt
-    assert "Monthly" in prompt and "149.0" in prompt
-    # Headline metrics come from the same service the dashboard reads.
-    assert "active_members" in prompt
     # Enums are interpolated by value, not repr: f-stringing a str-mixin Enum
     # yields "GymStatus.OPEN", which is noise the model has to see past.
     assert "GymStatus." not in prompt
-    assert "Gym status: open" in prompt
+    assert "Status: open" in prompt
+    # The plan is fetched by a tool, so it must NOT be baked into the prompt.
+    assert "Monthly" not in prompt
 
 
 async def test_the_prompt_reaches_the_model(client):

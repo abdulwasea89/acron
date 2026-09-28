@@ -37,3 +37,42 @@ def latest_token_for(email: str, marker: str = "reset: ") -> str:
         if mail.to in (email.lower(), email) and marker in mail.body:
             return mail.body.split(marker, 1)[1].strip()
     raise AssertionError(f"No token email found for {email}")
+
+
+PASSWORD = "Sup3rStr0ng!Pass"
+
+
+async def provision_org(client, *, email: str, name: str) -> tuple[str, dict, str]:
+    """Register an owner and provision their org -> (org_code, headers, org_id).
+
+    Shared by the assistant and agent test modules so both exercise the same
+    real signup path rather than a shortcut.
+    """
+
+    await client.post(
+        "/api/v1/auth/register",
+        json={
+            "full_name": "Alex",
+            "email": email,
+            "password": PASSWORD,
+            "confirm_password": PASSWORD,
+            **OWNER_PROFILE,
+        },
+    )
+    code = latest_code_for(email)
+    await client.post("/api/v1/auth/verify-email", json={"email": email, "code": code})
+    r = await client.post(
+        "/api/v1/organizations/register",
+        json={
+            "owner_email": email,
+            "details": {"name": name, "default_currency": "USD"},
+            "tier": "pro",
+        },
+    )
+    body = r.json()
+    org_id = body["organization"]["id"]
+    return (
+        body["organization"]["org_code"],
+        {"Authorization": f"Bearer {body['access_token']}", "X-Organization-Id": org_id},
+        org_id,
+    )

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChatComposer } from "./ChatComposer";
+import { CHAT_COMPOSER_SHELL, ChatComposer } from "./ChatComposer";
 import { ChatThread } from "./ChatThread";
 import { Alert, Spinner } from "@/components/ui";
 import { api, ApiError, streamPost } from "@/lib/api";
@@ -9,6 +9,7 @@ import type {
   AssistantConversationDetailOut,
   AssistantFrame,
   AssistantMessageOut,
+  AssistantStep,
 } from "@/lib/types";
 
 /* ── ChatPanel ────────────────────────────────────────────────────────────
@@ -36,6 +37,12 @@ interface ChatPanelProps {
   onRailRefresh: () => void;
 }
 
+/** A paused write awaiting the user's yes/no. */
+interface Approval {
+  id: string | null;
+  value: unknown;
+}
+
 export function ChatPanel({
   conversationId,
   initialPrompt,
@@ -45,12 +52,15 @@ export function ChatPanel({
   const [detail, setDetail] = useState<AssistantConversationDetailOut | null>(null);
   const [value, setValue] = useState("");
   const [draft, setDraft] = useState<string | null>(null);
-  /** The reasoning trace for the in-flight reply. Live only — never persisted,
-   *  so it is deliberately not part of `detail`. */
-  const [thinking, setThinking] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  /** The in-flight turn's reasoning + tool steps, in arrival order. */
+  const [steps, setSteps] = useState<AssistantStep[]>([]);
+  /** How long the last completed turn took, for the "Worked for Xs" header. */
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
+  /** A write the assistant proposed and is waiting for the user to approve. */
+  const [approval, setApproval] = useState<Approval | null>(null);
 
   // Lets a switch (or unmount) cancel a reply still arriving.
   const streamRef = useRef<AbortController | null>(null);
@@ -64,6 +74,9 @@ export function ChatPanel({
   const answeredRef = useRef("");
   // The last handed-over prompt we acted on, so re-renders don't resend it.
   const promptRef = useRef<string | null>(null);
+  // The turn's steps, authoritative across the interrupt/resume boundary where
+  // React state would be a stale closure.
+  const stepsRef = useRef<AssistantStep[]>([]);
 
   const loadDetail = useCallback(async (id: string) => {
     const d = await api.get<AssistantConversationDetailOut>(`/assistant/conversations/${id}`);
@@ -72,11 +85,19 @@ export function ChatPanel({
   }, []);
 
   const runStream = useCallback(
-    async (id: string, content?: string) => {
+    async (id: string, content?: string, resume?: Record<string, unknown>) => {
       setSending(true);
       setError("");
       setDraft("");
-      setThinking("");
+      setApproval(null);
+      setElapsedMs(null);
+      const startedAt = Date.now();
+      // A resumed run continues the same turn, so it keeps the steps it already
+      // showed; a fresh turn starts an empty trace.
+      if (!resume) {
+        stepsRef.current = [];
+        setSteps([]);
+      }
 
       const controller = new AbortController();
       streamRef.current = controller;
@@ -88,8 +109,12 @@ export function ChatPanel({
 
       try {
         const frames = streamPost<AssistantFrame>(
-          "/api/assistant/stream",
-          content === undefined ? { conversation_id: id } : { conversation_id: id, content },
+          resume ? "/api/assistant/resume" : "/api/assistant/stream",
+          resume
+            ? { conversation_id: id, resume }
+            : content === undefined
+              ? { conversation_id: id }
+              : { conversation_id: id, content },
           { "Idempotency-Key": crypto.randomUUID() },
           controller.signal,
         );
@@ -98,8 +123,23 @@ export function ChatPanel({
             text += frame.delta;
             setDraft(text);
           } else if ("thinking" in frame) {
-            const piece = frame.thinking;
-            setThinking((t) => t + piece);
+            pushThinking(stepsRef.current, frame.thinking);
+            setSteps([...stepsRef.current]);
+          } else if ("tool_start" in frame) {
+            stepsRef.current.push({
+              type: "tool",
+              name: frame.tool_start.name,
+              args: frame.tool_start.args,
+              done: false,
+            });
+            setSteps([...stepsRef.current]);
+          } else if ("tool_result" in frame) {
+            finishTool(stepsRef.current, frame.tool_result);
+            setSteps([...stepsRef.current]);
+          } else if ("interrupt" in frame) {
+            // A write is proposed and paused; the composer is disabled until
+            // the user answers the confirmation card.
+            setApproval(frame.interrupt);
           } else if ("error" in frame) {
             streamError = frame.error;
           }
@@ -115,12 +155,11 @@ export function ChatPanel({
         streamRef.current = null;
         if (streamConvRef.current === id) streamConvRef.current = null;
         setSending(false);
-        // The trace is live-only: it is dropped with the stream that produced
-        // it, whether that stream finished or was cancelled.
-        setThinking("");
         if (!aborted) {
+          setElapsedMs(Date.now() - startedAt);
           // One update: the streamed turn becomes a real message in the same
-          // frame the draft disappears.
+          // frame the draft disappears, carrying the steps so they don't blink
+          // out before the refetch lands.
           if (text || streamError) {
             const finished: AssistantMessageOut = {
               id: `stream-${Date.now()}`,
@@ -129,10 +168,13 @@ export function ChatPanel({
               model: null,
               error: streamError,
               created_at: new Date().toISOString(),
+              steps: stepsRef.current.length ? stepsRef.current : null,
             };
             setDetail((d) =>
               d && d.id === id ? { ...d, messages: [...d.messages, finished] } : d,
             );
+            stepsRef.current = [];
+            setSteps([]);
           }
           setDraft(null);
         }
@@ -150,6 +192,16 @@ export function ChatPanel({
       onRailRefresh();
     },
     [loadDetail, onRailRefresh],
+  );
+
+  /** Answer the confirmation card: resume the paused run with a yes or no. */
+  const decide = useCallback(
+    async (approved: boolean) => {
+      if (!conversationId || !approval) return;
+      setApproval(null);
+      await runStream(conversationId, undefined, { approved });
+    },
+    [approval, conversationId, runStream],
   );
 
   // A prompt handed over from the dashboard bar: create the thread first, then
@@ -311,8 +363,11 @@ export function ChatPanel({
         <ChatThread
           messages={messages}
           draft={activeDraft}
-          thinking={sending ? thinking : ""}
+          steps={sending ? steps : []}
+          elapsedMs={elapsedMs}
           generating={sending}
+          approval={approval}
+          onDecide={decide}
         />
       )}
 
@@ -325,10 +380,37 @@ export function ChatPanel({
             sending={sending}
             autoFocus
             placeholder={conversationId ? "Reply…" : "Ask about members, revenue, or payroll…"}
-            className="rounded-[28px] border border-foreground/15 bg-surface p-1.5 transition-colors duration-150 focus-within:border-foreground/30"
+            className={CHAT_COMPOSER_SHELL}
           />
         </div>
       </div>
     </>
   );
+}
+
+/** Merge a reasoning delta into the trailing thinking step (or start one). */
+function pushThinking(steps: AssistantStep[], text: string): void {
+  const last = steps[steps.length - 1];
+  if (last && last.type === "thinking") {
+    last.text += text;
+  } else {
+    steps.push({ type: "thinking", text });
+  }
+}
+
+/** Resolve the newest in-flight tool step with its result.
+ *
+ *  Correlated by order rather than id: the model calls one tool at a time
+ *  (gpt-oss has no parallel tool calls), so the last unfinished step is always
+ *  the one that just completed.
+ */
+function finishTool(steps: AssistantStep[], result: { name: string; summary: string }): void {
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i];
+    if (step.type === "tool" && !step.done) {
+      steps[i] = { ...step, done: true, summary: result.summary };
+      return;
+    }
+  }
+  steps.push({ type: "tool", name: result.name, summary: result.summary, done: true });
 }
