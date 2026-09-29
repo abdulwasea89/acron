@@ -70,24 +70,24 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
         ref={btnRef}
         type="button"
         onClick={toggle}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
       >
         <KebabIcon />
       </button>
       {open && (
         <div
           style={{ left: pos.left, top: pos.top, position: "fixed" }}
-          className="z-50 min-w-[130px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg"
+          className="z-50 min-w-[140px] animate-pop-in overflow-hidden rounded-lg border border-[var(--border)] bg-popover p-1 shadow-lg shadow-black/10"
         >
           {actions.map((a) => (
             <button
               key={a.label}
               type="button"
               onClick={() => { setOpen(false); a.onClick(); }}
-              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
+              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] transition-colors ${
                 a.danger
                   ? "text-danger hover:bg-danger-bg"
-                  : "text-[var(--foreground)] hover:bg-[var(--background)]"
+                  : "text-foreground hover:bg-foreground/[0.06]"
               }`}
             >
               {a.icon === "publish" && (
@@ -310,7 +310,7 @@ export default function PlansPage() {
           <div className="space-y-5">
             {viewing.public_description && (
               <div>
-                <span className="mb-1.5 block text-[13px] font-medium text-[var(--foreground)]">Description</span>
+                <span className="mb-1.5 block text-[12px] font-medium text-[var(--foreground)]">Description</span>
                 <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--foreground-muted)]">{viewing.public_description}</p>
               </div>
             )}
@@ -323,7 +323,7 @@ export default function PlansPage() {
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
                     {Object.entries(viewing.spec).map(([k, v]) => (
                       <div key={k} className="min-w-0">
-                        <dt className="text-[11px] font-medium text-[var(--muted)]">{titleCase(k)}</dt>
+                        <dt className="text-[10px] font-medium text-[var(--muted)]">{titleCase(k)}</dt>
                         <dd className="break-words text-sm text-[var(--foreground)]">
                           {typeof v === "object" && v !== null ? JSON.stringify(v) : String(v)}
                         </dd>
@@ -337,19 +337,19 @@ export default function PlansPage() {
             )}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Price</span>
+                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Price</span>
                 <span className="text-sm font-semibold text-[var(--foreground)]">{money(viewing.price, viewing.currency)}</span>
               </div>
               <div>
-                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Billing</span>
+                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Billing</span>
                 <span className="text-sm text-[var(--foreground-muted)]">{titleCase(viewing.billing_type)}</span>
               </div>
               <div>
-                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Visibility</span>
+                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Visibility</span>
                 <span className="text-sm text-[var(--foreground-muted)]">{titleCase(viewing.visibility)}</span>
               </div>
               <div>
-                <span className="mb-1 block text-[13px] font-medium text-[var(--foreground)]">Status</span>
+                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Status</span>
                 <Badge tone={statusTone(viewing.status)}>{titleCase(viewing.status)}</Badge>
               </div>
             </div>
@@ -453,7 +453,7 @@ export default function PlansPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Price</th>

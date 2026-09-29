@@ -55,7 +55,7 @@ export function LiveIndicator({ className = "" }: { className?: string }) {
   const status = useRealtimeStatus();
   const { color, label, pulse } = DOT[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--foreground-muted)] ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium text-[var(--foreground-muted)] ${className}`}>
       <span className="relative flex h-2 w-2">
         {pulse && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${color}`} />}
         <span className={`relative inline-flex h-2 w-2 rounded-full ${color}`} />
@@ -79,7 +79,7 @@ export function OfflineBanner() {
 
   if (!show) return null;
   return (
-    <div className="sticky top-0 z-30 border-b border-[var(--warning-border)] bg-[var(--warning-bg)]/90 px-4 py-1.5 text-center font-mono text-[11px] uppercase tracking-widest text-[var(--warning)] backdrop-blur">
+    <div className="sticky top-0 z-30 border-b border-[var(--warning-border)] bg-[var(--warning-bg)]/90 px-4 py-1.5 text-center font-mono text-[10px] uppercase tracking-widest text-[var(--warning)] backdrop-blur">
       Reconnecting — showing last known data.
     </div>
   );

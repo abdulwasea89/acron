@@ -78,7 +78,7 @@ export function AssistantPage() {
           onClick={() => setHistoryOpen((v) => !v)}
           aria-expanded={historyOpen}
           aria-haspopup="menu"
-          className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-foreground/15 bg-surface px-3.5 text-[13px] text-foreground transition-colors duration-150 hover:border-foreground/30"
+          className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-foreground/15 bg-surface px-3.5 text-[12px] text-foreground transition-colors duration-150 hover:border-foreground/30"
         >
           <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 6v6l4 2" />
@@ -101,7 +101,7 @@ export function AssistantPage() {
         <button
           type="button"
           onClick={newChat}
-          className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-foreground/15 bg-surface px-3.5 text-[13px] text-foreground transition-colors duration-150 hover:border-foreground/30"
+          className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-foreground/15 bg-surface px-3.5 text-[12px] text-foreground transition-colors duration-150 hover:border-foreground/30"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />

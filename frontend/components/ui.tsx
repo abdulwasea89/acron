@@ -17,7 +17,7 @@ function cx(...parts: (string | false | undefined | null)[]): string {
 }
 
 /* Field-label voice: mono caps, letterspaced, muted (DESIGN §6.6). */
-const LABEL = "mb-1.5 block font-mono text-[11px] uppercase tracking-widest text-muted-foreground";
+const LABEL = "mb-1.5 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground";
 
 /* Shared focus ring — brand hairline, no heavy box-shadow. */
 const FOCUS =
@@ -43,26 +43,26 @@ export function Button({
 }: ButtonProps) {
   const variants: Record<string, string> = {
     primary:
-      "rounded-full bg-brand text-brand-foreground hover:bg-brand/90 active:brightness-95",
+      "rounded-md bg-brand text-brand-foreground shadow-sm hover:bg-brand/90 active:brightness-95",
     secondary:
-      "rounded-full border border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5 hover:border-foreground/40",
+      "rounded-md border border-foreground/15 bg-card text-foreground hover:bg-foreground/[0.04] hover:border-foreground/25",
     danger:
-      "rounded-full bg-danger text-white hover:bg-danger-hover active:brightness-95",
+      "rounded-md bg-danger text-white shadow-sm hover:bg-danger-hover active:brightness-95",
     ghost:
-      "rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+      "rounded-md text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground",
     accent:
-      "rounded-full bg-accent text-accent-foreground hover:bg-accent-hover",
+      "rounded-md bg-accent text-accent-foreground hover:bg-accent-hover",
   };
   const sizes: Record<string, string> = {
-    sm: "h-9 px-4 text-xs gap-1.5",
-    md: "h-10 px-5 text-sm gap-2",
-    lg: "h-11 px-6 text-sm gap-2",
+    sm: "h-8 px-3 text-sm gap-1.5",
+    md: "h-9 px-4 text-sm gap-2",
+    lg: "h-10 px-5 text-sm gap-2",
   };
   return (
     <button
       className={cx(
-        "inline-flex cursor-pointer items-center justify-center font-semibold",
-        "transition duration-150",
+        "inline-flex cursor-pointer items-center justify-center font-medium",
+        "transition-colors duration-150",
         FOCUS,
         "disabled:opacity-40 disabled:cursor-not-allowed select-none",
         sizes[size],
@@ -135,7 +135,7 @@ export function CategoryTabs<T extends string>({
       role="tablist"
       onKeyDown={onKeyDown}
       className={cx(
-        "no-scrollbar flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-foreground/15 bg-transparent p-1",
+        "no-scrollbar flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-md p-0.5",
         className,
       )}
     >
@@ -150,10 +150,10 @@ export function CategoryTabs<T extends string>({
             tabIndex={active || index === -1 ? 0 : -1}
             onClick={() => onChange(t.value)}
             className={cx(
-              "flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 font-mono text-xs uppercase tracking-widest transition-colors duration-150",
+              "flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-[12px] font-medium transition-colors duration-150",
               FOCUS,
               active
-                ? "bg-brand font-medium text-brand-foreground"
+                ? "bg-foreground/[0.06] text-foreground"
                 : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
             )}
           >
@@ -163,7 +163,7 @@ export function CategoryTabs<T extends string>({
                 className={cx(
                   "inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 text-[10px] tabular-nums",
                   active
-                    ? "bg-brand-foreground/20 text-brand-foreground"
+                    ? "bg-foreground/10 text-foreground"
                     : "bg-foreground/10 text-muted-foreground",
                 )}
               >
@@ -210,9 +210,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           id={id}
           className={cx(
             size === "sm"
-              ? "h-[38px] w-full rounded-full border bg-transparent text-xs text-foreground"
-              : "h-11 w-full rounded-full border bg-card text-sm text-foreground",
-            "transition duration-150",
+              ? "h-8 w-full rounded-md border bg-transparent text-[12px] text-foreground"
+              : "h-9 w-full rounded-md border bg-card text-sm text-foreground",
+            "transition-colors duration-150",
             "placeholder:text-muted-foreground",
             prefix && "pl-7",
             suffix && "pr-9",
@@ -387,8 +387,8 @@ export function Select({
 
   const triggerBase =
     size === "sm"
-      ? "h-[38px] w-full rounded-full border border-foreground/20 bg-transparent pl-4 pr-9 text-[13px] text-foreground hover:border-foreground/35"
-      : "h-11 w-full rounded-full border border-foreground/20 bg-card pl-3.5 pr-10 text-sm text-foreground hover:border-foreground/35";
+      ? "h-8 w-full rounded-md border border-foreground/20 bg-transparent pl-3 pr-8 text-[12px] text-foreground hover:border-foreground/35"
+      : "h-9 w-full rounded-md border border-foreground/20 bg-card pl-3 pr-9 text-sm text-foreground hover:border-foreground/35";
 
   return (
     <label className="block" htmlFor={id}>
@@ -435,7 +435,7 @@ export function Select({
               role="listbox"
               aria-label={label}
               style={{ left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width }}
-              className="fixed z-[100] max-h-72 animate-fade-in overflow-y-auto overscroll-contain rounded-xl border border-foreground/15 bg-surface p-1.5 shadow-xl shadow-black/10"
+              className="fixed z-[100] max-h-72 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-[var(--border)] bg-popover p-1 shadow-lg shadow-black/10"
             >
               {options.map((o, i) => {
                 const isSelected = o.value === String(value ?? "");
@@ -449,10 +449,10 @@ export function Select({
                     onClick={() => choose(o)}
                     onMouseEnter={() => setActive(i)}
                     className={cx(
-                      "flex min-h-10 cursor-pointer items-center justify-between gap-2.5 rounded-lg px-3 text-sm",
+                      "flex min-h-8 cursor-pointer items-center justify-between gap-2.5 rounded-md px-2.5 text-[12px] transition-colors",
                       o.disabled && "cursor-not-allowed opacity-40",
                       isSelected
-                        ? "bg-brand/10 font-medium text-brand"
+                        ? "bg-foreground/[0.06] font-medium text-foreground"
                         : isActive
                           ? "bg-foreground/5 text-foreground"
                           : "text-foreground",
@@ -490,7 +490,7 @@ export function Textarea({ label, error, className, ...rest }: TextareaProps) {
       {label && <span className={LABEL}>{label}</span>}
       <textarea
         className={cx(
-          "w-full rounded-xl border border-foreground/20 bg-card px-3.5 py-2.5 text-sm text-foreground hover:border-foreground/35",
+          "w-full rounded-md border border-foreground/20 bg-card px-3 py-2 text-sm text-foreground hover:border-foreground/35",
           "transition-all duration-150",
           error
             ? "border-danger focus:border-danger focus:ring-2 focus:ring-danger/20"
@@ -515,7 +515,7 @@ export function Card({ children, className, hover = false }: { children: ReactNo
   return (
     <div
       className={cx(
-        "rounded-xl border border-foreground/10 bg-card",
+        "rounded-lg border border-foreground/10 bg-card",
         hover && "transition-colors duration-150 hover:border-foreground/25",
         className,
       )}
@@ -527,10 +527,10 @@ export function Card({ children, className, hover = false }: { children: ReactNo
 
 export function CardHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-foreground/10 px-5 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-foreground/10 px-5 py-3.5">
       <div className="min-w-0">
-        <h3 className="font-heading text-[19px] leading-tight text-foreground">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
+        <h3 className="text-[14px] font-semibold leading-tight text-foreground">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-[12px] text-muted-foreground">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -548,18 +548,18 @@ export function Badge({
   size?: "sm" | "md";
 }) {
   const tones: Record<string, string> = {
-    neutral: "border-foreground/20 text-muted-foreground",
-    success: "border-brand/50 text-brand",
-    danger: "border-danger/40 text-danger",
-    warning: "border-warning/45 text-warning",
-    info: "border-info/45 text-info",
+    neutral: "bg-foreground/[0.06] text-muted-foreground",
+    success: "bg-success-bg text-success",
+    danger: "bg-danger-bg text-danger",
+    warning: "bg-warning-bg text-warning",
+    info: "bg-info-bg text-info",
   };
   const sizes: Record<string, string> = {
-    sm: "px-2 py-0.5 text-[10px]",
-    md: "px-2.5 py-1 text-[10px]",
+    sm: "px-1.5 py-0.5 text-[10px]",
+    md: "px-2 py-0.5 text-[11px]",
   };
   return (
-    <span className={cx("inline-flex items-center gap-1 whitespace-nowrap rounded-full border font-mono uppercase tracking-widest leading-tight", sizes[size], tones[tone])}>
+    <span className={cx("inline-flex items-center gap-1 whitespace-nowrap rounded-md font-medium leading-tight", sizes[size], tones[tone])}>
       {children}
     </span>
   );
@@ -625,7 +625,7 @@ export function Separator({ className }: { className?: string }) {
 export function Avatar({ name, size = "md", className }: { name: string; size?: "sm" | "md" | "lg"; className?: string }) {
   const initials = name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   const sizes: Record<string, string> = {
-    sm: "h-8 w-8 text-[11px]",
+    sm: "h-8 w-8 text-[10px]",
     md: "h-10 w-10 text-xs",
     lg: "h-12 w-12 text-sm",
   };
@@ -643,7 +643,7 @@ export function Avatar({ name, size = "md", className }: { name: string; size?: 
   );
 }
 
-/* ── StatCard (DESIGN §6.5 — border tile, mono label, serif value) ─────── */
+/* ── StatCard (Notion-ish tile — sans label, semibold value) ───────────── */
 export function StatCard({
   label,
   value,
@@ -652,6 +652,7 @@ export function StatCard({
   trendValue,
   accent = false,
   hint,
+  joined = false,
   className,
 }: {
   label: string;
@@ -661,17 +662,32 @@ export function StatCard({
   trendValue?: string;
   accent?: boolean;
   hint?: string;
+  /** Drop the card's own border/radius so it can sit inside a joined grid
+   *  whose cells are separated by hairline gaps. */
+  joined?: boolean;
   className?: string;
 }) {
   return (
-    <div className={cx("border p-5 sm:p-6", accent ? "border-brand/40 bg-brand/[0.04]" : "border-foreground/10", className)}>
+    <div
+      className={cx(
+        "p-4 sm:p-5",
+        joined
+          ? accent
+            ? "bg-[color-mix(in_oklab,var(--brand)_6%,var(--card))]"
+            : "bg-card"
+          : accent
+            ? "rounded-lg border border-brand/40 bg-brand/[0.04]"
+            : "rounded-lg border border-foreground/10",
+        className,
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="mb-3 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">{label}</p>
-          <p className="font-heading text-3xl leading-none tracking-tight tabular-nums text-foreground lg:text-4xl">{value}</p>
-          {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+          <p className="mb-1.5 text-[12px] font-medium text-muted-foreground">{label}</p>
+          <p className="text-[22px] font-semibold leading-none tracking-tight tabular-nums text-foreground">{value}</p>
+          {hint && <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
           {trendValue && (
-            <div className="mt-2.5 flex items-center gap-1 text-xs font-mono">
+            <div className="mt-2.5 flex items-center gap-1 text-xs">
               {trend === "up" && <span className="text-success">↑</span>}
               {trend === "down" && <span className="text-danger">↓</span>}
               <span className={cx(
@@ -683,7 +699,7 @@ export function StatCard({
           )}
         </div>
         {icon && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-foreground/15 text-foreground">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-foreground/10 text-muted-foreground">
             {icon}
           </div>
         )}

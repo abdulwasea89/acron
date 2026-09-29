@@ -144,7 +144,7 @@ function InvoicesContent() {
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               placeholder="Search invoice # or company..."
-              className="w-full rounded-full border border-foreground/20 bg-transparent h-[38px] px-4 text-xs text-foreground placeholder:text-muted-foreground outline-none transition-colors hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-md border border-foreground/20 bg-transparent h-8 px-3 text-[12px] text-foreground placeholder:text-muted-foreground outline-none transition-colors hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20"
             />
           </div>
         </div>
@@ -161,7 +161,7 @@ function InvoicesContent() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-5 py-3 font-medium">Invoice</th>
                   <th className="px-5 py-3 font-medium">Company</th>
@@ -179,7 +179,7 @@ function InvoicesContent() {
                       <button type="button" onClick={() => void openDetail(inv)} className="font-mono text-xs font-medium text-[var(--foreground)] hover:underline">
                         {inv.invoice_number}
                       </button>
-                      <div className="mt-0.5 text-[11px] text-[var(--muted)]">issued {fmtDate(inv.issue_date)}</div>
+                      <div className="mt-0.5 text-[10px] text-[var(--muted)]">issued {fmtDate(inv.issue_date)}</div>
                     </td>
                     <td className="px-5 py-3.5">
                       <Link href={`/app/companies/${inv.company_id}`} className="text-[var(--foreground)] hover:underline">
@@ -239,7 +239,7 @@ function InvoicesContent() {
 
             <div className="rounded-lg border border-[var(--border)]">
               <table className="w-full text-sm">
-                <thead className="border-b border-[var(--border)] text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+                <thead className="border-b border-[var(--border)] text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                   <tr><th className="px-4 py-2 font-medium">Description</th><th className="px-4 py-2 text-right font-medium">Amount</th></tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
@@ -264,7 +264,7 @@ function InvoicesContent() {
 
             {payments && payments.length > 0 && (
               <div>
-                <div className="mb-2 text-[11px] font-medium uppercase tracking-widest text-[var(--muted)]">Payments received</div>
+                <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Payments received</div>
                 <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
                   {payments.map((p) => (
                     <li key={p.id} className="flex items-center justify-between px-4 py-2 text-sm">

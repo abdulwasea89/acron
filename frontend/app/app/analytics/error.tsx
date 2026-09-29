@@ -23,7 +23,7 @@ export default function AnalyticsErrorPage({
           An error occurred while loading the analytics data.
         </p>
         {error.digest && (
-          <p className="mb-4 text-[11px] break-all text-[var(--muted)]">
+          <p className="mb-4 text-[10px] break-all text-[var(--muted)]">
             Error ID: {error.digest}
           </p>
         )}

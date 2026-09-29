@@ -102,7 +102,7 @@ export function SessionList({
                       }`}
                     >
                       <span className="w-full truncate text-sm">{c.title}</span>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground">
                         {relTime(c.last_message_at)}
                       </span>
                     </button>

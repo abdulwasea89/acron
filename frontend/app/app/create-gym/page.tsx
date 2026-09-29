@@ -61,7 +61,6 @@ export default function CreateGymPage() {
   return (
     <div className="mx-auto max-w-xl py-8">
       <PageHeader
-        eyebrow="/app · New gym"
         title="Create New Gym"
         subtitle="Add another gym to your account. A new SaaS subscription will be created."
       />
@@ -117,7 +116,7 @@ export default function CreateGymPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-[13px] font-medium text-[var(--foreground)]">
+          <label className="mb-1.5 block text-[12px] font-medium text-[var(--foreground)]">
             SaaS Plan
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

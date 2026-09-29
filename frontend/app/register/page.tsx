@@ -46,7 +46,7 @@ function Steps({ current, labels }: { current: number; labels: string[] }) {
             />
             <span
               className={cx(
-                "mt-2 flex items-center gap-1.5 truncate text-[11px] font-semibold leading-tight transition-colors duration-300",
+                "mt-2 flex items-center gap-1.5 truncate text-[10px] font-semibold leading-tight transition-colors duration-300",
                 reached ? "text-[var(--foreground)]" : "text-[var(--muted)]",
               )}
             >
@@ -511,7 +511,7 @@ export default function RegisterPage() {
         {step === 4 && (
           <form onSubmit={submitGym} className="space-y-5">
             <div>
-              <span className="mb-2 block text-[13px] font-medium text-[var(--foreground)]">What kind of place is this?</span>
+              <span className="mb-2 block text-[12px] font-medium text-[var(--foreground)]">What kind of place is this?</span>
               <div className="grid gap-2.5">
                 {INDUSTRY_LIST.map((o) => {
                   const selected = industry === o.key;
@@ -566,7 +566,7 @@ export default function RegisterPage() {
             </Select>
 
             <div>
-              <span className="mb-2 block text-[13px] font-medium text-[var(--foreground)]">Plan tier</span>
+              <span className="mb-2 block text-[12px] font-medium text-[var(--foreground)]">Plan tier</span>
               <div className="grid gap-2.5">
                 {TIERS.map((t) => (
                   <button
@@ -585,7 +585,7 @@ export default function RegisterPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-bold text-[var(--foreground)]">{t.price}</div>
-                      {t.id !== "enterprise" && <div className="text-[11px] text-[var(--muted)]">per month</div>}
+                      {t.id !== "enterprise" && <div className="text-[10px] text-[var(--muted)]">per month</div>}
                     </div>
                   </button>
                 ))}

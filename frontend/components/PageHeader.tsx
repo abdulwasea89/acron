@@ -1,47 +1,25 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-function humanize(seg: string): string {
-  if (!seg) return "";
-  return seg
-    .split("-")
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(" ");
-}
-
 /**
- * Admin page header: a small muted label above a sans-semibold title.
- *
- * The label is derived from the current route: `/app/payroll` → "Payroll",
- * `/app` → "Overview".
+ * Admin page header: a sans-semibold title with an optional subtitle and a
+ * right-aligned action. The old route-derived eyebrow was removed — the page
+ * title carries the context on its own.
  */
 export function PageHeader({
   title,
   subtitle,
   action,
-  eyebrow,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
-  eyebrow?: string;
 }) {
-  const pathname = usePathname();
-
-  // Everything after the leading "/app" — derive a human label from the first
-  // meaningful segment (member detail routes stay under their section name).
-  const crumbs = pathname.replace(/^\/app\/?/, "").split("/").filter(Boolean);
-  const crumbLabel = crumbs.length === 0 ? "Overview" : humanize(crumbs[0]);
-
   return (
     <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <p className="mb-1.5 text-[13px] font-medium text-muted-foreground">
-          {eyebrow ?? crumbLabel}
-        </p>
-        <h1 className="font-heading text-[26px] leading-tight tracking-tight text-foreground sm:text-3xl">
+        <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-foreground sm:text-[28px]">
           {title}
         </h1>
         {subtitle && (

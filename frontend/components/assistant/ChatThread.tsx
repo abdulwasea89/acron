@@ -249,7 +249,7 @@ function Mono({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{label}</p>
-      <pre className="mt-0.5 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-[var(--card)] px-2 py-1.5 text-[11px] leading-4 text-[var(--foreground)]">
+      <pre className="mt-0.5 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-[var(--card)] px-2 py-1.5 text-[10px] leading-4 text-[var(--foreground)]">
         {value}
       </pre>
     </div>

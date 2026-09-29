@@ -103,7 +103,7 @@ export function ThemeToggle() {
                   setOpen(false);
                 }}
                 className={cx(
-                  "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] transition-colors",
+                  "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[12px] transition-colors",
                   "focus:outline-none focus-visible:bg-[var(--accent-light)]",
                   active
                     ? "bg-[var(--primary-light)] font-medium text-[var(--primary)]"

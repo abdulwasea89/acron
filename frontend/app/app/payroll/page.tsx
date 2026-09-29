@@ -183,7 +183,7 @@ function RunCard({
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+          <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
             <tr className="border-b border-[var(--border)]">
               <th className="px-6 py-3.5">Staff</th>
               <th className="px-6 py-3.5">Fixed</th>

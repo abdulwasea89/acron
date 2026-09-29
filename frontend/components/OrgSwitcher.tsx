@@ -128,7 +128,7 @@ export function OrgSwitcher({ currentOrgName, currentOrgId, plan, compact }: Org
         <Tile name={currentOrgName} />
         {!compact && (
           <>
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+            <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">
               {currentOrgName}
             </span>
             <Icon
@@ -150,13 +150,13 @@ export function OrgSwitcher({ currentOrgName, currentOrgId, plan, compact }: Org
             <span className="min-w-0 flex-1">
               <span className="block truncate">
                 <span
-                  className="rounded px-1.5 py-0.5 text-[13px] font-medium text-foreground"
+                  className="rounded px-1.5 py-0.5 text-[12px] font-medium text-foreground"
                   style={{ background: `${tileColor(currentOrgName)}14` }}
                 >
                   {currentOrgName}
                 </span>
               </span>
-              <span className="block truncate text-[11px] text-muted-foreground">{subtitle}</span>
+              <span className="block truncate text-[10px] text-muted-foreground">{subtitle}</span>
             </span>
           </div>
 
@@ -176,8 +176,8 @@ export function OrgSwitcher({ currentOrgName, currentOrgId, plan, compact }: Org
 
           <Divider />
 
-          {loading && <p className="px-2 py-2 text-[13px] text-muted-foreground">Loading…</p>}
-          {error && <p className="px-2 py-2 text-[13px] text-[var(--danger)]">{error}</p>}
+          {loading && <p className="px-2 py-2 text-[12px] text-muted-foreground">Loading…</p>}
+          {error && <p className="px-2 py-2 text-[12px] text-[var(--danger)]">{error}</p>}
           {!loading && !error && (
             <div className="max-h-64 overflow-y-auto">
               {orgs.map((org) => {
@@ -189,7 +189,7 @@ export function OrgSwitcher({ currentOrgName, currentOrgId, plan, compact }: Org
                     onClick={() => switchOrg(org.organization_id)}
                     className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-foreground/5"
                   >
-                    <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
+                    <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
                       <span
                         className="rounded px-1.5 py-0.5"
                         style={{ background: `${tileColor(org.name)}14` }}
@@ -224,7 +224,7 @@ function MenuRow({ icon, label, onClick }: { icon: string; label: string; onClic
     <button
       role="menuitem"
       onClick={onClick}
-      className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] text-foreground transition-colors hover:bg-foreground/5"
+      className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[12px] text-foreground transition-colors hover:bg-foreground/5"
     >
       <Icon d={icon} className="h-4 w-4 shrink-0 text-muted-foreground" />
       <span className="flex-1 truncate">{label}</span>
@@ -254,7 +254,7 @@ function tileColor(name: string): string {
 function Tile({ name }: { name: string }) {
   return (
     <span
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold text-white"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold text-white"
       style={{ background: tileColor(name) }}
     >
       {name.charAt(0).toUpperCase()}

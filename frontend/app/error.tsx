@@ -23,7 +23,7 @@ export default function ErrorPage({
           An unexpected error occurred. You can try again or go back to the home page.
         </p>
         {error.digest && (
-          <p className="mb-4 text-[11px] break-all text-[var(--muted)]">
+          <p className="mb-4 text-[10px] break-all text-[var(--muted)]">
             Error ID: {error.digest}
           </p>
         )}

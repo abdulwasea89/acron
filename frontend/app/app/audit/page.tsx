@@ -181,7 +181,7 @@ export default function AuditPage() {
           />
         ) : (
           <>
-            <div className="flex items-center gap-4 border-b border-[var(--border)] bg-[var(--background)]/30 px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+            <div className="flex items-center gap-4 border-b border-[var(--border)] bg-[var(--background)]/30 px-5 py-2.5 font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
               <span className="w-32 shrink-0">Time</span>
               <span className="flex-1">Action</span>
               <span className="flex-1">Actor</span>
@@ -207,7 +207,7 @@ export default function AuditPage() {
                       <span className="flex-1 min-w-0 truncate text-[var(--foreground-muted)]">
                         {log.entity_type ? `${log.entity_type}` : "—"}
                         {log.entity_id && (
-                          <span className="ml-1.5 font-mono text-[11px] text-[var(--muted)]">{log.entity_id.slice(0, 8)}…</span>
+                          <span className="ml-1.5 font-mono text-[10px] text-[var(--muted)]">{log.entity_id.slice(0, 8)}…</span>
                         )}
                       </span>
                     </div>
@@ -265,8 +265,8 @@ function JsonBlock({ label, data }: { label: string; data: Record<string, unknow
   if (!data || Object.keys(data).length === 0) return null;
   return (
     <div className="min-w-0 flex-1">
-      <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{label}</p>
-      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 font-mono text-[11px] text-[var(--foreground)]">
+      <p className="mb-1 text-[10px] font-semibold text-muted-foreground">{label}</p>
+      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 font-mono text-[10px] text-[var(--foreground)]">
         {JSON.stringify(data, null, 2)}
       </pre>
     </div>

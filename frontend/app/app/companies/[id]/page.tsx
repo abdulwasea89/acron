@@ -124,25 +124,25 @@ export default function CompanyDetailPage() {
       {/* Meta */}
       <Card className="mb-5">
         <div className="grid grid-cols-1 gap-x-8 gap-y-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-4">
-          <div><div className="text-[11px] font-medium uppercase tracking-widest text-[var(--muted)]">Contact</div>
+          <div><div className="text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Contact</div>
             <div className="mt-1 text-sm text-[var(--foreground)]">{c.contact_name || "—"}</div>
             {c.contact_email && <div className="text-xs text-[var(--muted)]">{c.contact_email}</div>}
             {c.contact_phone && <div className="text-xs text-[var(--muted)]">{c.contact_phone}</div>}
           </div>
-          <div><div className="text-[11px] font-medium uppercase tracking-widest text-[var(--muted)]">Billing email</div>
+          <div><div className="text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Billing email</div>
             <div className="mt-1 text-sm text-[var(--foreground)]">{c.billing_email || "—"}</div>
           </div>
-          <div><div className="text-[11px] font-medium uppercase tracking-widest text-[var(--muted)]">Tax ID</div>
+          <div><div className="text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Tax ID</div>
             <div className="mt-1 font-mono text-sm text-[var(--foreground)]">{c.tax_id || "—"}</div>
           </div>
-          <div><div className="text-[11px] font-medium uppercase tracking-widest text-[var(--muted)]">Occupancy</div>
+          <div><div className="text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Occupancy</div>
             <div className="mt-1 tabular-nums text-sm font-semibold text-[var(--foreground)]">
               {activeHolders}<span className="font-normal text-[var(--muted)]"> / {capacity} seats</span>
             </div>
           </div>
-          {c.address && <div className="sm:col-span-2"><div className="text-[11px] font-medium uppercase tracking-widest text-[var(--muted)]">Address</div>
+          {c.address && <div className="sm:col-span-2"><div className="text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Address</div>
             <div className="mt-1 text-sm text-[var(--foreground-muted)]">{c.address}</div></div>}
-          {c.notes && <div className="sm:col-span-2"><div className="text-[11px] font-medium uppercase tracking-widest text-[var(--muted)]">Notes</div>
+          {c.notes && <div className="sm:col-span-2"><div className="text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Notes</div>
             <div className="mt-1 text-sm text-[var(--foreground-muted)]">{c.notes}</div></div>}
         </div>
       </Card>
@@ -182,7 +182,7 @@ export default function CompanyDetailPage() {
                     <div className="flex shrink-0 items-center gap-1">
                       {ct.status === "active" && (
                         openInvoice ? (
-                          <span className="text-[11px] text-[var(--muted)]">{invoiceLabel(openInvoice.status)} INV-…{openInvoice.invoice_number.slice(-4)}</span>
+                          <span className="text-[10px] text-[var(--muted)]">{invoiceLabel(openInvoice.status)} INV-…{openInvoice.invoice_number.slice(-4)}</span>
                         ) : (
                           <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(async () => {
                             await api.post("/invoices/issue", { contract_id: ct.id });

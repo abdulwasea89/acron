@@ -207,7 +207,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
             return (
               <div key={group} className="mb-3">
                 {!collapsed && (
-                  <p className="px-2.5 pb-1 text-[11px] font-semibold text-muted-foreground/80">
+                  <p className="px-2.5 pb-1 text-[10px] font-semibold text-muted-foreground/80">
                     {group}
                   </p>
                 )}
@@ -296,7 +296,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
             onClick={logout}
             title="Sign out"
             className={cx(
-              "mt-0.5 flex items-center rounded-md text-[13px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground",
+              "mt-0.5 flex items-center rounded-md text-[12px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground",
               collapsed ? "h-9 w-full justify-center px-0" : "w-full gap-2.5 px-2.5 py-2",
             )}
           >
@@ -357,14 +357,14 @@ function MobileNavigation({
           <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
           <span className="font-display text-lg leading-none tracking-tight text-foreground">Acron</span>
         </Link>
-        <p className="min-w-0 flex-1 truncate text-right font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+        <p className="min-w-0 flex-1 truncate text-right font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           {orgName} · {orgCode}
         </p>
         <ThemeToggle />
         <button
           type="button"
           onClick={logout}
-          className="shrink-0 cursor-pointer list-none font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]/50 rounded px-1 py-0.5"
+          className="shrink-0 cursor-pointer list-none font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]/50 rounded px-1 py-0.5"
         >
           Sign out
         </button>
@@ -378,7 +378,7 @@ function MobileNavigation({
         {items.map((item) => {
           const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
           const chipClass = cx(
-            "flex h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors duration-150",
+            "flex h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[12px] transition-colors duration-150",
             active
               ? "bg-brand font-medium text-brand-foreground"
               : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",

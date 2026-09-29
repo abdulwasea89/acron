@@ -263,7 +263,7 @@ export default function AnalyticsPage() {
                                 <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) - 6} className="fill-[var(--foreground)] font-heading text-2xl tracking-tight">
                                   {data.active_members}
                                 </tspan>
-                                <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 16} className="fill-[var(--muted)] font-mono text-[11px] uppercase tracking-widest">
+                                <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 16} className="fill-[var(--muted)] font-mono text-[10px] uppercase tracking-widest">
                                   Active
                                 </tspan>
                               </text>
@@ -295,8 +295,8 @@ function StatCard({ label, value, icon }: { label: string; value: string; icon: 
     <Card className="p-5 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] text-[var(--muted)]">{label}</p>
-          <p className="mt-1.5 font-heading text-[30px] leading-none tabular-nums text-[var(--foreground)]">{value}</p>
+          <p className="text-[12px] text-[var(--muted)]">{label}</p>
+          <p className="mt-1.5 font-heading text-[24px] leading-none tabular-nums text-[var(--foreground)]">{value}</p>
         </div>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--primary-light)] text-[var(--primary)]">
           {icon}

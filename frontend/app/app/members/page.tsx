@@ -62,24 +62,24 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
         ref={btnRef}
         type="button"
         onClick={toggle}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
       >
         <KebabIcon />
       </button>
       {open && (
         <div
           style={{ left: pos.left, top: pos.top, position: "fixed" }}
-          className="z-50 min-w-[130px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg"
+          className="z-50 min-w-[140px] animate-pop-in overflow-hidden rounded-lg border border-[var(--border)] bg-popover p-1 shadow-lg shadow-black/10"
         >
           {actions.map((a) => (
             <button
               key={a.label}
               type="button"
               onClick={() => { setOpen(false); a.onClick(); }}
-              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
+              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] transition-colors ${
                 a.danger
                   ? "text-danger hover:bg-danger-bg"
-                  : "text-[var(--foreground)] hover:bg-[var(--background)]"
+                  : "text-foreground hover:bg-foreground/[0.06]"
               }`}
             >
               {a.label}
@@ -443,7 +443,7 @@ export default function MembersPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-6 py-3.5">Name</th>
                   <th className="px-6 py-3.5">Email</th>

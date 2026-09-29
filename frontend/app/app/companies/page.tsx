@@ -136,7 +136,7 @@ export default function CompaniesPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-5 py-3 font-medium">Company</th>
                   <th className="px-5 py-3 font-medium">Billing email</th>
@@ -154,7 +154,7 @@ export default function CompaniesPage() {
                         {c.name}
                       </Link>
                       {c.tax_id && (
-                        <span className="mt-0.5 block font-mono text-[11px] text-[var(--muted)]">{c.tax_id}</span>
+                        <span className="mt-0.5 block font-mono text-[10px] text-[var(--muted)]">{c.tax_id}</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{c.billing_email || "—"}</td>

@@ -462,6 +462,32 @@
   --shadow-lg: var(--shadow-lg);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Global type scale — one step tighter than Tailwind's defaults so page copy
+   reads denser without touching spacing or the sidebar's geometry. Utilities
+   resolve against these; line-heights are set alongside to keep leading sane.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  --text-xs: 0.6875rem;   /* 11px */
+  --text-xs--line-height: 0.875rem;
+  --text-sm: 0.8125rem;   /* 13px */
+  --text-sm--line-height: 1.125rem;
+  --text-base: 0.875rem;  /* 14px */
+  --text-base--line-height: 1.25rem;
+  --text-lg: 1rem;        /* 16px */
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.125rem;    /* 18px */
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.25rem;    /* 20px */
+  --text-2xl--line-height: 1.75rem;
+  --text-3xl: 1.5rem;     /* 24px */
+  --text-3xl--line-height: 2rem;
+  --text-4xl: 1.75rem;    /* 28px */
+  --text-4xl--line-height: 2.25rem;
+  --text-5xl: 2.25rem;    /* 36px */
+  --text-5xl--line-height: 2.5rem;
+}
+
 * { border-color: var(--border); }
 
 html {
@@ -473,7 +499,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -539,15 +565,27 @@ body {
 
 @media (prefers-reduced-motion: no-preference) {
   .animate-fade-in { animation: fade-in 150ms ease-out both; }
+  .animate-fade-out { animation: fade-out 130ms ease-in both; }
   .animate-slide-up { animation: slide-up 250ms ease-out both; }
   .animate-slide-down { animation: slide-down 150ms ease-out both; }
   .animate-scale-in { animation: scale-in 150ms ease-out both; }
+  /* Menus / dropdowns / popovers: a short settle from just above. */
+  .animate-pop-in { animation: pop-in 140ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-pop-out { animation: pop-out 110ms ease-in both; }
+  /* Centered dialogs: rise + scale, with a matching exit. */
+  .animate-dialog-in { animation: dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-dialog-out { animation: dialog-out 130ms ease-in both; }
 }
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes slide-down { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes pop-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-3px) scale(0.98); } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes dialog-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(6px) scale(0.99); } }
 
 .skeleton {
   background: linear-gradient(90deg, var(--border) 25%, var(--border-strong) 50%, var(--border) 75%);

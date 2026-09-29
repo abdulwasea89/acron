@@ -29,7 +29,7 @@ export default function CashPage() {
         subtitle="Record front-desk payments confidently, then close the drawer with a clear audit trail."
       />
 
-      <section className="mb-6 grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-3 sm:p-5" aria-label="Cash workflow overview">
+      <section className="mb-6 grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-3 sm:p-5" aria-label="Cash workflow overview">
         <WorkflowStep number="1" title="Record payment" hint="Select the member and plan" />
         <WorkflowStep number="2" title="Activate membership" hint="Receipt is emailed automatically" />
         <WorkflowStep number="3" title="Reconcile daily" hint="Flag discrepancies before close" />
@@ -92,8 +92,8 @@ function MemberCombobox({
 
   if (selected) {
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
-        <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Member</p>
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+        <p className="mb-2 text-[10px] font-semibold text-muted-foreground">Member</p>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Avatar name={selected.full_name || selected.email} size="md" />
@@ -121,7 +121,7 @@ function MemberCombobox({
 
   return (
     <div ref={containerRef} className="relative">
-      <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Member</p>
+      <p className="mb-2 text-[10px] font-semibold text-muted-foreground">Member</p>
       <input
         ref={inputRef}
         type="text"
@@ -130,10 +130,10 @@ function MemberCombobox({
         onChange={(e) => { onQueryChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         placeholder="Search by name or email…"
-        className="w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-light)]"
+        className="w-full rounded-md border border-foreground/20 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20"
       />
       {open && trimmed.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-64 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-64 animate-pop-in overflow-y-auto rounded-lg border border-[var(--border)] bg-popover p-1 shadow-lg shadow-black/10">
           {loading && (
             <p className="flex items-center gap-2 px-3.5 py-3 text-sm text-[var(--muted)]">
               <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--muted)]" aria-hidden="true" />
@@ -188,16 +188,16 @@ function MethodCard({ value, selected, onSelect }: { value: string; selected: bo
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-full border-2 px-4 whitespace-nowrap transition-all duration-150 ${
+      className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-md border px-4 whitespace-nowrap transition-colors duration-150 ${
         selected
-          ? "border-[var(--primary)] bg-[var(--primary-light)]"
-          : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--background)]"
+          ? "border-brand/50 bg-brand/[0.08]"
+          : "border-[var(--border)] bg-[var(--surface)] hover:border-foreground/25 hover:bg-foreground/[0.04]"
       }`}
     >
-      <svg className={`h-4 w-4 shrink-0 ${selected ? "text-[var(--primary)]" : "text-[var(--muted)]"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg className={`h-4 w-4 shrink-0 ${selected ? "text-brand" : "text-muted-foreground"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <path d={METHOD_ICONS[value]} />
       </svg>
-      <span className={`text-xs font-semibold leading-none whitespace-nowrap ${selected ? "text-[var(--primary)]" : "text-[var(--foreground-muted)]"}`}>
+      <span className={`text-[12px] font-medium leading-none whitespace-nowrap ${selected ? "text-brand" : "text-muted-foreground"}`}>
         {METHOD_LABELS[value]}
       </span>
     </button>
@@ -322,7 +322,7 @@ function SuccessPanel({
         {result.receipt_pdf_url && (
           <a
             href={`/api/download${result.receipt_pdf_url}`}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-foreground shadow-sm transition-colors hover:bg-brand/90"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -468,7 +468,7 @@ function LogPayment() {
 
           {/* Step 2: Pick plan */}
           <div>
-            <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Membership plan</p>
+            <p className="mb-2 text-[10px] font-semibold text-muted-foreground">Membership plan</p>
             {plans.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--background)] p-4 text-center">
                 <p className="text-sm font-medium text-[var(--foreground)]">No membership plans yet</p>
@@ -506,7 +506,7 @@ function LogPayment() {
               className="tabular-nums"
             />
             <div>
-              <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Method</p>
+              <p className="mb-2 text-[10px] font-semibold text-muted-foreground">Method</p>
               <div className="flex flex-wrap gap-2">
                 {methods.map((m) => (
                   <MethodCard key={m} value={m} selected={method === m} onSelect={() => setMethod(m)} />

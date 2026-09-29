@@ -18,7 +18,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex w-full items-center justify-between gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition-colors",
+      "flex w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-card px-3 py-1.5 text-sm text-[var(--foreground)] outline-none transition-colors",
       "hover:border-[var(--border-strong)]",
       "focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-light)]",
       "data-[placeholder]:text-[var(--muted)]",
@@ -102,8 +102,8 @@ const SelectContent = React.forwardRef<
       position={position}
       sideOffset={position === "popper" ? 6 : undefined}
       className={cn(
-        "relative z-50 min-w-[8rem] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg",
-        "data-[state=open]:animate-scale-in",
+        "relative z-50 min-w-[8rem] overflow-hidden rounded-lg border border-[var(--border)] bg-popover shadow-lg shadow-black/10",
+        "data-[state=open]:animate-pop-in",
         position === "popper" && "w-[var(--radix-select-trigger-width)]",
         className,
       )}
@@ -125,7 +125,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn("px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]", className)}
+    className={cn("px-3 py-1.5 text-[10px] font-semibold text-[var(--muted-foreground)]", className)}
     {...props}
   />
 ))
@@ -145,8 +145,8 @@ const SelectItem = React.forwardRef<
     // when the visible row is rich markup rather than plain text.
     textValue={textValue ?? (typeof label === "string" ? label : undefined)}
     className={cn(
-      "relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 pl-8 pr-3 text-sm text-[var(--foreground)] outline-none transition-colors",
-      "data-[highlighted]:bg-[var(--background)] data-[state=checked]:bg-[var(--primary-light)]",
+      "relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-8 pr-3 text-[12px] text-[var(--foreground)] outline-none transition-colors",
+      "data-[highlighted]:bg-foreground/[0.06] data-[state=checked]:bg-foreground/[0.06]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}

@@ -17,6 +17,8 @@ interface DialogProps {
   hideTitle?: boolean;
 }
 
+/* Notion-style modal: a centered popover on a soft scrim. The panel rises and
+   settles on open — no layout pop. */
 export function Dialog({ open, onClose, title, subtitle, children, className, hideTitle }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -43,36 +45,39 @@ export function Dialog({ open, onClose, title, subtitle, children, className, hi
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto pt-[12vh] pb-12 px-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 pb-12 pt-[12vh]"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="fixed inset-0 animate-fade-in bg-black/40 backdrop-blur-[2px]" />
 
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title || undefined}
         className={cx(
-          "relative z-10 w-full animate-scale-in rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg",
+          "relative z-10 w-full animate-dialog-in rounded-lg border border-[var(--border)] bg-popover shadow-2xl",
           className || "max-w-lg",
         )}
       >
         {!hideTitle && (
-          <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-5">
+          <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-5">
             <div className="min-w-0">
-              <h2 className="font-heading text-[22px] leading-tight text-[var(--foreground)]">{title}</h2>
-              {subtitle && <p className="mt-0.5 text-xs text-[var(--muted)]">{subtitle}</p>}
+              <h2 className="text-[14px] font-semibold leading-tight text-foreground">{title}</h2>
+              {subtitle && <p className="mt-1 text-[12px] text-muted-foreground">{subtitle}</p>}
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
+              className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
               aria-label="Close"
             >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
         )}
-        <div className="px-6 py-5">
+        <div className={cx(hideTitle ? "p-6" : "px-5 pb-5 pt-1")}>
           {children}
         </div>
       </div>
