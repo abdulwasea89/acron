@@ -20,8 +20,6 @@ import type {
   SetupChecklist,
 } from "@/lib/types";
 
-const BTN = "inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-brand px-3 text-[13px] font-medium text-brand-foreground shadow-sm transition-colors hover:bg-brand/90";
-
 async function safe<T>(p: Promise<T>): Promise<T | null> {
   try { return await p; } catch { return null; }
 }
@@ -98,31 +96,12 @@ function ProgressBar({ value, tone = "brand" }: { value: number; tone?: "brand" 
   );
 }
 
-/** Circular usage gauge for the plan card. */
-function UsageRing({ pct, value, label }: { pct: number | null; value: string; label: string }) {
-  const r = 30;
-  const circ = 2 * Math.PI * r;
-  const filled = pct === null ? 0 : Math.max(0, Math.min(100, pct));
+/** One label/value row used inside the plan card. */
+function PlanRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
-      <svg viewBox="0 0 72 72" className="h-24 w-24 -rotate-90">
-        <circle cx="36" cy="36" r={r} fill="none" stroke="var(--border)" strokeWidth="7" />
-        <circle
-          cx="36"
-          cy="36"
-          r={r}
-          fill="none"
-          stroke="var(--brand)"
-          strokeWidth="7"
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={circ * (1 - filled / 100)}
-        />
-      </svg>
-      <div className="absolute text-center">
-        <p className="text-[18px] font-semibold leading-none tabular-nums text-foreground">{value}</p>
-        <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      </div>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[13px] text-muted-foreground">{label}</span>
+      <span className="text-[13px] font-medium text-foreground">{children}</span>
     </div>
   );
 }
@@ -202,13 +181,6 @@ export default async function DashboardPage() {
 
   const firstName = profile?.full_name?.trim().split(/\s+/)[0] ?? null;
   const greeting = firstName ? `Welcome back, ${firstName}` : "Dashboard";
-
-  // The one action that moves the needle for this industry.
-  const primaryAction = isOffice
-    ? { label: "Add company", href: "/app/companies" }
-    : isAcademy
-      ? { label: "Create course", href: "/app/courses" }
-      : { label: "Invite member", href: "/app/members" };
 
   // ── KPI strip ───────────────────────────────────────────────────────────
   const stats: { label: string; value: string; icon: string; href: string; accent?: boolean }[] =
@@ -309,10 +281,6 @@ export default async function DashboardPage() {
                 {titleCase(saas.saas_tier)} · {titleCase(saas.saas_status)}
               </Badge>
             )}
-            <Link href={primaryAction.href} className={BTN}>
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-              {primaryAction.label}
-            </Link>
           </div>
         }
       />
@@ -346,9 +314,9 @@ export default async function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* ── Left column ─────────────────────────────────────────────────── */}
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 lg:contents lg:space-y-0">
           {/* Setup checklist */}
-          <Card className="scroll-mt-6" >
+          <Card className="scroll-mt-6 lg:col-span-2 lg:row-start-1">
             <span id="setup" />
             <CardHeader
               title="Setup checklist"
@@ -411,7 +379,7 @@ export default async function DashboardPage() {
           </Card>
 
           {/* Recent activity */}
-          <Card>
+          <Card className="lg:col-span-2 lg:row-start-2">
             <CardHeader
               title="Recent activity"
               subtitle="Latest payments in this workspace"
@@ -436,9 +404,9 @@ export default async function DashboardPage() {
         </div>
 
         {/* ── Right column ────────────────────────────────────────────────── */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:contents lg:space-y-0">
           {/* Plan & usage */}
-          <Card>
+          <Card className="flex flex-col lg:col-start-3 lg:row-start-1">
             <CardHeader
               title="Your plan"
               action={
@@ -447,35 +415,32 @@ export default async function DashboardPage() {
                 </Link>
               }
             />
-            <div className="px-5 pb-5 pt-6">
-              <UsageRing
-                pct={memberCapPct}
-                value={saas ? `${saas.current_member_count}${saas.member_cap ? `/${saas.member_cap}` : ""}` : "—"}
-                label={saas?.member_cap ? "seats used" : "members"}
-              />
-              <div className="mt-5 space-y-3 border-t border-[var(--border)] pt-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[13px] text-muted-foreground">Tier</span>
-                  <span className="text-[13px] font-medium text-foreground">
-                    {saas ? titleCase(saas.saas_tier) : "—"}
+            <div className="flex flex-1 flex-col justify-between gap-6 px-5 py-5">
+              <div>
+                <div className="mb-2 flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] text-muted-foreground">Members</span>
+                  <span className="text-[13px] font-medium tabular-nums text-foreground">
+                    {saas ? `${saas.current_member_count}${saas.member_cap ? ` / ${saas.member_cap}` : ""}` : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[13px] text-muted-foreground">Status</span>
+                {memberCapPct !== null ? (
+                  <ProgressBar value={memberCapPct} />
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Unlimited members</p>
+                )}
+              </div>
+              <div className="space-y-3 border-t border-[var(--border)] pt-4">
+                <PlanRow label="Tier">{saas ? titleCase(saas.saas_tier) : "—"}</PlanRow>
+                <PlanRow label="Status">
                   <Badge tone={saasBadgeTone}>{saas ? titleCase(saas.saas_status) : "—"}</Badge>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[13px] text-muted-foreground">Renews</span>
-                  <span className="text-[13px] font-medium text-foreground">
-                    {saas?.current_period_end ? fmtDate(saas.current_period_end) : "—"}
-                  </span>
-                </div>
+                </PlanRow>
+                <PlanRow label="Renews">{saas?.current_period_end ? fmtDate(saas.current_period_end) : "—"}</PlanRow>
               </div>
             </div>
           </Card>
 
           {/* Needs attention */}
-          <Card>
+          <Card className="lg:col-start-3 lg:row-start-2">
             <CardHeader title="Needs attention" />
             {attention.length === 0 ? (
               <div className="flex items-center gap-3 px-5 py-6">
@@ -505,16 +470,14 @@ export default async function DashboardPage() {
           </Card>
 
           {/* Quick actions */}
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden lg:col-span-3 lg:row-start-3">
             <CardHeader title="Quick actions" />
-            <div className="grid grid-cols-2 gap-px bg-[var(--border)]">
-              {quickActions.map((q, i) => (
+            <div className="grid grid-cols-2 gap-px bg-[var(--border)] sm:grid-cols-3">
+              {quickActions.map((q) => (
                 <Link
                   key={q.href}
                   href={q.href}
-                  className={`group flex flex-col gap-3 bg-card p-4 transition-colors hover:bg-foreground/[0.03] ${
-                    i === quickActions.length - 1 && quickActions.length % 2 === 1 ? "col-span-2" : ""
-                  }`}
+                  className="group flex flex-col gap-3 bg-card p-4 transition-colors hover:bg-foreground/[0.03]"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground/[0.05] text-muted-foreground transition-colors group-hover:bg-brand/10 group-hover:text-brand">
                     <Icon d={q.icon} className="h-4 w-4" />
