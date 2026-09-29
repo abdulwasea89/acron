@@ -29,7 +29,7 @@ export default function CashPage() {
         subtitle="Record front-desk payments confidently, then close the drawer with a clear audit trail."
       />
 
-      <section className="mb-6 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-3 sm:p-5" aria-label="Cash workflow overview">
+      <section className="mb-6 grid gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-3 sm:p-5" aria-label="Cash workflow overview">
         <WorkflowStep number="1" title="Record payment" hint="Select the member and plan" />
         <WorkflowStep number="2" title="Activate membership" hint="Receipt is emailed automatically" />
         <WorkflowStep number="3" title="Reconcile daily" hint="Flag discrepancies before close" />
@@ -93,7 +93,7 @@ function MemberCombobox({
   if (selected) {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
-        <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Member</p>
+        <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Member</p>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Avatar name={selected.full_name || selected.email} size="md" />
@@ -121,7 +121,7 @@ function MemberCombobox({
 
   return (
     <div ref={containerRef} className="relative">
-      <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Member</p>
+      <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Member</p>
       <input
         ref={inputRef}
         type="text"
@@ -141,7 +141,7 @@ function MemberCombobox({
             </p>
           )}
           {!loading && error && (
-            <p className="px-3.5 py-3 text-sm text-[var(--error)]">Couldn&rsquo;t search members: {error}</p>
+            <p className="px-3.5 py-3 text-sm text-[var(--danger)]">Couldn&rsquo;t search members: {error}</p>
           )}
           {!loading && !error && members.length === 0 && (
             <p className="px-3.5 py-3 text-sm text-[var(--foreground-muted)]">Nobody in this gym matches &ldquo;{trimmed}&rdquo;</p>
@@ -468,7 +468,7 @@ function LogPayment() {
 
           {/* Step 2: Pick plan */}
           <div>
-            <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Membership plan</p>
+            <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Membership plan</p>
             {plans.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--background)] p-4 text-center">
                 <p className="text-sm font-medium text-[var(--foreground)]">No membership plans yet</p>
@@ -506,7 +506,7 @@ function LogPayment() {
               className="tabular-nums"
             />
             <div>
-              <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Method</p>
+              <p className="mb-2 text-[11px] font-semibold text-muted-foreground">Method</p>
               <div className="flex flex-wrap gap-2">
                 {methods.map((m) => (
                   <MethodCard key={m} value={m} selected={method === m} onSelect={() => setMethod(m)} />

@@ -76,8 +76,8 @@ export default function ForgotPasswordPage() {
       >
         <div className="auth-form-card">
           <div className="flex flex-col items-center gap-4 py-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-              <svg className="h-7 w-7 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success-bg">
+              <svg className="h-7 w-7 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m5 13 4 4L19 7" />
               </svg>
             </div>
@@ -121,7 +121,7 @@ export default function ForgotPasswordPage() {
           </form>
         ) : (
           <form onSubmit={confirmReset} className="space-y-5">
-            <div className="rounded-xl bg-sky-50 px-4 py-3.5 text-sm leading-relaxed text-sky-700">
+            <div className="rounded-xl bg-info-bg px-4 py-3.5 text-sm leading-relaxed text-info">
               A reset token was sent to {email}. It expires in 15 minutes.
             </div>
 

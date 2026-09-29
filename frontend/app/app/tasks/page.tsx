@@ -240,7 +240,7 @@ export default function TasksPage() {
               <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
           </div>
-          <h3 className="mb-1 text-lg font-semibold text-[var(--foreground)]">Delete task</h3>
+          <h3 className="mb-1 font-heading text-lg text-foreground">Delete task</h3>
           <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
             Are you sure you want to delete <span className="font-medium text-[var(--foreground)]">&ldquo;{deleting?.title}&rdquo;</span>? This action cannot be undone.
           </p>
@@ -398,7 +398,7 @@ export default function TasksPage() {
         <>
           <div className="fixed inset-0 z-40" onClick={closeMenu} />
           <div
-            className="fixed z-50 min-w-[140px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
+            className="fixed z-50 min-w-[140px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
             style={{ top: menuPos.top, right: menuPos.right }}
           >
               <button

@@ -197,7 +197,7 @@ export function MfaCard({ mfaRequired }: { mfaRequired: boolean }) {
         {phase === "enabled" && (
           <div>
             <div className="mb-4 flex items-center gap-2">
-              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              <span className="flex h-2.5 w-2.5 rounded-full bg-success" />
               <span className="text-sm font-medium text-[var(--foreground)]">
                 Multi-factor authentication is enabled.
               </span>

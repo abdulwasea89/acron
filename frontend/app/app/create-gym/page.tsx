@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Select, Alert } from "@/components/ui";
+import { PageHeader } from "@/components/PageHeader";
 import type { SaasTier } from "@/lib/types";
 
 const TIERS: { value: SaasTier; label: string; price: string; members: string }[] = [
@@ -59,13 +60,11 @@ export default function CreateGymPage() {
 
   return (
     <div className="mx-auto max-w-xl py-8">
-      <div className="mb-8">
-        <p className="mb-2.5 font-mono text-[11px] uppercase tracking-widest text-[var(--muted-foreground)]">/app · New gym</p>
-        <h1 className="font-heading text-[26px] leading-tight tracking-tight text-[var(--foreground)] sm:text-3xl">Create New Gym</h1>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-          Add another gym to your account. A new SaaS subscription will be created.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="/app · New gym"
+        title="Create New Gym"
+        subtitle="Add another gym to your account. A new SaaS subscription will be created."
+      />
 
       <form onSubmit={onSubmit} className="space-y-6">
         {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}

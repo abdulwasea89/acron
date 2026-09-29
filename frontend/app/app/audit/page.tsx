@@ -265,7 +265,7 @@ function JsonBlock({ label, data }: { label: string; data: Record<string, unknow
   if (!data || Object.keys(data).length === 0) return null;
   return (
     <div className="min-w-0 flex-1">
-      <p className="mb-1 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">{label}</p>
+      <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{label}</p>
       <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 font-mono text-[11px] text-[var(--foreground)]">
         {JSON.stringify(data, null, 2)}
       </pre>

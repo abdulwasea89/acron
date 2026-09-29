@@ -56,8 +56,8 @@ export default function RecoverCodesPage() {
 
         {done ? (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-              <svg className="h-7 w-7 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success-bg">
+              <svg className="h-7 w-7 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 8.5l9-5 9 5M5 18V9l7-4 7 4v9M9 13h6v6H9z" />
               </svg>
             </div>

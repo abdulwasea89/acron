@@ -501,7 +501,7 @@ export default function StaffPage() {
               <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
           </div>
-          <h3 className="mb-1 text-lg font-semibold text-[var(--foreground)]">Remove staff member</h3>
+          <h3 className="mb-1 font-heading text-lg text-foreground">Remove staff member</h3>
           <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
             Are you sure you want to remove <span className="font-medium text-[var(--foreground)]">{removing?.display_name || removing?.full_name || removing?.email}</span> from staff? Their membership will be cancelled.
           </p>
@@ -600,7 +600,7 @@ export default function StaffPage() {
         <>
           <div className="fixed inset-0 z-40" onClick={closeMenu} />
           <div
-            className="fixed z-50 min-w-[160px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
+            className="fixed z-50 min-w-[160px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
             style={{ top: menuPos.top, bottom: menuPos.bottom, right: menuPos.right }}
           >
             <button
@@ -675,7 +675,7 @@ export default function StaffPage() {
               <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
           </div>
-          <h3 className="mb-1 text-lg font-semibold text-[var(--foreground)]">Revoke invite</h3>
+          <h3 className="mb-1 font-heading text-lg text-foreground">Revoke invite</h3>
           <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
             This invite for <span className="font-medium text-[var(--foreground)]">{revoking?.email || "this person"}</span> will be cancelled. The invite code will no longer work.
           </p>
@@ -736,7 +736,7 @@ export default function StaffPage() {
         <>
           <div className="fixed inset-0 z-40" onClick={closeInviteMenu} />
           <div
-            className="fixed z-50 min-w-[160px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
+            className="fixed z-50 min-w-[160px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg animate-fade-in"
             style={{ top: menuInvitePos.top, bottom: menuInvitePos.bottom, right: menuInvitePos.right }}
           >
             <button
@@ -893,7 +893,7 @@ export default function StaffPage() {
           {compError && <Alert>{compError}</Alert>}
 
           <div>
-            <p className="mb-3 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Fixed pay</p>
+            <p className="mb-3 text-[11px] font-semibold text-muted-foreground">Fixed pay</p>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Monthly salary"
@@ -920,7 +920,7 @@ export default function StaffPage() {
           <hr className="border-[var(--border)]" />
 
           <div>
-            <p className="mb-3 font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">Variable pay</p>
+            <p className="mb-3 text-[11px] font-semibold text-muted-foreground">Variable pay</p>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Per-class rate"

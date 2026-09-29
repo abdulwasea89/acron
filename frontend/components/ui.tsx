@@ -43,15 +43,15 @@ export function Button({
 }: ButtonProps) {
   const variants: Record<string, string> = {
     primary:
-      "rounded-md bg-brand text-brand-foreground hover:bg-brand/90 active:brightness-95",
+      "rounded-full bg-brand text-brand-foreground hover:bg-brand/90 active:brightness-95",
     secondary:
-      "rounded-md border border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5 hover:border-foreground/40",
+      "rounded-full border border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5 hover:border-foreground/40",
     danger:
-      "rounded-md bg-danger text-white hover:bg-danger-hover active:brightness-95",
+      "rounded-full bg-danger text-white hover:bg-danger-hover active:brightness-95",
     ghost:
-      "rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+      "rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
     accent:
-      "rounded-md bg-accent text-accent-foreground hover:bg-accent-hover",
+      "rounded-full bg-accent text-accent-foreground hover:bg-accent-hover",
   };
   const sizes: Record<string, string> = {
     sm: "h-9 px-4 text-xs gap-1.5",
@@ -321,7 +321,13 @@ export function Select({
     if (!open) return;
     syncRect();
     const onDoc = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      // The popup portals to <body>, so it is NOT inside rootRef. Presses
+      // inside it must be ignored: closing on mousedown would unmount the
+      // option before mouseup/click could ever land on it, so choosing with
+      // the mouse would silently do nothing.
+      if (rootRef.current?.contains(target) || listRef.current?.contains(target)) return;
+      setOpen(false);
     };
     window.addEventListener("resize", syncRect);
     window.addEventListener("scroll", syncRect, true);
@@ -429,7 +435,7 @@ export function Select({
               role="listbox"
               aria-label={label}
               style={{ left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width }}
-              className="fixed z-[60] max-h-72 animate-fade-in overflow-y-auto overscroll-contain rounded-xl border border-foreground/15 bg-surface p-1.5 shadow-xl shadow-black/10"
+              className="fixed z-[100] max-h-72 animate-fade-in overflow-y-auto overscroll-contain rounded-xl border border-foreground/15 bg-surface p-1.5 shadow-xl shadow-black/10"
             >
               {options.map((o, i) => {
                 const isSelected = o.value === String(value ?? "");

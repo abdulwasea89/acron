@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { GymStatusToggle } from "./GymStatusToggle";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
-import type { GymStatus } from "@/lib/types";
+import { useSettingsDialog } from "@/components/settings/SettingsProvider";
 import {
   NAV_LABEL_OVERRIDES,
   NAV_MODULE_BY_HREF,
@@ -90,9 +89,10 @@ interface SidebarProps {
   orgName: string;
   orgCode: string;
   orgId?: string;
-  gymStatus: GymStatus;
   /** Venue vertical (gym | office | academy). Drives which nav modules show. */
   industry?: string;
+  /** SaaS tier key (starter | pro | enterprise), shown in the workspace menu. */
+  tier?: string;
 }
 
 /** Shared sign-out handler for the desktop sidebar strip and the mobile header. */
@@ -105,10 +105,11 @@ function useLogout() {
   }, [router]);
 }
 
-export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: SidebarProps) {
+export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProps) {
   const pathname = usePathname();
   const items = navFor(industry);
   const logout = useLogout();
+  const settings = useSettingsDialog();
   const [collapsed, setCollapsed] = useState(false);
 
   const quickItems = items.filter((item) => NAV_GROUP_BY_HREF[item.href] === QUICK_GROUP);
@@ -120,20 +121,35 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: Sideba
       <MobileNavigation orgName={orgName} orgCode={orgCode} items={items} />
       <aside
         className={cx(
-          "hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:flex-col border-r border-foreground/10 bg-surface transition-[width] duration-150",
+          // `lg:z-30` is load-bearing, not decoration. `sticky` makes this a
+          // stacking context, so the workspace menu's z-50 is trapped inside
+          // it and can't outrank the page. Without a z-index here the aside
+          // sits in the same z-auto band as the content column, which comes
+          // LATER in the DOM and therefore paints over it — cards would cover
+          // the open menu. Sits under the assistant bar (z-40) and the
+          // settings modal (z-[70]); page popovers (z-50) still win.
+          "hidden lg:sticky lg:top-0 lg:z-30 lg:flex lg:h-screen lg:shrink-0 lg:flex-col border-r border-foreground/10 bg-surface transition-[width] duration-150",
           collapsed ? "lg:w-[52px]" : "lg:w-64",
         )}
       >
-        {/* Brand + collapse */}
-        <div className={cx("flex h-11 shrink-0 items-center px-2", collapsed ? "justify-center" : "justify-between")}>
+        {/* Expanded: one header row — workspace switcher + collapse. Collapsed:
+            the 52px rail has no room for both side by side, so the header is
+            the expand button alone and the workspace tile drops to its own row
+            below (which also keeps it centred over the nav icons). */}
+        <div
+          className={cx(
+            "flex h-11 shrink-0 items-center px-2",
+            collapsed ? "justify-center" : "gap-2",
+          )}
+        >
           {!collapsed && (
-            <Link
-              href="/app"
-              className="flex items-center gap-2 px-1.5 font-display text-[16px] leading-none tracking-tight text-foreground"
-            >
-              <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
-              Acron
-            </Link>
+            <div className="min-w-0 flex-1">
+              <OrgSwitcher
+                currentOrgName={orgName}
+                currentOrgId={orgId}
+                plan={tier}
+              />
+            </div>
           )}
           <button
             type="button"
@@ -147,18 +163,15 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: Sideba
           </button>
         </div>
 
-        {/* Workspace row */}
-        <div className="px-2 pb-1">
-          <OrgSwitcher
-            currentOrgName={orgName}
-            currentOrgId={orgId}
-            compact={collapsed}
-          />
-        </div>
-
-        {!collapsed && (
+        {/* Collapsed rail: the workspace tile on its own row. */}
+        {collapsed && (
           <div className="px-2 pb-1">
-            <GymStatusToggle initialStatus={gymStatus} />
+            <OrgSwitcher
+              currentOrgName={orgName}
+              currentOrgId={orgId}
+              plan={tier}
+              compact
+            />
           </div>
         )}
 
@@ -201,25 +214,45 @@ export function Sidebar({ orgName, orgCode, orgId, gymStatus, industry }: Sideba
                 <div className="space-y-0.5">
                   {groupItems.map((item) => {
                     const active = isActive(item);
+                    const rowClass = cx(
+                      "flex h-8 items-center rounded-md text-sm transition-colors",
+                      collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
+                      active
+                        ? "bg-foreground/[0.06] font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+                    );
+                    const inner = (
+                      <>
+                        <Icon
+                          d={item.icon}
+                          className={cx("h-4 w-4 shrink-0", active ? "text-foreground/80" : "text-foreground/50")}
+                        />
+                        {!collapsed && item.label}
+                      </>
+                    );
+                    // Settings opens the modal, not a route (Notion-style).
+                    if (item.href === "/app/settings") {
+                      return (
+                        <button
+                          key={item.href}
+                          type="button"
+                          title={item.label}
+                          onClick={() => settings?.open()}
+                          className={cx(rowClass, "w-full text-left")}
+                        >
+                          {inner}
+                        </button>
+                      );
+                    }
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
                         title={item.label}
                         aria-current={active ? "page" : undefined}
-                        className={cx(
-                          "flex h-8 items-center rounded-md text-sm transition-colors",
-                          collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
-                          active
-                            ? "bg-foreground/[0.06] font-medium text-foreground"
-                            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-                        )}
+                        className={rowClass}
                       >
-                        <Icon
-                          d={item.icon}
-                          className={cx("h-4 w-4 shrink-0", active ? "text-foreground/80" : "text-foreground/50")}
-                        />
-                        {!collapsed && item.label}
+                        {inner}
                       </Link>
                     );
                   })}
@@ -309,6 +342,7 @@ function MobileNavigation({
   const pathname = usePathname();
   const activeRef = useRef<HTMLAnchorElement | null>(null);
   const logout = useLogout();
+  const settings = useSettingsDialog();
 
   // Keep the current page's chip centered in the strip after navigation,
   // the way native top tab bars behave.
@@ -343,18 +377,31 @@ function MobileNavigation({
       >
         {items.map((item) => {
           const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
+          const chipClass = cx(
+            "flex h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors duration-150",
+            active
+              ? "bg-brand font-medium text-brand-foreground"
+              : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+          );
+          if (item.href === "/app/settings") {
+            return (
+              <button
+                key={item.href}
+                type="button"
+                onClick={() => settings?.open()}
+                className={chipClass}
+              >
+                {item.label}
+              </button>
+            );
+          }
           return (
             <Link
               key={item.href}
               href={item.href}
               ref={active ? activeRef : undefined}
               aria-current={active ? "page" : undefined}
-              className={cx(
-                "flex h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors duration-150",
-                active
-                  ? "bg-brand font-medium text-brand-foreground"
-                  : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-              )}
+              className={chipClass}
             >
               {item.label}
             </Link>

@@ -61,7 +61,7 @@ export function KebabMenu({ actions }: { actions: MenuAction[] }) {
       {open && (
         <div
           style={{ left: pos.left, top: pos.top, position: "fixed" }}
-          className="z-50 min-w-[130px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg"
+          className="z-50 min-w-[130px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg"
         >
           {actions.map((a) => (
             <button
