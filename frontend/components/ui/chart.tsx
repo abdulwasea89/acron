@@ -76,7 +76,7 @@ function ChartTooltipContent({
   const items = payload as Array<{ name?: string; value: number; color?: string; dataKey?: string }>
 
   return (
-    <div className="grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs shadow-lg">
+    <div className="grid min-w-[8rem] items-start gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs shadow-lg">
       {!hideLabel && label && (
         <div className="font-medium text-[var(--foreground)]">{label}</div>
       )}

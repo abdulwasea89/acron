@@ -69,7 +69,7 @@ function KebabMenu({ actions }: { actions: MenuAction[] }) {
       {open && (
         <div
           style={{ left: pos.left, top: pos.top, position: "fixed" }}
-          className="z-50 min-w-[130px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg"
+          className="z-50 min-w-[130px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg"
         >
           {actions.map((a) => (
             <button
@@ -348,7 +348,7 @@ export default function MembersPage() {
               <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
           </div>
-          <h3 className="mb-1 text-lg font-semibold text-[var(--foreground)]">Delete member</h3>
+          <h3 className="mb-1 font-heading text-lg text-foreground">Delete member</h3>
           <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
             Are you sure you want to delete <span className="font-medium text-[var(--foreground)]">{deletingMember?.display_name || deletingMember?.full_name || deletingMember?.email}</span>? This will permanently remove them from the organization. This action cannot be undone.
           </p>

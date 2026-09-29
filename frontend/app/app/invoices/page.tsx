@@ -239,7 +239,7 @@ function InvoicesContent() {
 
             <div className="rounded-lg border border-[var(--border)]">
               <table className="w-full text-sm">
-                <thead className="border-b border-[var(--border)] text-left font-mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
+                <thead className="border-b border-[var(--border)] text-left font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
                   <tr><th className="px-4 py-2 font-medium">Description</th><th className="px-4 py-2 text-right font-medium">Amount</th></tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
