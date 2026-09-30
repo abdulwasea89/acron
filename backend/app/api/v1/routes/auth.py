@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_client_ip, get_current_user, get_session, get_tenant, require_role
+from app.core.config import settings
 from app.core.constants import Role
+from app.core.security import safe_decode
 from app.core.tenancy import TenantContext
 from app.models.membership import OrganizationMember
 from app.models.user import User
@@ -44,8 +46,6 @@ router = APIRouter()
 @router.get("/me")
 async def get_me(ctx: TenantContext = Depends(get_tenant), session: AsyncSession = Depends(get_session)):
     """Return the current user's identity and role within the active org."""
-    from app.models.membership import OrganizationMember
-
     member = (
         await session.execute(
             select(OrganizationMember).where(
@@ -306,7 +306,6 @@ async def admin_revoke_session(
 
 
 def _session_id_from_request(request: Request) -> str | None:
-    from app.core.security import safe_decode
     auth = request.headers.get("authorization", "")
     if not auth.lower().startswith("bearer "):
         return None
@@ -325,8 +324,6 @@ async def mfa_enroll(
     user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
 ):
     """Begin TOTP enrollment — returns the secret + otpauth URI for a QR code."""
-
-    from app.core.config import settings
 
     result = await mfa_service.begin_enrollment(session, user=user, issuer=settings.app_name)
     return MfaEnrollResponse(**result)

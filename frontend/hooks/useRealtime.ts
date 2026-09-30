@@ -27,7 +27,12 @@ function wsBase(): string {
 export function useRealtime(onEvent: (e: RtEvent) => void): RtStatus {
   const [status, setStatus] = useState<RtStatus>("connecting");
   const handlerRef = useRef(onEvent);
-  handlerRef.current = onEvent;
+  // Keep the ref current in an effect rather than during render: the socket
+  // effect below subscribes once (empty deps) and reads the ref at event time,
+  // so the newest handler is used without tearing down the connection.
+  useEffect(() => {
+    handlerRef.current = onEvent;
+  }, [onEvent]);
 
   useEffect(() => {
     let ws: WebSocket | null = null;

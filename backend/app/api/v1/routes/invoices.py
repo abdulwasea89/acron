@@ -8,6 +8,7 @@ no payment actions — money stays web-only per Security Rule #7).
 from __future__ import annotations
 
 import json
+from datetime import date
 
 from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +44,6 @@ async def _invoice_out(session: AsyncSession, invoice: Invoice) -> InvoiceOut:
         except ValueError:
             line_items = []
     paid = await invoices._paid_amount(session, org_id=invoice.organization_id, invoice_id=invoice.id)
-    from datetime import date as _date
 
     return InvoiceOut(
         id=invoice.id,
@@ -53,7 +53,7 @@ async def _invoice_out(session: AsyncSession, invoice: Invoice) -> InvoiceOut:
         contract_id=invoice.contract_id,
         issue_date=invoice.issue_date,
         due_date=invoice.due_date,
-        status=effective_status(invoice.status, invoice.due_date, _date.today()),
+        status=effective_status(invoice.status, invoice.due_date, date.today()),
         subtotal=invoice.subtotal,
         tax_amount=invoice.tax_amount,
         total=invoice.total,

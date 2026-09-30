@@ -32,6 +32,7 @@ from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.session import AuthSession
 from app.models.user import User
+from app.realtime import events
 from app.schemas.organizations import (
     CreateOrganizationRequest,
     RegisterGymRequest,
@@ -364,8 +365,6 @@ async def update_gym_status(session: AsyncSession, org: Organization, gym_status
     org.gym_status = gym_status
     session.add(org)
     # Real-time sync: owner toggles status on web -> reflects on mobile (Section 16).
-    from app.realtime import events
-
     await events.gym_status_changed(org.id, gym_status=gym_status.value)
 
 

@@ -4,7 +4,7 @@
 // members_service._send_invite_email. The sibling /redeem page handles staff
 // invites, which go to a different endpoint and do not need an org code.
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/AuthShell";
@@ -16,8 +16,9 @@ function RedeemMemberInviteForm() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const [orgCode, setOrgCode] = useState("");
-  const [email, setEmail] = useState("");
+  // Prefill from the emailed link so the member only types a password.
+  const [orgCode, setOrgCode] = useState(params.get("org_code") || "");
+  const [email, setEmail] = useState(params.get("email") || "");
   const [code, setCode] = useState(params.get("code") || "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -25,16 +26,6 @@ function RedeemMemberInviteForm() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
-  // Prefill from the emailed link so the member only types a password.
-  useEffect(() => {
-    const oc = params.get("org_code");
-    const em = params.get("email");
-    const cd = params.get("code");
-    if (oc) setOrgCode(oc);
-    if (em) setEmail(em);
-    if (cd) setCode(cd);
-  }, [params]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

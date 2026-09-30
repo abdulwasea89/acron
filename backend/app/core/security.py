@@ -7,6 +7,7 @@ Security rules enforced here (CLAUDE.md "Security Rules"):
 
 from __future__ import annotations
 
+import hashlib
 import re
 import secrets
 import uuid
@@ -36,6 +37,8 @@ def verify_password(plain: str, hashed: str) -> bool:
     try:
         return pwd_context.verify(plain, hashed)
     except Exception:
+        # A malformed or unrecognized stored hash must fail the login, not 500:
+        # treating the candidate as non-matching is the safe, fail-closed result.
         return False
 
 
@@ -147,7 +150,5 @@ def generate_url_token(nbytes: int = 32) -> str:
 
 def hash_token(token: str) -> str:
     """Store only hashes of opaque tokens (sessions, reset links)."""
-
-    import hashlib
 
     return hashlib.sha256(token.encode()).hexdigest()

@@ -21,7 +21,6 @@ from app.core.constants import (
     PaymentKind,
     SaasStatus,
     SaasTier,
-    TIER_PRICE_USD,
 )
 from app.core.security import now_utc
 from app.integrations.email import send_email_safe as send_email
@@ -30,6 +29,7 @@ from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.payment import Payment
 from app.models.user import User
+from app.realtime import events
 from app.services.audit_service import record_audit
 from app.utils.pdf import render_invoice_pdf
 
@@ -241,8 +241,7 @@ async def handle_failed_charge(session: AsyncSession, *, org: Organization) -> O
                            organization_id=org.id, entity_type="organization", entity_id=org.id,
                            new_values={"retry_count": org.saas_retry_count})
 
-    from app.realtime.events import publish
-    await publish(org.id, "saas.payment_failed", {
+    await events.publish(org.id, "saas.payment_failed", {
         "status": org.saas_status.value,
         "retry_count": org.saas_retry_count,
         "grace_until": org.saas_grace_until.isoformat() if org.saas_grace_until else None,
@@ -319,8 +318,7 @@ async def enforce_lifecycle(session: AsyncSession, *, org: Organization) -> Orga
 
     if changed:
         session.add(org)
-        from app.realtime.events import publish
-        await publish(org.id, "saas.status_changed", {"status": org.saas_status.value})
+        await events.publish(org.id, "saas.status_changed", {"status": org.saas_status.value})
 
     return org
 

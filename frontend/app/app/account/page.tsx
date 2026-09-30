@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Button, Card, CardHeader, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Button, Card, CardHeader, Input, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import type { OrganizationOut, ProfileOut } from "@/lib/types";
 import { MfaCard } from "./MfaCard";
@@ -120,7 +120,7 @@ export default function AccountPage() {
           <CardHeader title="Password" subtitle="Reset your password via email" />
           <div className="p-6">
             <p className="mb-4 text-sm text-[var(--foreground-muted)]">
-              To change your password, we'll send a reset link to your email address.
+              To change your password, we’ll send a reset link to your email address.
             </p>
             <a
               href="/forgot-password"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AuthShell } from "@/components/AuthShell";
@@ -18,10 +18,6 @@ export default function RedeemPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-
-  useEffect(() => {
-    if (codeParam) setCode(codeParam);
-  }, [codeParam]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

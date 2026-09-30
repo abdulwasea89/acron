@@ -26,10 +26,6 @@ function actionShort(action: string): string {
   return action.split(".").pop()?.replace(/_/g, " ") ?? action;
 }
 
-function domainFromAction(action: string): string {
-  return action.includes(".") ? action.split(".")[0] : "other";
-}
-
 export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLogOut[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -68,7 +64,7 @@ export default function AuditPage() {
     }
   }, [search, actionFilter, entityType]);
 
-  useEffect(() => { load(1); }, [load]);
+  useEffect(() => { queueMicrotask(() => void load(1)); }, [load]);
 
   const loadMeta = useCallback(async () => {
     try {
@@ -87,7 +83,7 @@ export default function AuditPage() {
     }
   }, []);
 
-  useEffect(() => { loadMeta(); }, [loadMeta]);
+  useEffect(() => { queueMicrotask(() => void loadMeta()); }, [loadMeta]);
 
   useRealtimeEvent(["audit.*"], () => load(page));
 

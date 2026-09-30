@@ -40,11 +40,19 @@ export default function SpacePage() {
 
   const all = slots ?? [];
 
+  // `inTab` splits slots against the wall clock, so the boundary must refresh
+  // on its own rather than reading the clock during render (non-deterministic).
+  // A 30s tick is far finer than the upcoming/past distinction users notice.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
   const inTab = (s: SpaceSlotOut, tab: Filter) => {
     if (s.cancelled) return tab === "cancelled";
     if (tab === "cancelled") return false;
     const start = new Date(s.starts_at).getTime();
-    const now = Date.now();
     return tab === "upcoming" ? start > now : start <= now;
   };
 

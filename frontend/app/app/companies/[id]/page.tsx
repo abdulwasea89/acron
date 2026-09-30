@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Dialog } from "@/components/Dialog";
@@ -45,8 +45,6 @@ export default function CompanyDetailPage() {
   const [inviteResult, setInviteResult] = useState<{ email: string; code: string; delivered: boolean; action: "invite" | "resend" } | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState<CompanyContractOut | null>(null);
-  const confirmEndRef = useRef<CompanyContractOut | null>(null);
-  confirmEndRef.current = confirmEnd;
 
   const load = useCallback(async () => {
     setError("");
@@ -286,12 +284,12 @@ export default function CompanyDetailPage() {
 
       <Dialog open={!!confirmEnd} onClose={() => setConfirmEnd(null)} title="End contract" className="max-w-sm">
         <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-          End the <strong className="text-[var(--foreground)]">{confirmEndRef.current?.plan_name}</strong> contract? Future invoices stop; already-open invoices still need settling.
+          End the <strong className="text-[var(--foreground)]">{confirmEnd?.plan_name}</strong> contract? Future invoices stop; already-open invoices still need settling.
         </p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setConfirmEnd(null)}>Cancel</Button>
           <Button variant="danger" loading={busy} onClick={() => {
-            const target = confirmEndRef.current;
+            const target = confirmEnd;
             if (!target) return;
             void run(async () => { await api.post(`/companies/${companyId}/contracts/${target.id}/end`); setConfirmEnd(null); });
           }}>End contract</Button>

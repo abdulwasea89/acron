@@ -20,6 +20,7 @@ from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.staff import Shift, StaffInvite, Task
 from app.models.user import User
+from app.realtime import events
 from app.schemas.staff import CompensationUpdate, StaffInviteCreate, TaskCreateIn, TaskUpdateIn
 from app.services import auth_service
 from app.services.audit_service import record_audit
@@ -238,8 +239,7 @@ async def check_in(session: AsyncSession, *, org_id: str, user_id: str) -> Shift
     await session.flush()
     await record_audit(session, action="shift.check_in", organization_id=org_id, actor_user_id=user_id,
                        entity_type="shift", entity_id=shift.id)
-    from app.realtime.events import publish
-    await publish(org_id, "shift.check_in", {"member_id": member.id, "shift_id": shift.id})
+    await events.publish(org_id, "shift.check_in", {"member_id": member.id, "shift_id": shift.id})
     return shift
 
 
@@ -264,8 +264,7 @@ async def check_out(session: AsyncSession, *, org_id: str, user_id: str) -> Shif
     session.add(shift)
     await record_audit(session, action="shift.check_out", organization_id=org_id, actor_user_id=user_id,
                        entity_type="shift", entity_id=shift.id, new_values={"hours": shift.hours})
-    from app.realtime.events import publish
-    await publish(org_id, "shift.check_out", {"member_id": member.id, "shift_id": shift.id, "hours": shift.hours})
+    await events.publish(org_id, "shift.check_out", {"member_id": member.id, "shift_id": shift.id, "hours": shift.hours})
     return shift
 
 
@@ -305,7 +304,6 @@ async def create_task(
                 body=data.description or data.title,
                 data={"task_id": task.id, "title": data.title},
             )
-    from app.realtime import events
     await events.task_changed(org_id, task_id=task.id, action="created")
     return task
 
@@ -324,7 +322,6 @@ async def complete_task(session: AsyncSession, *, org_id: str, task_id: str) -> 
         raise HTTPException(status_code=404, detail="Task not found.")
     task.done = True
     session.add(task)
-    from app.realtime import events
     await events.task_changed(org_id, task_id=task.id, action="completed")
     return task
 
@@ -344,7 +341,6 @@ async def update_task(session: AsyncSession, *, org_id: str, task_id: str, data:
     session.add(task)
     await record_audit(session, action="task.updated", organization_id=org_id,
                        entity_type="task", entity_id=task.id, new_values=data.model_dump(exclude_none=True))
-    from app.realtime import events
     await events.task_changed(org_id, task_id=task.id, action="updated")
     return task
 
@@ -356,5 +352,4 @@ async def delete_task(session: AsyncSession, *, org_id: str, task_id: str) -> No
     await session.delete(task)
     await record_audit(session, action="task.deleted", organization_id=org_id,
                        entity_type="task", entity_id=task_id)
-    from app.realtime import events
     await events.task_changed(org_id, task_id=task_id, action="deleted")

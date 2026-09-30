@@ -8,12 +8,10 @@ viewer page.
 from __future__ import annotations
 
 import json
-import re
 from typing import Any
 
-from sqlalchemy import Select, func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
 
 from app.models.audit_log import AuditLog
 from app.models.user import User

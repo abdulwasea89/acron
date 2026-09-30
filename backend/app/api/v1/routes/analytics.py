@@ -6,7 +6,7 @@ revenue analytics require the view_revenue_analytics capability (owner/manager).
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session, get_tenant, require_capability
@@ -24,8 +24,6 @@ async def headline(
     session: AsyncSession = Depends(get_session),
 ):
     if not ctx.is_staff:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=403, detail="Staff only.")
     data = await analytics.headline_metrics(session, org_id=ctx.org_id)
     return HeadlineMetrics(**data)

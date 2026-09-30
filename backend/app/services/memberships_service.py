@@ -49,6 +49,7 @@ from app.models.plan import MembershipPlan
 from app.models.signup_attempt import SignupAttempt
 from app.models.subscription import Subscription
 from app.models.user import User
+from app.realtime import events
 from app.schemas.auth import LoginResponse
 from app.services import auth_service, idempotency_service
 from app.services import verification_service as verif
@@ -493,7 +494,6 @@ async def pay_and_activate(
     await record_audit(session, action="member.activated", organization_id=org.id,
                        actor_user_id=user.id, entity_type="member", entity_id=member.id,
                        metadata={"plan_id": plan.id, "amount": amount})
-    from app.realtime import events
     await events.membership_changed(org.id, member_id=member.id, status=MemberStatus.ACTIVE.value)
     await send_email(email, "Welcome!", f"Your membership at {org.name} is active.")
     await send_push(None, "Membership active", f"Welcome to {org.name}!")

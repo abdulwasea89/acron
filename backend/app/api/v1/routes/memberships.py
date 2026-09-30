@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_client_ip, get_session, get_tenant
 from app.core.tenancy import IDEMPOTENCY_HEADER, TenantContext
+from app.models.user import User
 from app.schemas.auth import LoginResponse
 from app.schemas.common import Message
 from app.schemas.memberships import (
@@ -134,8 +135,6 @@ async def complete_profile(
         session, org_id=ctx.org_id, user_id=ctx.user_id, full_name=data.full_name,
         photo_url=data.photo_url, phone=data.phone, emergency_contact=data.emergency_contact,
     )
-    from app.models.user import User
-
     user = await session.get(User, ctx.user_id)
     return MemberOut(
         member_id=member.id, user_id=ctx.user_id, email=user.email if user else "",

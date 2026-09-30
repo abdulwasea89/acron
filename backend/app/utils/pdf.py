@@ -7,7 +7,6 @@ backend runnable with zero extra system packages; swap for a richer renderer
 
 from __future__ import annotations
 
-from datetime import datetime
 
 
 def _escape(text: str) -> str:

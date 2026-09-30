@@ -18,6 +18,7 @@ from sqlmodel import select
 
 from app.core.constants import (
     MemberStatus,
+    NotificationKind,
     PaymentKind,
     PaymentMethod,
     PaymentStatus,
@@ -34,8 +35,10 @@ from app.models.payment import Payment
 from app.models.plan import MembershipPlan
 from app.models.subscription import Subscription
 from app.models.user import User
+from app.realtime import events
 from app.schemas.cash import CashPaymentLog
 from app.services.audit_service import record_audit
+from app.services.notifications_service import create_notification
 from app.utils.pdf import render_receipt_pdf
 
 # 3 discrepancies within 30 days triggers an owner alert (Section 11.2).
@@ -126,9 +129,6 @@ async def log_cash_payment(
                     f"Your payment of {plan.currency} {data.amount:.2f} has been recorded. "
                     f"Membership active until {end_str}.")
 
-    from app.core.constants import NotificationKind
-    from app.services.notifications_service import create_notification
-
     await create_notification(
         session, org_id=org_id, recipient_user_id=member.user_id, category=NotificationKind.PAYMENT,
         title="Payment recorded",
@@ -136,8 +136,6 @@ async def log_cash_payment(
              f"Membership active until {end_str}.",
         data={"payment_id": payment.id, "amount": data.amount, "currency": plan.currency},
     )
-
-    from app.realtime import events
 
     await events.payment_recorded(org_id, payment_id=payment.id, member_id=member.id)
     await events.membership_changed(org_id, member_id=member.id, status=MemberStatus.ACTIVE.value)

@@ -34,7 +34,12 @@ export const useRealtimeStatus = () => useContext(StatusContext);
 export function useRealtimeEvent(types: string[], handler: Handler) {
   const subscribe = useContext(SubscribeContext);
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+  // Assigned in an effect, not during render: the subscription below is keyed
+  // only on the event types, so the ref lets it always call the latest handler
+  // without resubscribing on every render.
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
   const key = types.join(",");
 
   useEffect(() => {
@@ -70,11 +75,12 @@ export function OfflineBanner() {
   const status = useRealtimeStatus();
   const [show, setShow] = useState(false);
 
-  // Debounce so brief blips don't flash the banner.
+  // Both transitions go through a timer so the effect body never sets state
+  // synchronously: a brief blip is debounced away, and a recovery hides the
+  // banner on the next tick.
   useEffect(() => {
-    if (status === "live") { setShow(false); return; }
-    const t = setTimeout(() => setShow(true), 2500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShow(status !== "live"), status === "live" ? 0 : 2500);
+    return () => clearTimeout(timer);
   }, [status]);
 
   if (!show) return null;

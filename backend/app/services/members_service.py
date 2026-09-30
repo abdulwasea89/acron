@@ -19,12 +19,14 @@ from sqlmodel import select
 
 from app.core.constants import (
     MemberStatus,
+    NotificationKind,
     PaymentStatus,
     Role,
     SubscriptionStatus,
     VerificationPurpose,
 )
 from app.core.config import settings
+from app.core.industry import MoneyMode, get_industry
 from app.core.security import hash_password
 from app.integrations.email import EmailDeliveryError, send_email, send_email_safe
 from app.models.membership import OrganizationMember
@@ -33,8 +35,10 @@ from app.models.payment import Payment
 from app.models.plan import MembershipPlan
 from app.models.subscription import Subscription
 from app.models.user import User
+from app.schemas.members import PendingPaymentItem
 from app.services import verification_service as verif
 from app.services.audit_service import record_audit
+from app.services.notifications_service import create_notification
 
 
 async def directory(
@@ -159,9 +163,6 @@ async def decide_approval(
 
     # In-app alert for the applicant mirrors the email (Section 8.3).
     if user is not None:
-        from app.core.constants import NotificationKind
-        from app.services.notifications_service import create_notification
-
         await create_notification(
             session, org_id=org_id, recipient_user_id=user.id, category=NotificationKind.APPROVAL,
             title="Application approved" if approve else "Application declined",
@@ -213,8 +214,6 @@ async def _send_invite_email(
 
 def _is_b2b_office(org: Organization) -> bool:
     """True when the org is an office vertical (money settles by B2B invoice)."""
-    from app.core.industry import MoneyMode, get_industry
-
     try:
         return get_industry(org.industry or "gym").money == MoneyMode.B2B_INVOICE
     except (KeyError, ValueError):
@@ -254,10 +253,6 @@ async def invite_member(
 
     if user is None:
         # Create a shell user; password set when they claim the invite.
-        from app.core.security import hash_password
-
-        import secrets
-
         user = User(email=email.lower(), hashed_password=hash_password(secrets.token_urlsafe(16)),
                     email_verified=False)
         session.add(user)
@@ -479,8 +474,6 @@ async def member_detail(
             .order_by(Payment.created_at.desc())
         )
     ).scalars().all()
-
-    from app.schemas.members import PendingPaymentItem
 
     pending: list[PendingPaymentItem] = []
 

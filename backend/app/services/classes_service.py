@@ -17,6 +17,7 @@ from app.core.security import now_utc
 from app.models.class_session import ClassBooking, ClassSession
 from app.models.membership import OrganizationMember
 from app.models.user import User
+from app.realtime import events
 from app.schemas.classes import ClassSessionCreate
 from app.services import idempotency_service
 from app.services.audit_service import record_audit
@@ -48,8 +49,6 @@ async def create_session(
     await session.flush()
     await record_audit(session, action="class.created", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="class_session", entity_id=cs.id)
-    from app.realtime import events
-
     await events.class_changed(org_id, class_session_id=cs.id, action="created")
     return cs
 

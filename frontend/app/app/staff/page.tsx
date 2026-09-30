@@ -12,6 +12,15 @@ import type { StaffInviteOut, MemberDirectoryItem, ShiftOut, ClientAssignment } 
 
 const STAFF_ROLES = ["manager", "trainer", "front_desk"];
 
+/** Format a shift duration (ms) as HH:MM:SS. Pure, so it lives at module scope. */
+function formatDuration(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function StaffPage() {
   const currentUser = useCurrentUser();
   const [members, setMembers] = useState<MemberDirectoryItem[] | null>(null);
@@ -149,14 +158,6 @@ export default function StaffPage() {
 
   useRealtimeEvent(["shift.check_in", "shift.check_out"], loadShift);
 
-  function formatDuration(ms: number): string {
-    const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-
   async function handleCheckIn() {
     setShiftLoading(true);
     setShiftError("");
@@ -211,14 +212,16 @@ export default function StaffPage() {
     );
   });
 
+  const closeMenu = useCallback(() => { setMenuMember(null); setMenuPos(null); }, []);
+  const closeInviteMenu = useCallback(() => { setMenuInvite(null); setMenuInvitePos(null); }, []);
+
+  const menuOpen = Boolean(menuMember || menuInvite);
   useEffect(() => {
-    if (!menuMember && !menuInvite) return;
+    if (!menuOpen) return;
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") { closeMenu(); closeInviteMenu(); } };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [Boolean(menuMember || menuInvite)]);
-
-  function closeMenu() { setMenuMember(null); setMenuPos(null); }
+  }, [menuOpen, closeMenu, closeInviteMenu]);
 
   function openMenu(member: MemberDirectoryItem, e: React.MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -229,8 +232,6 @@ export default function StaffPage() {
       : { top, right: document.documentElement.clientWidth - rect.right });
     setMenuMember(member);
   }
-
-  function closeInviteMenu() { setMenuInvite(null); setMenuInvitePos(null); }
 
   function openInviteMenu(invite: StaffInviteOut, e: React.MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

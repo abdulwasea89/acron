@@ -63,13 +63,13 @@ function InvoicesContent() {
   // Deep-link ?invoice=<id> from a company page opens that invoice's detail.
   useEffect(() => {
     const id = search?.get("invoice");
-    if (ready && id && invoices) {
-      const found = invoices.find((i) => i.id === id);
-      if (found) {
-        setViewing(found);
-        api.get<OfficeInvoicePaymentOut[]>(`/invoices/${found.id}/payments`).then(setPayments).catch(() => setPayments([]));
-      }
-    }
+    if (!ready || !id || !invoices) return;
+    const found = invoices.find((i) => i.id === id);
+    if (!found) return;
+    queueMicrotask(() => {
+      setViewing(found);
+      api.get<OfficeInvoicePaymentOut[]>(`/invoices/${found.id}/payments`).then(setPayments).catch(() => setPayments([]));
+    });
   }, [ready, search, invoices]);
 
   async function act(id: string, action: string) {

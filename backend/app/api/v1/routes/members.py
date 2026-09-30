@@ -30,6 +30,7 @@ from app.services import member_trainers_service as trainer_assign
 from app.services import members_service as members
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
+from app.models.user import User
 
 router = APIRouter()
 
@@ -186,8 +187,6 @@ async def decide_approval(
 ):
     member = await members.decide_approval(session, org_id=ctx.org_id, member_id=member_id,
                                             approve=data.approve, reason=data.reason, actor_id=ctx.user_id)
-    from app.models.user import User
-
     user = await session.get(User, member.user_id)
     return await _item_with_trainers(session, ctx.org_id, member, user)
 
@@ -201,8 +200,6 @@ async def change_status(
 ):
     member = await members.change_status(session, org_id=ctx.org_id, member_id=member_id,
                                           action=data.action, reason=data.reason, actor_id=ctx.user_id)
-    from app.models.user import User
-
     user = await session.get(User, member.user_id)
     return await _item_with_trainers(session, ctx.org_id, member, user)
 
@@ -216,8 +213,6 @@ async def change_role(
 ):
     member = await members.change_role(session, org_id=ctx.org_id, member_id=member_id,
                                         new_role=data.role, actor_id=ctx.user_id, actor_role=ctx.role)
-    from app.models.user import User
-
     user = await session.get(User, member.user_id)
     return await _item_with_trainers(session, ctx.org_id, member, user)
 
@@ -231,8 +226,6 @@ async def change_email(
 ):
     member = await members.update_email(session, org_id=ctx.org_id, member_id=member_id,
                                          new_email=data.email, actor_id=ctx.user_id)
-    from app.models.user import User
-
     user = await session.get(User, member.user_id)
     return await _item_with_trainers(session, ctx.org_id, member, user)
 
@@ -278,8 +271,6 @@ async def assign_trainer(
         session, org_id=ctx.org_id, member_id=member_id,
         trainer_member_id=data.trainer_member_id, actor_user_id=ctx.user_id)
     trainer = await session.get(OrganizationMember, mt.trainer_member_id)
-    from app.models.user import User
-
     user = await session.get(User, trainer.user_id) if trainer else None
     return TrainerAssignment(
         member_id=mt.member_id, trainer_member_id=mt.trainer_member_id,
@@ -331,8 +322,6 @@ async def resend_invite(
     ctx: TenantContext = Depends(require_capability(Capability.INVITE_MEMBERS)),
     session: AsyncSession = Depends(get_session),
 ):
-    from app.models.user import User
-
     member, code, delivered = await members.resend_invite(session, org_id=ctx.org_id, member_id=member_id,
                                                           actor_id=ctx.user_id)
     user = await session.get(User, member.user_id)

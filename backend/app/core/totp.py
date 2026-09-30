@@ -18,6 +18,7 @@ import hmac
 import secrets
 import struct
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 _DIGITS = 6
 _PERIOD = 30  # seconds per code (RFC 6238 default)
@@ -73,8 +74,6 @@ def verify(secret: str, code: str, *, for_time: datetime, window: int = 1) -> bo
 
 def provisioning_uri(secret: str, *, account_name: str, issuer: str) -> str:
     """otpauth:// URI for QR provisioning in an authenticator app."""
-
-    from urllib.parse import quote
 
     label = quote(f"{issuer}:{account_name}")
     params = f"secret={secret}&issuer={quote(issuer)}&digits={_DIGITS}&period={_PERIOD}"

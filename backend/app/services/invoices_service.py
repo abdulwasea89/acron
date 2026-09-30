@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from calendar import monthrange
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,10 +20,8 @@ from app.core.constants import (
     PaymentKind,
     PaymentMethod,
     PaymentStatus,
-    PlanStatus,
     TaxMode,
 )
-from app.core.industry import OfferKind
 from app.core.security import now_utc
 from app.integrations.email import send_email_safe
 from app.models.company import Company

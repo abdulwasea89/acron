@@ -165,7 +165,7 @@ export default function ClassesPage() {
     }
   }
 
-  function closeMenu() { setMenuSession(null); setMenuPos(null); }
+  const closeMenu = useCallback(() => { setMenuSession(null); setMenuPos(null); }, []);
 
   function openMenu(session: ClassSessionOut, e: React.MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -177,12 +177,13 @@ export default function ClassesPage() {
     setMenuSession(session);
   }
 
+  const menuOpen = Boolean(menuSession);
   useEffect(() => {
-    if (!menuSession) return;
+    if (!menuOpen) return;
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") closeMenu(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [Boolean(menuSession)]);
+  }, [menuOpen, closeMenu]);
 
   function fmtDateTime(iso: string) {
     const d = new Date(iso);

@@ -44,6 +44,8 @@ class RateLimiter:
             try:
                 self._redis = aioredis.from_url(settings.redis_url, decode_responses=True)
             except Exception:
+                # No Redis reachable at startup; fall through to the in-process
+                # window so rate limiting still applies rather than 500-ing.
                 self._redis = None
 
     async def hit(self, key: str, limit: int, window_seconds: int) -> tuple[bool, int]:

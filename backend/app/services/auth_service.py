@@ -37,6 +37,7 @@ from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.session import AuthSession
 from app.models.user import User
+from app.realtime import events
 from app.schemas.auth import (
     LoginResponse,
     OwnerRegisterStart,
@@ -211,8 +212,6 @@ async def create_session(
     # Persist last-used org so next login goes here (B — last-used org).
     user.last_org_id = org_id
     session.add(user)
-
-    from app.realtime import events
 
     await events.sessions_changed(org_id)
     return access, refresh
@@ -552,8 +551,6 @@ async def revoke_session(session: AsyncSession, *, user_id: str, session_id: str
     session.add(auth_session)
     org_id = auth_session.organization_id
     if org_id:
-        from app.realtime import events
-
         await events.sessions_changed(org_id)
 
 
@@ -602,8 +599,6 @@ async def admin_revoke_session(
     auth_session.revoked = True
     auth_session.revoked_at = now_utc()
     session.add(auth_session)
-    from app.realtime import events
-
     await events.sessions_changed(org_id)
 
 

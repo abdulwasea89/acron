@@ -14,12 +14,6 @@ export type ChartConfig = Record<
 
 const ChartContext = React.createContext<ChartConfig | null>(null)
 
-function useChart() {
-  const config = React.useContext(ChartContext)
-  if (!config) throw new Error("useChart must be used within a <ChartContainer />")
-  return config
-}
-
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {

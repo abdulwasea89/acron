@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/cookies";
 
 // Route guard (Next 16 renamed `middleware` -> `proxy`). Protected app pages live under /app/*. If there's no session
-// cookie, bounce to /login; if a logged-in user hits an auth page, send them in.
+// cookie, bounce to /login with a `next` back to the page they wanted.
 const PROTECTED_PREFIX = "/app";
-const AUTH_PAGES = ["/login", "/register"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -25,6 +25,7 @@ from app.core.industry import OfferKind, get_industry
 from app.models.organization import Organization
 from app.models.plan import MembershipPlan
 from app.models.subscription import Subscription
+from app.realtime import events
 from app.schemas.plans import PlanCreate, PlanUpdate
 from app.services.audit_service import record_audit
 
@@ -115,8 +116,6 @@ async def create_plan(
     await record_audit(session, action="plan.created", organization_id=org.id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=plan.id,
                        new_values={"name": plan.name, "offer_kind": plan.offer_kind})
-    from app.realtime import events
-
     await events.plan_changed(org.id, plan_id=plan.id, action="created")
     return plan
 
@@ -160,8 +159,6 @@ async def update_plan(
         old_values={"price": old_price}, new_values={"price": plan.price},
         metadata={"note": "existing members keep snapshot price"},
     )
-    from app.realtime import events
-
     await events.plan_changed(org_id, plan_id=plan.id, action="updated")
     return plan
 
@@ -178,8 +175,6 @@ async def publish_plan(
         session.add(org)
     await record_audit(session, action="plan.published", organization_id=org.id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=plan.id)
-    from app.realtime import events
-
     await events.plan_changed(org.id, plan_id=plan.id, action="published")
     return plan
 
@@ -192,8 +187,6 @@ async def set_status(
     session.add(plan)
     await record_audit(session, action=f"plan.{status.value}", organization_id=org_id,
                        actor_user_id=actor_id, entity_type="plan", entity_id=plan.id)
-    from app.realtime import events
-
     await events.plan_changed(org_id, plan_id=plan.id, action=status.value)
     return plan
 
@@ -210,8 +203,6 @@ async def archive_plan(
     await record_audit(session, action="plan.archived", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=plan.id,
                        metadata={"replacement_plan_id": replacement_plan_id})
-    from app.realtime import events
-
     await events.plan_changed(org_id, plan_id=plan.id, action="archived")
     return plan
 
@@ -225,8 +216,6 @@ async def unarchive_plan(
     session.add(plan)
     await record_audit(session, action="plan.unarchived", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=plan.id)
-    from app.realtime import events
-
     await events.plan_changed(org_id, plan_id=plan.id, action="unarchived")
     return plan
 
@@ -255,8 +244,6 @@ async def delete_plan(
                        entity_type="plan", entity_id=plan.id,
                        old_values={"name": plan.name, "status": plan.status.value})
     await session.delete(plan)
-    from app.realtime import events
-
     await events.plan_changed(org_id, plan_id=plan_id, action="deleted")
 
 
@@ -276,8 +263,6 @@ async def duplicate_plan(
     await session.flush()
     await record_audit(session, action="plan.duplicated", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=copy.id, metadata={"source": plan_id})
-    from app.realtime import events
-
     await events.plan_changed(org_id, plan_id=copy.id, action="duplicated")
     return copy
 

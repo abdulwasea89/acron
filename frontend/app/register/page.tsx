@@ -151,7 +151,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (breachTimerRef.current) clearTimeout(breachTimerRef.current);
-    if (!allRulesMet) { setBreached(null); return; }
+    if (!allRulesMet) { queueMicrotask(() => setBreached(null)); return; }
     breachTimerRef.current = setTimeout(checkBreach, 700);
     return () => { if (breachTimerRef.current) clearTimeout(breachTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps

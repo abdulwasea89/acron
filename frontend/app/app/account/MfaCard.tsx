@@ -127,7 +127,7 @@ export function MfaCard({ mfaRequired }: { mfaRequired: boolean }) {
         {phase === "disabled" && (
           <div>
             <p className="mb-4 text-sm text-[var(--foreground-muted)]">
-              Add an extra layer of security to your account. Once enabled, you'll need both your
+              Add an extra layer of security to your account. Once enabled, you’ll need both your
               password and a 6-digit code from your authenticator app to sign in.
             </p>
             <Button onClick={startEnroll} loading={submitting}>
