@@ -269,7 +269,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
               href="/app/assistant"
               title="New chat"
               className={cx(
-                "flex h-9 items-center rounded-full bg-secondary text-sm text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground",
+                "flex h-9 items-center rounded-full border border-foreground/15 bg-secondary text-sm text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground",
                 collapsed ? "w-9 justify-center" : "flex-1 gap-2 px-3",
               )}
             >
@@ -283,7 +283,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
               <Link
                 href="/app/assistant"
                 aria-label="New chat"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-foreground/15 bg-secondary text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground"
               >
                 <Icon
                   d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM16.862 4.487L19.5 7.125"
