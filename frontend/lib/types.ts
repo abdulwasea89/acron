@@ -573,7 +573,79 @@ export type AssistantStep =
       summary?: string;
       /** False while the tool is still running. */
       done?: boolean;
-    };
+    }
+  | AssistantAgentStep
+  | AssistantSwarmStep;
+
+/** What a swarm turn cost (ADR 019), as one step for the whole turn.
+ *
+ *  Only two of these reach the UI: `total`, which the header counts, and
+ *  `turn_ms`, which it times. The rest are recorded because they are what the
+ *  turn's cost argument rests on and they are cheap to store — but the header
+ *  was deliberately reduced to "Worked · 45 agents" over a seconds line, and a
+ *  row of counters above the tree competed with it. */
+export interface AssistantSwarmStep {
+  type: "swarm";
+  /** Specialists that were dispatched. */
+  agents: number;
+  /** Domain orchestrators that ran. */
+  domains: number;
+  /** agents + domains — the number the header counts. */
+  total: number;
+  /** Model calls this turn made, counted rather than estimated. */
+  model_calls: number;
+  done: number;
+  skipped: number;
+  failed: number;
+  /** Wall-clock of the fan-out alone, excluding the planner and the answer. */
+  fanout_ms: number;
+  /** Wall-clock of the whole turn, planner to answer, in milliseconds.
+   *
+   *  This is the number the header shows under "Worked · N agents". It is sent
+   *  by the server and stored with the turn rather than measured in the browser,
+   *  because the client's own stopwatch starts when the panel mounts and dies
+   *  with the page — a reloaded thread would show no duration at all. */
+  turn_ms: number;
+}
+
+/** One agent in a swarm turn (ADR 019): a specialist, or the orchestrator over
+ *  one domain's specialists.
+ *
+ *  A row is opened by the `agent_start` frame, which carries everything the
+ *  collapsed row shows — name, specialization and *why it ran*. It is settled
+ *  by `agent_done`, which is matched by `id` rather than by position: unlike
+ *  tools (which run one at a time), the swarm's agents run concurrently and
+ *  finish out of order, so position would attribute a finding to the wrong
+ *  agent. */
+export interface AssistantAgentStep {
+  type: "agent";
+  id: string;
+  name: string;
+  /** One of the five domain ids: members, revenue, payroll, operations, risk. */
+  domain: string;
+  role?: "specialist" | "orchestrator";
+  /** What this agent is for, shown as a chip beside its name. */
+  specialization?: string;
+  /** Why it was dispatched — the "why this happens" on an expanded row. */
+  why?: string;
+  /** True when this agent calls the model. Carried for the cost breakdown;
+   *  deliberately not shown as a per-row label — see AgentTree. */
+  model_backed?: boolean;
+  /** The lookup this agent performs, named like a call (`read_member_growth`).
+   *  Every agent has one, not only the model-backed eight: thirty-two of the
+   *  forty read the database, which is work worth naming. */
+  tool?: string;
+  /** Absent while the agent is still running. */
+  status?: "done" | "skipped" | "failed";
+  /** Its finding, or an orchestrator's digest. */
+  summary?: string;
+  /** The rows behind a judgement agent's finding, or a team's raw findings
+   *  behind an orchestrator's digest. Absent for a deterministic specialist,
+   *  whose summary *is* the figure. */
+  detail?: string;
+  /** How long it took, once settled. */
+  ms?: number;
+}
 
 export interface AssistantMessageOut {
   id: string;
@@ -607,12 +679,32 @@ export interface AssistantConversationDetailOut extends AssistantConversationOut
  *  Agent runs (ADR 018) add tool activity and a confirmation pause:
  *  `tool_start`/`tool_result` narrate what the assistant looked up, and
  *  `interrupt` marks a write awaiting the user's approval (resumed through
- *  /api/assistant/resume). */
+ *  /api/assistant/resume).
+ *
+ *  A swarm turn (ADR 019) adds the agent tree in between: `agent_start` opens a
+ *  row for each specialist and for each of the five domain orchestrators, and
+ *  `agent_done` settles it. The answer then arrives as ordinary `delta` frames,
+ *  written by the lead agent that summarised the orchestrators' digests.
+ *
+ *  A swarm turn emits `thinking` too, on both ends of the fan-out: the planner's
+ *  rationale (why this shape) and the lead agent's trace while it weighs the
+ *  digests. `swarm_stats` closes the fan-out with what it cost. */
 export type AssistantFrame =
   | { delta: string }
   | { thinking: string }
   | { tool_start: { name: string; args: Record<string, unknown> } }
   | { tool_result: { name: string; summary: string } }
+  | { agent_start: Omit<AssistantAgentStep, "type" | "status" | "summary" | "detail" | "ms"> }
+  | {
+      agent_done: {
+        id: string;
+        status: "done" | "skipped" | "failed";
+        summary: string;
+        detail?: string;
+        ms: number;
+      };
+    }
+  | { swarm_stats: Omit<AssistantSwarmStep, "type"> }
   | { interrupt: { id: string | null; value: unknown }; awaiting_approval?: true }
   | { done: true; message_id: string | null; title: string | null }
   | { error: string };

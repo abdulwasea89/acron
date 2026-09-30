@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CHAT_COMPOSER_SHELL, ChatComposer } from "./ChatComposer";
+import { ChatComposer } from "./ChatComposer";
 import { ChatThread } from "./ChatThread";
 import { Alert, Spinner } from "@/components/ui";
 import { api, ApiError, streamPost } from "@/lib/api";
@@ -11,6 +11,13 @@ import type {
   AssistantMessageOut,
   AssistantStep,
 } from "@/lib/types";
+
+/* The three frame payloads the tree is built from, read off the protocol rather
+   than restated: a field added to a frame reaches these helpers automatically,
+   instead of drifting until a row silently loses the field. */
+type AgentOpened = Extract<AssistantFrame, { agent_start: unknown }>["agent_start"];
+type AgentSettled = Extract<AssistantFrame, { agent_done: unknown }>["agent_done"];
+type SwarmStats = Extract<AssistantFrame, { swarm_stats: unknown }>["swarm_stats"];
 
 /* ── ChatPanel ────────────────────────────────────────────────────────────
    One conversation: transcript plus composer, driven entirely by props. It
@@ -135,6 +142,15 @@ export function ChatPanel({
             setSteps([...stepsRef.current]);
           } else if ("tool_result" in frame) {
             finishTool(stepsRef.current, frame.tool_result);
+            setSteps([...stepsRef.current]);
+          } else if ("agent_start" in frame) {
+            openAgent(stepsRef.current, frame.agent_start);
+            setSteps([...stepsRef.current]);
+          } else if ("agent_done" in frame) {
+            settleAgent(stepsRef.current, frame.agent_done);
+            setSteps([...stepsRef.current]);
+          } else if ("swarm_stats" in frame) {
+            saveSwarmStats(stepsRef.current, frame.swarm_stats);
             setSteps([...stepsRef.current]);
           } else if ("interrupt" in frame) {
             // A write is proposed and paused; the composer is disabled until
@@ -371,7 +387,19 @@ export function ChatPanel({
         />
       )}
 
-      <div className="shrink-0 px-4 pb-5 pt-2 sm:px-6">
+      {/* The composer is bottom-anchored, so the gap under it is the one
+          measurement on this page you can actually feel — and it is the sum of
+          two paddings, not one. The shell's `<main>` already contributes
+          `py-8`/`lg:py-10`, and this container used to add `pb-5` on top of it,
+          putting the field 52–60px off the bottom. The dock bar this composer
+          hands off to sits at `bottom-5`, 20px, so the two disagreed at the
+          exact moment the prompt moves between them.
+
+          The negative margin cancels the rest of the shell's padding, leaving
+          20px at both breakpoints: 32 − 12 and 40 − 20. It is a negative margin
+          rather than a smaller `pb-*` because the shell's padding is shared with
+          every other page and this page is the only one that wants it gone. */}
+      <div className="-mb-3 shrink-0 px-4 pb-0 pt-2 sm:px-6 lg:-mb-5">
         <div className="mx-auto w-full max-w-3xl">
           <ChatComposer
             value={value}
@@ -380,7 +408,6 @@ export function ChatPanel({
             sending={sending}
             autoFocus
             placeholder={conversationId ? "Reply…" : "Ask about members, revenue, or payroll…"}
-            className={CHAT_COMPOSER_SHELL}
           />
         </div>
       </div>
@@ -413,4 +440,64 @@ function finishTool(steps: AssistantStep[], result: { name: string; summary: str
     }
   }
   steps.push({ type: "tool", name: result.name, summary: result.summary, done: true });
+}
+
+/** Open a swarm agent's row, or update it if it is already there.
+ *
+ *  Every agent is announced before any of them starts, so the tree is drawn
+ *  whole and then fills in. An agent that arrives twice — which cannot happen
+ *  today, but would if the planner ever repeated an id — updates in place
+ *  rather than growing a duplicate row. */
+function openAgent(steps: AssistantStep[], agent: AgentOpened): void {
+  const at = indexOfAgent(steps, agent.id);
+  if (at === -1) {
+    steps.push({ type: "agent", ...agent });
+    return;
+  }
+  const existing = steps[at];
+  if (existing.type === "agent") steps[at] = { ...existing, ...agent };
+}
+
+/** Settle a swarm agent with its finding.
+ *
+ *  Correlated by id, not by order — the opposite of `finishTool`, and for a
+ *  concrete reason: tools run one at a time, so the newest unfinished step is
+ *  always the one that just finished, but the swarm's forty agents run at once
+ *  and settle in whatever order they happen to finish. Matching by position
+ *  would hang a finding on whichever agent started last. */
+function settleAgent(steps: AssistantStep[], result: AgentSettled): void {
+  const at = indexOfAgent(steps, result.id);
+  if (at === -1) {
+    // A result with no matching row would otherwise be dropped silently, and a
+    // finding the user cannot see is a finding that did not happen.
+    steps.push({
+      type: "agent",
+      id: result.id,
+      name: result.id,
+      domain: "",
+      status: result.status,
+      summary: result.summary,
+      detail: result.detail,
+      ms: result.ms,
+    });
+    return;
+  }
+  const existing = steps[at];
+  if (existing.type === "agent") steps[at] = { ...existing, ...result };
+}
+
+/** Record what the swarm turn cost.
+ *
+ *  Replaces rather than appends: a turn that resumed from an approval pause
+ *  would otherwise end up with two sets of numbers disagreeing at the top of
+ *  one panel. Keyed by type for the same reason agents are keyed by id — the
+ *  step is a fact about the turn, and there is only one of it. */
+function saveSwarmStats(steps: AssistantStep[], stats: SwarmStats): void {
+  const at = steps.findIndex((s) => s.type === "swarm");
+  if (at === -1) steps.push({ type: "swarm", ...stats });
+  else steps[at] = { type: "swarm", ...stats };
+}
+
+function indexOfAgent(steps: AssistantStep[], id: string): number {
+  return steps.findIndex((s) => s.type === "agent" && s.id === id);
 }

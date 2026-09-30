@@ -34,14 +34,33 @@ import { useEffect, useRef, useState } from "react";
 /** Grow one line at a time until this many, then stop and scroll. */
 const MAX_ROWS = 5;
 
-/* The bordered shell around the row. Defined once and imported by both the
-   dashboard bar (`ChatInput`) and the in-session composer (`ChatPanel`) so the
-   dock is identical wherever it appears. At rest the row is one line: a 40px
-   field (`py-2` + `leading-6`) plus this `p-2` on all sides plus the 1px
-   border gives a 58px box, which `rounded-[28px]` fills to a full pill — the
-   same shape as the circular send button. */
-export const CHAT_COMPOSER_SHELL =
-  "rounded-[28px] border border-foreground/15 bg-surface p-2 transition-colors duration-150 focus-within:border-foreground/30";
+/* The bordered box around the row. The invariant parts — border, fill, focus
+   ring — are separated from the radius and padding, which are what set the
+   bar's size. */
+const CHAT_COMPOSER_BOX =
+  "border border-foreground/15 bg-surface transition-colors duration-150 focus-within:border-foreground/30";
+
+/* One size, used by both the dashboard's floating bar (`ChatInput`) and the
+   in-session composer (`ChatPanel`). There used to be a smaller variant for the
+   floating bar, on the theory that a bar you drop a prompt into should read like
+   a search field — but it is the same prompt either way, and the control
+   shrinking as you crossed between them read as two different controls.
+
+   At rest the row is one line, and the field's height + padding + border fill
+   the radius to a full pill — the same shape as the circular send button. The
+   send button is exactly as tall as the field, so no centring slack is left
+   above or below it, and the container's padding is the only inset on every
+   side:
+
+     40px field (`py-2` + `leading-6`) + `p-2` + 1px border = 58px,
+     against `rounded-[28px]` and an `h-10` button.
+
+   The slack goes in padding rather than in the line box, because the field is
+   read as prose. If this size moves, move the field, the button and the radius
+   together. */
+const SHELL = "rounded-[28px] p-2";
+const FIELD = "px-3 py-2 leading-6";
+const BUTTON = "h-10 w-10";
 
 interface ChatComposerProps {
   value: string;
@@ -51,7 +70,7 @@ interface ChatComposerProps {
   sending?: boolean;
   disabled?: boolean;
   placeholder?: string;
-  /** Shell classes: the bordered box that wraps the row. */
+  /** Shell classes appended after the composer's own box. */
   className?: string;
   autoFocus?: boolean;
   ariaLabel?: string;
@@ -117,7 +136,7 @@ export function ChatComposer({
         e.preventDefault();
         if (canSend) onSubmit();
       }}
-      className={className}
+      className={`${CHAT_COMPOSER_BOX} ${SHELL} ${className}`}
     >
       {/* items-end, not items-center: the box is bottom-anchored and grows
           upward, so a centred button would re-centre on every new line and
@@ -133,7 +152,7 @@ export function ChatComposer({
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           aria-label={ariaLabel}
-          className={`w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 [scrollbar-color:var(--brand)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[3px] ${
+          className={`w-full resize-none bg-transparent ${FIELD} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 [scrollbar-color:var(--brand)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[3px] ${
             capped ? "overflow-y-auto" : "overflow-hidden"
           }`}
         />
@@ -143,7 +162,7 @@ export function ChatComposer({
           type="submit"
           disabled={!canSend}
           aria-label="Send"
-          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-brand-foreground transition duration-150 hover:bg-brand/90 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60"
+          className={`flex ${BUTTON} shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-brand-foreground transition duration-150 hover:bg-brand/90 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60`}
         >
           {sending ? (
             <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">

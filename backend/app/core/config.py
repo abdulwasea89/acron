@@ -146,6 +146,11 @@ class Settings(BaseSettings):
     assistant_history_limit: int = 20
     # Ceiling on model/tool super-steps per turn; bounds a runaway loop.
     assistant_recursion_limit: int = 25
+    # Whether a turn may fan out to the specialist swarm (ADR 019).
+    #   "auto"   — the planner decides per question (the default)
+    #   "always" — dispatch all 40 specialists on every turn (demos)
+    #   "off"    — never plan; every turn takes the direct ReAct path
+    assistant_swarm_mode: str = "auto"
 
     # ------------------------------------------------------------------- hibp
     hibp_api_url: str = "https://api.pwnedpasswords.com"

@@ -2,9 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui";
+import { AgentTree } from "./AgentTree";
 import { Markdown } from "./Markdown";
 import { randomThinkingWord } from "@/lib/thinkingWords";
-import type { AssistantMessageOut, AssistantStep } from "@/lib/types";
+import type {
+  AssistantAgentStep,
+  AssistantMessageOut,
+  AssistantStep,
+  AssistantSwarmStep,
+} from "@/lib/types";
 
 /* ── ChatThread ───────────────────────────────────────────────────────────
    The transcript: user turns right-aligned, assistant turns left, in a
@@ -175,7 +181,16 @@ function ActivityPanel({
     setOpen((v) => !v);
   }
 
-  const header = live ? `${liveWord}…` : doneLabel(elapsedMs);
+  const agentSteps = steps.filter((s): s is AssistantAgentStep => s.type === "agent");
+  const swarmStats = steps.find((s): s is AssistantSwarmStep => s.type === "swarm");
+  // The server's own count when it sent one — it is the authoritative total, and
+  // using it keeps the header and the tree's own line from ever disagreeing.
+  const agentCount = swarmStats?.total ?? agentSteps.length;
+  // While the turn is running, the client's stopwatch is the only thing that
+  // knows how long it has been; once it has finished, the server's `turn_ms` is
+  // better, because it survives a reload and it covers the whole turn rather
+  // than from whenever this panel happened to mount.
+  const turnMs = swarmStats?.turn_ms ?? elapsedMs;
 
   return (
     <div className="flex justify-start">
@@ -187,16 +202,30 @@ function ActivityPanel({
           className={`flex w-full items-center gap-2 rounded-lg px-1 py-2 text-left transition-colors ${
             live
               ? "text-sm leading-6 text-[var(--foreground)] hover:opacity-80"
-              : "text-xs text-muted-foreground hover:text-[var(--foreground)]"
+              : "hover:opacity-80"
           }`}
         >
           <Chevron open={open} />
-          <span className={live ? "" : "font-medium"}>{header}</span>
+          {live ? (
+            <span className="text-sm leading-6 text-[var(--foreground)]">{liveWord}…</span>
+          ) : (
+            // One line: what ran, and how long it took. The agent count tells you
+            // whether expanding is worth it; the seconds are the number that
+            // actually changes between turns.
+            <span className="text-xs font-medium text-muted-foreground">
+              {workedSummary(agentCount, turnMs)}
+            </span>
+          )}
         </button>
         {open && (
           <div className="ml-1.5 space-y-2 border-l border-[var(--border)] py-1 pl-3">
+            {/* A swarm turn's steps are an agent tree; everything else is the
+                flat reasoning + tool list. The two can coexist — a turn that
+                fanned out still has thinking and tool steps of its own — so the
+                tree goes first, then the rest. */}
+            {agentSteps.length > 0 && <AgentTree steps={agentSteps} />}
             {steps.map((step, i) =>
-              step.type === "thinking" ? (
+              step.type === "agent" || step.type === "swarm" ? null : step.type === "thinking" ? (
                 <ThinkingBlock key={`t-${i}`} text={step.text} />
               ) : (
                 <ToolStep key={`s-${i}`} step={step} />
@@ -273,11 +302,26 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-/** Header once the turn is done. */
-function doneLabel(elapsedMs: number | null): string {
-  if (!elapsedMs) return "Worked";
-  const seconds = Math.max(1, Math.round(elapsedMs / 1000));
-  return `Worked for ${seconds}s`;
+/** The header line, once the turn is done: "Worked · 45 agents · 3s".
+ *
+ *  The agent count is what tells you whether expanding is worth it, and
+ *  "Worked" alone would hide the difference between one model call and forty
+ *  agents. The seconds are the number that changes between turns, so they sit on
+ *  the same line rather than in a place of their own — one glance, two facts.
+ *
+ *  Both parts are optional and the separators only appear between parts that are
+ *  actually there. A direct turn has neither, and must not read "Worked · · ". */
+function workedSummary(agentCount: number, turnMs?: number | null): string {
+  const parts: string[] = [];
+  if (agentCount > 0) parts.push(`${agentCount} ${agentCount === 1 ? "agent" : "agents"}`);
+  if (turnMs !== null && turnMs !== undefined) parts.push(formatSeconds(turnMs));
+  return parts.length > 0 ? `Worked · ${parts.join(" · ")}` : "Worked";
+}
+
+/** 20300 -> "20s"; 2400 -> "2.4s"; 400 -> "0.4s". */
+function formatSeconds(ms: number): string {
+  const seconds = ms / 1000;
+  return seconds >= 10 ? `${Math.round(seconds)}s` : `${seconds.toFixed(1)}s`;
 }
 
 /** "list_pending_receipts" -> "List pending receipts". */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CHAT_COMPOSER_SHELL, ChatComposer } from "@/components/assistant/ChatComposer";
+import { ChatComposer } from "@/components/assistant/ChatComposer";
 import { useAssistantDock } from "@/components/assistant/AssistantDock";
 
 /* ── ChatInput ────────────────────────────────────────────────────────────
@@ -21,8 +21,13 @@ import { useAssistantDock } from "@/components/assistant/AssistantDock";
    `lg:left-[calc(50%+8rem)]`. Keep that 8rem in step with the sidebar's
    `lg:w-64` in components/Sidebar.tsx; they are two halves of one fact.
 
-   The bar keeps its own width (max-w-2xl) rather than stretching to fill the
-   column — it is centred *within* the content, not sized to it.
+   The bar keeps its own width (max-w-[40rem], a step in from the content
+   column's own cap) rather than stretching to fill the column — it is centred
+   *within* the content, not sized to it. It renders the composer at its one
+   size: the bar used to be a step down from the in-session composer, sized
+   closer to a search field, but a prompt dropped here and a prompt typed on the
+   assistant page are the same prompt, and a control that shrank as you crossed
+   between them read as two different things. Same box, same field, same button.
 
    The box fill is the default `bg-surface`, hairline border, shadow.
 
@@ -86,13 +91,13 @@ export function ChatInput() {
   }, [value, dock]);
 
   return (
-    <div className="pointer-events-none fixed bottom-6 left-1/2 z-40 w-[calc(100%-2.5rem)] max-w-2xl -translate-x-1/2 lg:left-[calc(50%+8rem)]">
+    <div className="pointer-events-none fixed bottom-5 left-1/2 z-40 w-[calc(100%-2.5rem)] max-w-[40rem] -translate-x-1/2 lg:left-[calc(50%+8rem)]">
       <ChatComposer
         value={value}
         onChange={setValue}
         onSubmit={submit}
         focusSignal={focusSignal}
-        className={`pointer-events-auto animate-fade-in ${CHAT_COMPOSER_SHELL} shadow-xl shadow-black/10`}
+        className="pointer-events-auto animate-fade-in shadow-xl shadow-black/10"
       />
     </div>
   );

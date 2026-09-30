@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
+import { SidebarChats } from "./assistant/SidebarChats";
+import { useAssistantChats } from "@/components/assistant/AssistantChats";
 import { useSettingsDialog } from "@/components/settings/SettingsProvider";
 import {
   NAV_LABEL_OVERRIDES,
@@ -110,6 +112,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
   const items = navFor(industry);
   const logout = useLogout();
   const settings = useSettingsDialog();
+  const chats = useAssistantChats();
   const [collapsed, setCollapsed] = useState(false);
 
   const quickItems = items.filter((item) => NAV_GROUP_BY_HREF[item.href] === QUICK_GROUP);
@@ -260,6 +263,11 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
               </div>
             );
           })}
+
+          {/* Chats sit in the scrolling column with the nav sections, not down
+              in the fixed footer: it is a list of variable length, so it has to
+              scroll with the rest rather than hold space it may not need. */}
+          <SidebarChats collapsed={collapsed} />
         </nav>
 
         {/* New chat + account */}
@@ -268,6 +276,10 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
             <Link
               href="/app/assistant"
               title="New chat"
+              // Dropping the open thread is what makes this a *new* chat when
+              // you are already on the assistant page; the push alone is to the
+              // route you are on, so it would otherwise reopen the same one.
+              onClick={() => chats?.setActiveId(null)}
               className={cx(
                 "flex h-9 items-center rounded-full border border-foreground/15 bg-secondary text-sm text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground",
                 collapsed ? "w-9 justify-center" : "flex-1 gap-2 px-3",

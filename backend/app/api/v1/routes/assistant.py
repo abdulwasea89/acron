@@ -132,6 +132,41 @@ def _finish_tool(steps: list[dict], result: dict) -> None:
     )
 
 
+def _save_agent(steps: list[dict], event: dict) -> None:
+    """Open or settle one agent row in the swarm tree (ADR 019).
+
+    Keyed by ``id`` rather than by position, unlike ``_finish_tool``: tools run
+    one at a time so the newest unfinished step is always the one that just
+    finished, but the swarm's agents run concurrently and settle out of order.
+    Position would attribute a finding to whichever agent happened to start
+    last, which is worse than showing nothing.
+    """
+
+    agent_id = event.get("id")
+    if not agent_id:
+        return
+    for step in steps:
+        if step.get("type") == "agent" and step.get("id") == agent_id:
+            step.update(event)
+            return
+    steps.append({"type": "agent", **event})
+
+
+def _save_swarm_stats(steps: list[dict], event: dict) -> None:
+    """Record what the swarm turn cost, as one step for the whole turn.
+
+    Replaces rather than appends on a repeat, so a resumed turn (an approval
+    interrupt on the direct path, a retried stream) cannot accumulate two
+    conflicting sets of numbers in one panel.
+    """
+
+    for step in steps:
+        if step.get("type") == "swarm":
+            step.update(event)
+            return
+    steps.append({"type": "swarm", **event})
+
+
 def _replay_response(payload: dict) -> StreamingResponse:
     """Re-emit an already-stored answer as a one-shot SSE stream.
 
@@ -472,6 +507,15 @@ async def _generate(
                 yield _sse(frame)
             elif "tool_result" in frame:
                 _finish_tool(steps, frame["tool_result"])
+                yield _sse(frame)
+            elif "agent_start" in frame:
+                _save_agent(steps, dict(frame["agent_start"]))
+                yield _sse(frame)
+            elif "agent_done" in frame:
+                _save_agent(steps, dict(frame["agent_done"]))
+                yield _sse(frame)
+            elif "swarm_stats" in frame:
+                _save_swarm_stats(steps, dict(frame["swarm_stats"]))
                 yield _sse(frame)
             elif "interrupt" in frame:
                 interrupted = frame["interrupt"]

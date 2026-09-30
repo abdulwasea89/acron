@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useCallback, useState } from "react";
 import type { AssistantConversationOut } from "@/lib/types";
+import { useAssistantChats } from "./AssistantChats";
 import { useAssistantDock } from "./AssistantDock";
 import { ChatPanel } from "./ChatPanel";
 import { SessionList } from "./SessionList";
@@ -20,53 +20,62 @@ import { SessionList } from "./SessionList";
    gets the full width whether or not you are looking at your history. It
    opens over the thread instead of pushing it aside.
 
+   Neither the thread nor the list is state here: both come from
+   AssistantChats, which the sidebar reads too. Picking a chat in the sidebar
+   therefore opens it here with no handoff of its own, and the page's own
+   recents dropdown cannot disagree with the sidebar about what is open.
+
    The thread is a real page here, so it fills the viewport (minus the shell's
    own vertical padding) and scrolls internally; the page itself never grows. */
+
+/** Stable empty list, so the default cannot break memoization below. */
+const NO_CHATS: AssistantConversationOut[] = [];
+
+/** Stand-in for the provider's callbacks when there is no provider. */
+const NOOP = () => {};
 
 export function AssistantPage() {
   const dock = useAssistantDock();
   // Stable across renders (the dock memoizes it), so it is safe to depend on.
   const clearPrompt = dock?.clearPrompt;
 
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<AssistantConversationOut[]>([]);
+  const chats = useAssistantChats();
+  const conversations = chats?.conversations ?? NO_CHATS;
+  const activeId = chats?.activeId ?? null;
+  // Optional calls: the hook is null only if this page is ever rendered
+  // outside the shell's provider, where a chat that cannot be switched is
+  // still better than a crash.
+  const setActiveId = chats?.setActiveId;
+  const refresh = chats?.refresh;
+
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const refresh = useCallback(() => {
-    // Recents are secondary: a failure must not take the chat down.
-    void api
-      .get<AssistantConversationOut[]>("/assistant/conversations")
-      .then(setConversations)
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
   const newChat = useCallback(() => {
-    setActiveId(null);
+    setActiveId?.(null);
     setHistoryOpen(false);
     // A prompt carried over from the bar belongs to the thread it started;
     // asking for a new one puts it down.
     clearPrompt?.();
-  }, [clearPrompt]);
+  }, [setActiveId, clearPrompt]);
 
-  const pick = useCallback((id: string) => {
-    setActiveId(id);
-    setHistoryOpen(false);
-    clearPrompt?.();
-  }, [clearPrompt]);
+  const pick = useCallback(
+    (id: string) => {
+      setActiveId?.(id);
+      setHistoryOpen(false);
+      clearPrompt?.();
+    },
+    [setActiveId, clearPrompt],
+  );
 
   const handleCreated = useCallback(
     (id: string) => {
-      setActiveId(id);
+      setActiveId?.(id);
       // Taken: clearing here is what stops the handoff prompt from being
       // replayed the next time this page is opened.
       clearPrompt?.();
-      refresh();
+      refresh?.();
     },
-    [refresh, clearPrompt],
+    [setActiveId, refresh, clearPrompt],
   );
 
   return (
@@ -140,7 +149,7 @@ export function AssistantPage() {
           conversationId={activeId}
           initialPrompt={dock?.prompt ?? null}
           onCreated={handleCreated}
-          onRailRefresh={refresh}
+          onRailRefresh={refresh ?? NOOP}
         />
       </div>
     </div>
