@@ -488,7 +488,15 @@
   --text-5xl--line-height: 2.5rem;
 }
 
-* { border-color: var(--border); }
+/* Default border colour for elements that set a width but no colour. This has
+   to live in `@layer base`: an unlayered rule outranks every utility in
+   `@layer utilities` regardless of specificity, so at the top level it silently
+   swallowed every `border-*` colour utility in the app — `border-transparent`
+   still drew a hairline, and `border-brand` / `border-danger` all came out the
+   same grey as `--border`. */
+@layer base {
+  * { border-color: var(--border); }
+}
 
 html {
   -webkit-font-smoothing: antialiased;
@@ -575,6 +583,12 @@ body {
   /* Centered dialogs: rise + scale, with a matching exit. */
   .animate-dialog-in { animation: dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both; }
   .animate-dialog-out { animation: dialog-out 130ms ease-in both; }
+  /* Edge-anchored sheets: the panel travels in from its own edge, so the
+     direction of travel matches where the content came from. */
+  .animate-sheet-in-right { animation: sheet-in-right 220ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-sheet-out-right { animation: sheet-out-right 160ms ease-in both; }
+  .animate-sheet-in-left { animation: sheet-in-left 220ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-sheet-out-left { animation: sheet-out-left 160ms ease-in both; }
 }
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -586,6 +600,10 @@ body {
 @keyframes pop-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-3px) scale(0.98); } }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes dialog-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(6px) scale(0.99); } }
+@keyframes sheet-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes sheet-out-right { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes sheet-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes sheet-out-left { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 
 .skeleton {
   background: linear-gradient(90deg, var(--border) 25%, var(--border-strong) 50%, var(--border) 75%);

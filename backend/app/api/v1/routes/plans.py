@@ -15,6 +15,7 @@ from app.core.tenancy import TenantContext
 from app.models.organization import Organization
 from app.models.plan import MembershipPlan
 from app.schemas.plans import ArchiveRequest, PlanCreate, PlanOut, PlanUpdate
+from app.services import plan_summaries
 from app.services import plans_service as plans
 
 router = APIRouter()
@@ -33,6 +34,7 @@ def _to_out(p: MembershipPlan) -> PlanOut:
         billing_type=p.billing_type.value, visibility=p.visibility.value,
         status=p.status.value, featured=p.featured,
         offer_kind=p.offer_kind or "membership", spec=spec,
+        summary=p.summary,
     )
 
 
@@ -64,6 +66,25 @@ async def update_plan(
     session: AsyncSession = Depends(get_session),
 ):
     plan = await plans.update_plan(session, org_id=ctx.org_id, plan_id=plan_id, data=data, actor_id=ctx.user_id)
+    return _to_out(plan)
+
+
+@router.post("/{plan_id}/summary", response_model=PlanOut)
+async def plan_summary(
+    plan_id: str,
+    refresh: bool = False,
+    ctx: TenantContext = Depends(require_capability(Capability.VIEW_PLANS)),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return the plan with its AI-written summary, generating it once if absent.
+
+    Recording is the point: the first viewer pays for the model call, everyone
+    after reads the stored text. ``?refresh=true`` forces a regeneration.
+    """
+
+    plan = await plan_summaries.ensure_plan_summary(
+        session, org_id=ctx.org_id, plan_id=plan_id, refresh=refresh
+    )
     return _to_out(plan)
 
 

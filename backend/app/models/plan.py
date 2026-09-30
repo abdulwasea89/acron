@@ -8,6 +8,8 @@ and lifecycle status. Editing price never repricing existing members (Section
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlmodel import Field
 
 from app.core.constants import PlanBillingType, PlanStatus, PlanVisibility, TaxMode
@@ -58,3 +60,9 @@ class MembershipPlan(UUIDModel, TimestampModel, table=True):
 
     # When archived, members migrate to this plan at next renewal (Section 6.7)
     replacement_plan_id: str | None = Field(default=None, foreign_key="membership_plans.id")
+
+    # AI-written summary, generated once when the plan is first viewed and then
+    # cached (recorded) on the row. Kept off the create/edit payloads — it is
+    # derived, not authored.
+    summary: str | None = None
+    summary_generated_at: datetime | None = None

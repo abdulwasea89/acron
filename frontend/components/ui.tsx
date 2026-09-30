@@ -18,6 +18,9 @@ function cx(...parts: (string | false | undefined | null)[]): string {
 
 /* Field-label voice: mono caps, letterspaced, muted (DESIGN §6.6). */
 const LABEL = "mb-1.5 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground";
+/* Softer label voice for long, narrow forms (e.g. the plan sheet), where a
+   column of shouty caps reads as noise. Same slot, sentence case. */
+const LABEL_SENTENCE = "mb-1.5 block text-[13px] font-medium text-foreground";
 
 /* Shared focus ring — brand hairline, no heavy box-shadow. */
 const FOCUS =
@@ -32,15 +35,18 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: "sm" | "md" | "lg";
 };
 
-export function Button({
-  variant = "primary",
-  loading,
-  disabled,
-  className,
-  size = "sm",
-  children,
-  ...rest
-}: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = "primary",
+    loading,
+    disabled,
+    className,
+    size = "sm",
+    children,
+    ...rest
+  },
+  ref,
+) {
   const variants: Record<string, string> = {
     primary:
       "rounded-md bg-brand text-brand-foreground shadow-sm hover:bg-brand/90 active:brightness-95",
@@ -60,6 +66,7 @@ export function Button({
   };
   return (
     <button
+      ref={ref}
       className={cx(
         "inline-flex cursor-pointer items-center justify-center font-medium",
         "transition-colors duration-150",
@@ -81,7 +88,7 @@ export function Button({
       {children}
     </button>
   );
-}
+});
 
 /* ── CategoryTabs ─────────────────────────────────────────────────────────
    The category switcher: a row of floating pills — no outer track. Active
@@ -98,6 +105,10 @@ type CategoryTabsProps<T extends string> = {
   tabs: CategoryTab<T>[];
   value: T;
   onChange: (value: T) => void;
+  /** `pills` (default) is the floating chip switcher that sits above a table.
+   *  `underline` is the quieter tab-bar form: no track and no full-width rule
+   *  — only the active tab carries weight, and a brand underline marks it. */
+  variant?: "pills" | "underline";
   className?: string;
 };
 
@@ -105,6 +116,7 @@ export function CategoryTabs<T extends string>({
   tabs,
   value,
   onChange,
+  variant = "pills",
   className,
 }: CategoryTabsProps<T>) {
   const index = tabs.findIndex((t) => t.value === value);
@@ -130,12 +142,15 @@ export function CategoryTabs<T extends string>({
     }
   }
 
+  const underline = variant === "underline";
+
   return (
     <div
       role="tablist"
       onKeyDown={onKeyDown}
       className={cx(
-        "no-scrollbar flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-md p-0.5",
+        "no-scrollbar flex w-fit max-w-full items-center overflow-x-auto",
+        underline ? "gap-1" : "gap-0.5 rounded-md p-0.5",
         className,
       )}
     >
@@ -150,21 +165,31 @@ export function CategoryTabs<T extends string>({
             tabIndex={active || index === -1 ? 0 : -1}
             onClick={() => onChange(t.value)}
             className={cx(
-              "flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-[12px] font-medium transition-colors duration-150",
+              "flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap transition-colors duration-150",
               FOCUS,
-              active
-                ? "bg-foreground/[0.06] text-foreground"
-                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+              underline
+                ? cx(
+                    "h-8 border-b-2 px-3 text-[13px]",
+                    active
+                      ? "border-brand font-medium text-foreground"
+                      : "border-transparent text-muted-foreground hover:border-foreground/20 hover:text-foreground",
+                  )
+                : cx(
+                    "h-7 rounded-md px-2.5 text-[12px] font-medium",
+                    active
+                      ? "bg-foreground/[0.06] text-foreground"
+                      : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+                  ),
             )}
           >
             {t.label}
             {t.count !== undefined && (
               <span
                 className={cx(
-                  "inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 text-[10px] tabular-nums",
-                  active
-                    ? "bg-foreground/10 text-foreground"
-                    : "bg-foreground/10 text-muted-foreground",
+                  "tabular-nums",
+                  !underline &&
+                    "inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-foreground/10 px-1 text-[10px]",
+                  active ? "text-foreground" : "text-muted-foreground",
                 )}
               >
                 {t.count}
@@ -180,12 +205,18 @@ export function CategoryTabs<T extends string>({
 /* ── Input ────────────────────────────────────────────────────────────────
    Hairline field: `border-foreground/20`, focus swaps to brand. Fills read
    flat (bg-card) so the hairline does the work. */
-type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
+type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "prefix" | "suffix"> & {
   label?: string;
+  /** `caps` (default) is the mono-caps field label. `sentence` swaps it for a
+   *  calmer sentence-case label, for forms where caps would shout. */
+  labelVariant?: "caps" | "sentence";
   hint?: string;
   error?: string;
-  prefix?: string;
-  suffix?: string;
+  /** Leading adornment inside the field — a currency glyph, or a Search icon.
+   *  `string` is the common case; ReactNode lets a call site drop in an icon
+   *  without hand-rolling the positioning. */
+  prefix?: ReactNode;
+  suffix?: ReactNode;
   /** `sm` matches the CategoryTabs track height (38px) for filter rows. */
   size?: "md" | "sm";
   /** Interactive control inside the field, right-aligned (e.g. Show/Hide).
@@ -195,12 +226,12 @@ type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
 };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, hint, error, className, id, prefix, suffix, trailing, size = "md", ...rest },
+  { label, labelVariant = "caps", hint, error, className, id, prefix, suffix, trailing, size = "md", ...rest },
   ref,
 ) {
   return (
     <label className="block">
-      {label && <span className={LABEL}>{label}</span>}
+      {label && <span className={labelVariant === "sentence" ? LABEL_SENTENCE : LABEL}>{label}</span>}
       <div className="relative">
         {prefix && (
           <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{prefix}</span>
@@ -214,8 +245,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
               : "h-9 w-full rounded-md border bg-card text-sm text-foreground",
             "transition-colors duration-150",
             "placeholder:text-muted-foreground",
-            prefix && "pl-7",
-            suffix && "pr-9",
+            !!prefix && "pl-8",
+            !!suffix && "pr-9",
             !!trailing && "pr-14",
             !prefix && !suffix && !trailing && (size === "sm" ? "px-4" : "px-3.5"),
             // A trailing control reserves the right side; the free left side
@@ -259,6 +290,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
    popup portals to <body> so scrolling dialogs and cards never clip it. */
 type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "size" | "onChange"> & {
   label?: string;
+  /** See `InputProps.labelVariant`. */
+  labelVariant?: "caps" | "sentence";
   error?: string;
   /** `sm` matches the CategoryTabs track height (38px) for filter rows. */
   size?: "md" | "sm";
@@ -269,6 +302,7 @@ type SelectOption = { value: string; label: string; disabled?: boolean };
 
 export function Select({
   label,
+  labelVariant = "caps",
   error,
   className,
   size = "md",
@@ -392,7 +426,7 @@ export function Select({
 
   return (
     <label className="block" htmlFor={id}>
-      {label && <span className={LABEL}>{label}</span>}
+      {label && <span className={labelVariant === "sentence" ? LABEL_SENTENCE : LABEL}>{label}</span>}
       <div ref={rootRef} className="relative">
         <button
           ref={triggerRef}
@@ -482,12 +516,17 @@ export function Select({
 }
 
 /* ── Textarea ───────────────────────────────────────────────────────────── */
-type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string; error?: string };
+type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  label?: string;
+  /** See `InputProps.labelVariant`. */
+  labelVariant?: "caps" | "sentence";
+  error?: string;
+};
 
-export function Textarea({ label, error, className, ...rest }: TextareaProps) {
+export function Textarea({ label, labelVariant = "caps", error, className, ...rest }: TextareaProps) {
   return (
     <label className="block">
-      {label && <span className={LABEL}>{label}</span>}
+      {label && <span className={labelVariant === "sentence" ? LABEL_SENTENCE : LABEL}>{label}</span>}
       <textarea
         className={cx(
           "w-full rounded-md border border-foreground/20 bg-card px-3 py-2 text-sm text-foreground hover:border-foreground/35",

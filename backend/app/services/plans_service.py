@@ -29,6 +29,26 @@ from app.schemas.plans import PlanCreate, PlanUpdate
 from app.services.audit_service import record_audit
 
 
+def _industry_for(org: Organization):
+    try:
+        return get_industry(org.industry or "gym")
+    except KeyError:
+        return get_industry("gym")
+
+
+def _validate_offer_spec(org: Organization, offer_kind: OfferKind, spec: dict) -> None:
+    """Validate a non-membership offer spec against its industry JSON Schema."""
+
+    industry = _industry_for(org)
+    try:
+        json_schema_validate(spec, industry.load_offer_schema())
+    except JsonSchemaError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid {offer_kind.value} spec: {exc.message}",
+        ) from exc
+
+
 def _resolve_offer(org: Organization, data: PlanCreate) -> tuple[OfferKind, dict | None]:
     """Determine + validate the offer kind/spec for a new plan.
 
@@ -38,10 +58,7 @@ def _resolve_offer(org: Organization, data: PlanCreate) -> tuple[OfferKind, dict
     membership columns stay authoritative).
     """
 
-    try:
-        industry = get_industry(org.industry or "gym")
-    except KeyError:
-        industry = get_industry("gym")
+    industry = _industry_for(org)
 
     offer_kind = data.offer_kind or industry.offer_kind
     if offer_kind is not industry.offer_kind:
@@ -60,13 +77,7 @@ def _resolve_offer(org: Organization, data: PlanCreate) -> tuple[OfferKind, dict
             status_code=422,
             detail=f"An {offer_kind.value} offer requires an industry spec.",
         )
-    try:
-        json_schema_validate(spec, industry.load_offer_schema())
-    except JsonSchemaError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Invalid {offer_kind.value} spec: {exc.message}",
-        ) from exc
+    _validate_offer_spec(org, offer_kind, spec)
     return offer_kind, spec
 
 
@@ -104,10 +115,13 @@ async def create_plan(
     await record_audit(session, action="plan.created", organization_id=org.id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=plan.id,
                        new_values={"name": plan.name, "offer_kind": plan.offer_kind})
+    from app.realtime import events
+
+    await events.plan_changed(org.id, plan_id=plan.id, action="created")
     return plan
 
 
-async def _get_owned_plan(session: AsyncSession, org_id: str, plan_id: str) -> MembershipPlan:
+async def get_owned_plan(session: AsyncSession, org_id: str, plan_id: str) -> MembershipPlan:
     plan = await session.get(MembershipPlan, plan_id)
     if plan is None or plan.organization_id != org_id:
         raise HTTPException(status_code=404, detail="Plan not found.")
@@ -117,10 +131,28 @@ async def _get_owned_plan(session: AsyncSession, org_id: str, plan_id: str) -> M
 async def update_plan(
     session: AsyncSession, *, org_id: str, plan_id: str, data: PlanUpdate, actor_id: str
 ) -> MembershipPlan:
-    plan = await _get_owned_plan(session, org_id, plan_id)
+    plan = await get_owned_plan(session, org_id, plan_id)
     old_price = plan.price
-    for field, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    # offer_kind/spec are not columns on the model directly; they map onto
+    # `offer_kind` + `spec_json`, so pull them out before the generic setattr.
+    spec = updates.pop("spec", None)
+    offer_kind = updates.pop("offer_kind", None)
+    for field, value in updates.items():
         setattr(plan, field, value)
+
+    if offer_kind is not None:
+        plan.offer_kind = offer_kind.value if isinstance(offer_kind, OfferKind) else str(offer_kind)
+
+    if spec is not None:
+        kind = OfferKind(plan.offer_kind or "membership")
+        if kind is OfferKind.MEMBERSHIP:
+            plan.spec_json = json.dumps(spec) if spec else None
+        else:
+            org = await session.get(Organization, org_id)
+            _validate_offer_spec(org, kind, spec)
+            plan.spec_json = json.dumps(spec)
+
     session.add(plan)
     await record_audit(
         session, action="plan.updated", organization_id=org_id, actor_user_id=actor_id,
@@ -128,13 +160,16 @@ async def update_plan(
         old_values={"price": old_price}, new_values={"price": plan.price},
         metadata={"note": "existing members keep snapshot price"},
     )
+    from app.realtime import events
+
+    await events.plan_changed(org_id, plan_id=plan.id, action="updated")
     return plan
 
 
 async def publish_plan(
     session: AsyncSession, *, org: Organization, plan_id: str, actor_id: str
 ) -> MembershipPlan:
-    plan = await _get_owned_plan(session, org.id, plan_id)
+    plan = await get_owned_plan(session, org.id, plan_id)
     plan.status = PlanStatus.PUBLISHED
     session.add(plan)
     # Unblock member signup once at least one plan is published.
@@ -152,45 +187,54 @@ async def publish_plan(
 async def set_status(
     session: AsyncSession, *, org_id: str, plan_id: str, status: PlanStatus, actor_id: str
 ) -> MembershipPlan:
-    plan = await _get_owned_plan(session, org_id, plan_id)
+    plan = await get_owned_plan(session, org_id, plan_id)
     plan.status = status
     session.add(plan)
     await record_audit(session, action=f"plan.{status.value}", organization_id=org_id,
                        actor_user_id=actor_id, entity_type="plan", entity_id=plan.id)
+    from app.realtime import events
+
+    await events.plan_changed(org_id, plan_id=plan.id, action=status.value)
     return plan
 
 
 async def archive_plan(
     session: AsyncSession, *, org_id: str, plan_id: str, replacement_plan_id: str | None, actor_id: str
 ) -> MembershipPlan:
-    plan = await _get_owned_plan(session, org_id, plan_id)
+    plan = await get_owned_plan(session, org_id, plan_id)
     if replacement_plan_id:
-        await _get_owned_plan(session, org_id, replacement_plan_id)  # validate ownership
+        await get_owned_plan(session, org_id, replacement_plan_id)  # validate ownership
         plan.replacement_plan_id = replacement_plan_id
     plan.status = PlanStatus.ARCHIVED
     session.add(plan)
     await record_audit(session, action="plan.archived", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=plan.id,
                        metadata={"replacement_plan_id": replacement_plan_id})
+    from app.realtime import events
+
+    await events.plan_changed(org_id, plan_id=plan.id, action="archived")
     return plan
 
 
 async def unarchive_plan(
     session: AsyncSession, *, org_id: str, plan_id: str, actor_id: str
 ) -> MembershipPlan:
-    plan = await _get_owned_plan(session, org_id, plan_id)
+    plan = await get_owned_plan(session, org_id, plan_id)
     plan.status = PlanStatus.DRAFT
     plan.replacement_plan_id = None
     session.add(plan)
     await record_audit(session, action="plan.unarchived", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=plan.id)
+    from app.realtime import events
+
+    await events.plan_changed(org_id, plan_id=plan.id, action="unarchived")
     return plan
 
 
 async def delete_plan(
     session: AsyncSession, *, org_id: str, plan_id: str, actor_id: str
 ) -> None:
-    plan = await _get_owned_plan(session, org_id, plan_id)
+    plan = await get_owned_plan(session, org_id, plan_id)
     active = (
         await session.execute(
             select(Subscription).where(
@@ -211,12 +255,15 @@ async def delete_plan(
                        entity_type="plan", entity_id=plan.id,
                        old_values={"name": plan.name, "status": plan.status.value})
     await session.delete(plan)
+    from app.realtime import events
+
+    await events.plan_changed(org_id, plan_id=plan_id, action="deleted")
 
 
 async def duplicate_plan(
     session: AsyncSession, *, org_id: str, plan_id: str, actor_id: str
 ) -> MembershipPlan:
-    src = await _get_owned_plan(session, org_id, plan_id)
+    src = await get_owned_plan(session, org_id, plan_id)
     copy = MembershipPlan(
         **{
             k: v for k, v in src.model_dump().items()
@@ -229,6 +276,9 @@ async def duplicate_plan(
     await session.flush()
     await record_audit(session, action="plan.duplicated", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="plan", entity_id=copy.id, metadata={"source": plan_id})
+    from app.realtime import events
+
+    await events.plan_changed(org_id, plan_id=copy.id, action="duplicated")
     return copy
 
 

@@ -126,3 +126,68 @@ async def test_list_plans_filters_by_offer_kind(client):
     assert len(r.json()) == 2
     r = await client.get("/api/v1/plans?offer_kind=course", headers=headers)
     assert r.json() == []
+
+
+@pytest.mark.asyncio
+async def test_update_plan_persists_billing_type_and_spec(client):
+    """An edit must move the core columns *and* the vertical spec. Previously
+    PlanUpdate omitted billing_type/offer_kind/spec, so those edits were
+    silently dropped and the table never changed."""
+
+    headers, _ = await _provision(client, name="Edit Hub", email="off5@p.com", industry="office")
+    r = await client.post("/api/v1/plans", headers=headers, json={
+        "name": "Hot desk", "price": 100.0, "billing_type": "recurring",
+        "offer_kind": "space",
+        "spec": {"space_type": "hot_desk", "term": "monthly", "billing": "company_invoice"},
+    })
+    assert r.status_code == 201, r.text
+    plan_id = r.json()["id"]
+
+    r = await client.patch(f"/api/v1/plans/{plan_id}", headers=headers, json={
+        "name": "Hot desk v2", "price": 120.0, "billing_type": "one_time_pack",
+        "offer_kind": "space",
+        "spec": {"space_type": "fixed_desk", "term": "annual", "billing": "company_invoice", "room_credits": 4},
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["name"] == "Hot desk v2"
+    assert body["price"] == 120.0
+    assert body["billing_type"] == "one_time_pack"
+    assert body["spec"]["space_type"] == "fixed_desk"
+    assert body["spec"]["term"] == "annual"
+    assert body["spec"]["room_credits"] == 4
+
+    # An invalid spec on update is rejected, not silently stored.
+    r = await client.patch(f"/api/v1/plans/{plan_id}", headers=headers, json={
+        "spec": {"space_type": "hot_desk", "term": "monthly"},
+    })
+    assert r.status_code == 422, r.text
+
+
+@pytest.mark.asyncio
+async def test_plan_summary_generated_and_recorded(client):
+    """The first view generates + records the AI summary; later reads reuse it."""
+
+    headers, _ = await _provision(client, name="Summary Hub", email="off6@p.com", industry="office")
+    r = await client.post("/api/v1/plans", headers=headers, json={
+        "name": "Private office", "price": 450.0, "billing_type": "recurring",
+        "offer_kind": "space",
+        "spec": {"space_type": "private_office", "term": "monthly", "billing": "company_invoice",
+                 "room_credits": 8},
+    })
+    assert r.status_code == 201, r.text
+    plan_id = r.json()["id"]
+    assert r.json()["summary"] is None
+
+    r = await client.post(f"/api/v1/plans/{plan_id}/summary", headers=headers)
+    assert r.status_code == 200, r.text
+    summary = r.json()["summary"]
+    assert summary and summary.strip()
+
+    # Recorded — a second view returns the same text rather than regenerating.
+    again = await client.post(f"/api/v1/plans/{plan_id}/summary", headers=headers)
+    assert again.json()["summary"] == summary
+
+    # And it now rides along on the list.
+    listed = await client.get("/api/v1/plans", headers=headers)
+    assert listed.json()[0]["summary"] == summary

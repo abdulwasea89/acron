@@ -1,28 +1,75 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
-import { Dialog } from "@/components/Dialog";
+import { Fragment, useCallback, useEffect, useState, useMemo, type ReactNode } from "react";
 import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar, Textarea } from "@/components/ui";
+import { useAssistantHint } from "@/components/assistant/AssistantDock";
+import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Spinner, Textarea } from "@/components/ui";
+import {
+  Select as RadixSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { OrganizationOut, PlanOut } from "@/lib/types";
 import { getIndustry } from "@/lib/industries";
 
+/* ── Icons ────────────────────────────────────────────────────────────────
+   One stroke voice for every glyph on the page. Sizing is left to the
+   consumer: the row menu sets 16px, the header kebab 16px, the toolbar search
+   14px. */
+function Glyph({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
+
 function KebabIcon() {
   return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
-    </svg>
+    <Glyph className="h-4 w-4">
+      <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19" r="1" fill="currentColor" stroke="none" />
+    </Glyph>
   );
 }
 
 function SearchIcon() {
   return (
-    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph className="h-3.5 w-3.5">
       <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-    </svg>
+    </Glyph>
   );
 }
 
@@ -34,159 +81,205 @@ function StarIcon() {
   );
 }
 
-type MenuAction = { label: string; icon: string; onClick: () => void; danger?: boolean };
-
-function KebabMenu({ actions }: { actions: MenuAction[] }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ left: 0, top: 0 });
-  const menuRef = useRef<HTMLDivElement>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  function toggle() {
-    if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const flipUp = spaceBelow < 140;
-      setPos({
-        left: Math.max(8, rect.right - 130),
-        top: flipUp ? rect.top - 4 : rect.bottom + 4,
-      });
-    }
-    setOpen((s) => !s);
-  }
-
+function CloseIcon() {
   return (
-    <div ref={menuRef} className="relative inline-block">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={toggle}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-      >
-        <KebabIcon />
-      </button>
-      {open && (
-        <div
-          style={{ left: pos.left, top: pos.top, position: "fixed" }}
-          className="z-50 min-w-[140px] animate-pop-in overflow-hidden rounded-lg border border-[var(--border)] bg-popover p-1 shadow-lg shadow-black/10"
-        >
-          {actions.map((a) => (
-            <button
-              key={a.label}
-              type="button"
-              onClick={() => { setOpen(false); a.onClick(); }}
-              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] transition-colors ${
-                a.danger
-                  ? "text-danger hover:bg-danger-bg"
-                  : "text-foreground hover:bg-foreground/[0.06]"
-              }`}
-            >
-              {a.icon === "publish" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                </svg>
-              )}
-              {a.icon === "pause" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="14" y="4" width="4" height="16" rx="1" /><rect x="6" y="4" width="4" height="16" rx="1" />
-                </svg>
-              )}
-              {a.icon === "play" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="5 3 19 12 5 21 5 3" />
-                </svg>
-              )}
-              {a.icon === "edit" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 16.604a4.5 4.5 0 01-1.897 1.13L4 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                </svg>
-              )}
-              {a.icon === "view" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              )}
-              {a.icon === "copy" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
-              )}
-              {a.icon === "archive" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="3" width="20" height="5" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" />
-                </svg>
-              )}
-              {a.icon === "unarchive" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="3" width="20" height="5" rx="1" /><path d="M8 8v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /><path d="M12 2l-3 3h6l-3-3z" />
-                </svg>
-              )}
-              {a.icon === "trash" && (
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
-                </svg>
-              )}
-              {a.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Glyph className="h-4 w-4">
+      <path d="M6 18L18 6M6 6l12 12" />
+    </Glyph>
   );
 }
 
+function ExpandIcon() {
+  return (
+    <Glyph className="h-4 w-4">
+      <path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" />
+    </Glyph>
+  );
+}
+
+function CollapseIcon() {
+  return (
+    <Glyph className="h-4 w-4">
+      <path d="M4 14h6v6" /><path d="M20 10h-6V4" /><path d="M14 10l7-7" /><path d="M3 21l7-7" />
+    </Glyph>
+  );
+}
+
+/* Small muted glyphs that lead each field row in the view panel, mirroring the
+   record-panel rhythm: icon, label, value. */
+const SparkleIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /></Glyph>
+);
+const IdIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 9h8M8 13h5" /></Glyph>
+);
+const LayersIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><path d="M12 2l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /></Glyph>
+);
+const TagIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" /><path d="M7 7h.01" /></Glyph>
+);
+const RepeatIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></Glyph>
+);
+const GlobeIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z" /></Glyph>
+);
+const StatusIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><circle cx="12" cy="12" r="9" /></Glyph>
+);
+const TextIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><path d="M4 6h16M4 12h16M4 18h10" /></Glyph>
+);
+const BuildingIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" /><path d="M9 8h6M9 12h6M9 16h4" /></Glyph>
+);
+const CalendarIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></Glyph>
+);
+const DoorIcon = () => (
+  <Glyph className="h-3.5 w-3.5"><path d="M13 4h3a2 2 0 0 1 2 2v14" /><path d="M2 20h20" /><path d="M5 20V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v14" /><circle cx="11" cy="12" r="1" /></Glyph>
+);
+
+const PublishIcon = () => (
+  <Glyph className="h-4 w-4">
+    <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+  </Glyph>
+);
+const PauseIcon = () => (
+  <Glyph className="h-4 w-4"><rect x="14" y="4" width="4" height="16" rx="1" /><rect x="6" y="4" width="4" height="16" rx="1" /></Glyph>
+);
+const PlayIcon = () => (
+  <Glyph className="h-4 w-4"><polygon points="5 3 19 12 5 21 5 3" /></Glyph>
+);
+const ViewIcon = () => (
+  <Glyph className="h-4 w-4">
+    <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </Glyph>
+);
+const EditIcon = () => (
+  <Glyph className="h-4 w-4">
+    <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 16.604a4.5 4.5 0 01-1.897 1.13L4 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+  </Glyph>
+);
+const CopyIcon = () => (
+  <Glyph className="h-4 w-4"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></Glyph>
+);
+const ArchiveIcon = () => (
+  <Glyph className="h-4 w-4"><rect x="2" y="3" width="20" height="5" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></Glyph>
+);
+const UnarchiveIcon = () => (
+  <Glyph className="h-4 w-4"><rect x="2" y="3" width="20" height="5" rx="1" /><path d="M8 8v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /><path d="M12 2l-3 3h6l-3-3z" /></Glyph>
+);
+const TrashIcon = () => (
+  <Glyph className="h-4 w-4"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></Glyph>
+);
+
+type RowAction = {
+  label: string;
+  icon: ReactNode;
+  onSelect: () => void;
+  variant?: "default" | "destructive";
+};
+
+/* Row actions. Radix owns placement, flip/shift, focus return, Escape and
+   outside-press — the hand-rolled fixed-position popover did not. It portals
+   to <body>, so the table's horizontal scroller can never clip it. A separator
+   is inserted automatically before the first destructive run (Archive/Delete),
+   which keeps the shape right regardless of which status actions are present. */
+function RowMenu({ actions }: { actions: RowAction[] }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Row actions"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground data-[state=open]:bg-foreground/[0.06] data-[state=open]:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
+        >
+          <KebabIcon />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6} className="w-44">
+        {actions.map((a, i) => (
+          <Fragment key={a.label}>
+            {a.variant === "destructive" && i > 0 && actions[i - 1]?.variant !== "destructive" && (
+              <DropdownMenuSeparator />
+            )}
+            <DropdownMenuItem variant={a.variant} onSelect={a.onSelect}>
+              {a.icon}
+              {a.label}
+            </DropdownMenuItem>
+          </Fragment>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/* Cell glyphs read as metadata, so they inherit the cell's own color rather
+   than carrying a hue of their own — the status dot is the only thing in a row
+   allowed to be colored. */
 function BillingIcon({ type }: { type: string }) {
   if (type === "recurring") {
     return (
-      <svg className="h-3.5 w-3.5 text-[var(--info)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Glyph className="h-3.5 w-3.5">
         <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-      </svg>
+      </Glyph>
     );
   }
   if (type === "one_time_pack") {
     return (
-      <svg className="h-3.5 w-3.5 text-[var(--success)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Glyph className="h-3.5 w-3.5">
         <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" /><path d="M7 7h.01" />
-      </svg>
+      </Glyph>
     );
   }
   return (
-    <svg className="h-3.5 w-3.5 text-[var(--warning)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph className="h-3.5 w-3.5">
       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
-    </svg>
+    </Glyph>
   );
 }
 
 function VisibilityIcon({ type }: { type: string }) {
   if (type === "public") {
     return (
-      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Glyph className="h-3.5 w-3.5">
         <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" /><line x1="21.17" y1="8" x2="12" y2="8" /><line x1="3.95" y1="6.06" x2="8.54" y2="14" /><line x1="10.88" y1="21.94" x2="15.46" y2="14" />
-      </svg>
+      </Glyph>
     );
   }
   if (type === "members_only") {
     return (
-      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Glyph className="h-3.5 w-3.5">
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
-      </svg>
+      </Glyph>
     );
   }
   return (
-    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph className="h-3.5 w-3.5">
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
+    </Glyph>
   );
 }
+
+/** What the price is *per*, so the number in the Price column is not bare. */
+function cadence(billingType: string): string {
+  if (billingType === "recurring") return "/month";
+  if (billingType === "one_time_pack") return "one-time";
+  return "per visit";
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  published: "Published",
+  paused: "Paused",
+  archived: "Archived",
+};
+
+/* Column widths. The table is borderless, so nothing holds the columns in a
+   grid except these and the shared horizontal padding — see the header row. */
+const CELL = "px-4 align-middle";
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<PlanOut[] | null>(null);
@@ -196,6 +289,7 @@ export default function PlansPage() {
   const [filter, setFilter] = useState<"active" | "archived">("active");
   const [search, setSearch] = useState("");
   const [viewing, setViewing] = useState<PlanOut | null>(null);
+  const [viewExpanded, setViewExpanded] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [industry, setIndustry] = useState<string>("gym");
 
@@ -223,6 +317,21 @@ export default function PlansPage() {
   }, []);
 
   useRealtimeEvent(["plan.changed"], () => void load());
+
+  const ind = getIndustry(industry);
+  const isGym = ind.key === "gym";
+  const isOffice = ind.key === "office";
+  const canBuild = isGym || isOffice; // academy offer builder is still rolling out
+
+  // Tell the assistant panel what this page is about, so its prompt field asks
+  // a question this page can actually answer.
+  useAssistantHint(
+    isOffice
+      ? "Ask about your space plans…"
+      : isGym
+        ? "Ask about your membership plans…"
+        : `Ask about your ${ind.label} plans…`,
+  );
 
   async function act(id: string, action: string) {
     setError("");
@@ -266,10 +375,16 @@ export default function PlansPage() {
     );
   }, [statusFiltered, search]);
 
-  const ind = getIndustry(industry);
-  const isGym = ind.key === "gym";
-  const isOffice = ind.key === "office";
-  const canBuild = isGym || isOffice; // academy offer builder is still rolling out
+  const newPlan = () => { setEditing(null); setShowForm(true); };
+  const openPlan = (p: PlanOut) => { setViewExpanded(false); setViewing(p); };
+
+  // Fold a freshly generated summary back into the list so reopening the same
+  // plan (or a realtime reload) does not trigger the model again.
+  const mergeSummary = useCallback((updated: PlanOut) => {
+    setPlans((prev) =>
+      prev ? prev.map((p) => (p.id === updated.id ? { ...p, summary: updated.summary } : p)) : prev,
+    );
+  }, []);
 
   return (
     <>
@@ -278,7 +393,7 @@ export default function PlansPage() {
         subtitle={ind.offerPageSubtitle}
         action={
           canBuild ? (
-            <Button onClick={() => { setEditing(null); setShowForm(true); }}>
+            <Button onClick={newPlan}>
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
               {ind.offerNewLabel}
             </Button>
@@ -286,256 +401,294 @@ export default function PlansPage() {
         }
       />
 
-      {error && <div className="mb-5"><Alert>{error}</Alert></div>}
+      {error && <div className="mb-6"><Alert>{error}</Alert></div>}
 
-      <Dialog open={showForm} onClose={() => { setShowForm(false); setEditing(null); }} title={editing ? "Edit plan" : "Create plan"} subtitle={editing ? "Update plan details" : "Saved as a draft — publish it when ready"} className="max-w-xl">
-        <PlanForm plan={editing} industryKey={ind.key} onCreated={() => { setShowForm(false); setEditing(null); load(); }} />
-      </Dialog>
+      {/* Create / edit lives in a right-side Sheet, not a centred modal. The
+          form is long and it is about the table behind it; a sheet keeps the
+          workspace visible and reads as "adding something to Space Plans"
+          rather than "leaving the page". Header and footer stay put, only the
+          body scrolls. */}
+      <Sheet
+        open={showForm}
+        onOpenChange={(open) => {
+          if (!open) { setShowForm(false); setEditing(null); }
+        }}
+      >
+        <SheetContent>
+          <PlanForm
+            key={editing?.id ?? "new"}
+            plan={editing}
+            industryKey={ind.key}
+            onCreated={() => { setShowForm(false); setEditing(null); load(); }}
+          />
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={deleteId !== null} onClose={() => setDeleteId(null)} title="Delete plan" className="max-w-sm">
-        <p className="text-sm text-[var(--foreground-muted)] mb-6">
-          Are you sure you want to delete <strong className="text-[var(--foreground)]">{deleting?.name}</strong>?
-          {deleting && plans?.some((p) => p.status === "archived") && (
-            <span className="block mt-2">This action cannot be undone.</span>
+      {/* Destructive confirmation stays a centred AlertDialog: deletion is a
+          question with two answers, and it should stop you. Being a Radix
+          AlertDialog, outside-press and Escape deliberately do nothing. */}
+      <AlertDialog
+        open={deleteId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteId(null); }}
+      >
+        <AlertDialogContent>
+          <div className="flex items-start justify-between gap-4">
+            <AlertDialogTitle>Delete plan</AlertDialogTitle>
+            <AlertDialogCancel asChild>
+              <button
+                type="button"
+                aria-label="Close"
+                className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
+              >
+                <CloseIcon />
+              </button>
+            </AlertDialogCancel>
+          </div>
+          <AlertDialogDescription className="mt-3">
+            <span className="block text-[13px] font-medium text-foreground">
+              Delete “{deleting?.name}”?
+            </span>
+            <span className="mt-1 block">
+              This action cannot be undone. The plan will be permanently removed.
+            </span>
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" onClick={confirmDelete}>Delete plan</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Detail view rides in a sheet too, so View, Edit and the row's ⋮ menu
+          all open the same surface beside the table instead of a modal that
+          hides it. */}
+      <Sheet
+        open={!!viewing}
+        onOpenChange={(open) => { if (!open) setViewing(null); }}
+      >
+        <SheetContent className={viewExpanded ? "[--sheet-max-w:768px]" : "[--sheet-max-w:520px]"}>
+          {viewing && (
+            <PlanView
+              key={viewing.id}
+              plan={viewing}
+              expanded={viewExpanded}
+              onToggleExpand={() => setViewExpanded((v) => !v)}
+              onEdit={() => { setViewing(null); setEditing(viewing); setShowForm(true); }}
+              onUpdated={mergeSummary}
+            />
           )}
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
-          <Button variant="danger" onClick={confirmDelete}>Delete plan</Button>
-        </div>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Detail view dialog */}
-      <Dialog open={!!viewing} onClose={() => setViewing(null)} title={viewing?.name ?? ""} subtitle="Plan details">
-        {viewing && (
-          <div className="space-y-5">
-            {viewing.public_description && (
-              <div>
-                <span className="mb-1.5 block text-[12px] font-medium text-[var(--foreground)]">Description</span>
-                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--foreground-muted)]">{viewing.public_description}</p>
-              </div>
-            )}
-            {viewing.offer_kind && viewing.offer_kind !== "membership" && (
-              <div className="rounded-lg border border-info/45 px-3.5 py-3">
-                <span className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-info">
-                  {titleCase(viewing.offer_kind)} offer attributes
-                </span>
-                {viewing.spec && Object.keys(viewing.spec).length > 0 ? (
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                    {Object.entries(viewing.spec).map(([k, v]) => (
-                      <div key={k} className="min-w-0">
-                        <dt className="text-[10px] font-medium text-[var(--muted)]">{titleCase(k)}</dt>
-                        <dd className="break-words text-sm text-[var(--foreground)]">
-                          {typeof v === "object" && v !== null ? JSON.stringify(v) : String(v)}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : (
-                  <p className="text-xs text-[var(--muted)]">No spec captured for this offer.</p>
-                )}
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Price</span>
-                <span className="text-sm font-semibold text-[var(--foreground)]">{money(viewing.price, viewing.currency)}</span>
-              </div>
-              <div>
-                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Billing</span>
-                <span className="text-sm text-[var(--foreground-muted)]">{titleCase(viewing.billing_type)}</span>
-              </div>
-              <div>
-                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Visibility</span>
-                <span className="text-sm text-[var(--foreground-muted)]">{titleCase(viewing.visibility)}</span>
-              </div>
-              <div>
-                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Status</span>
-                <Badge tone={statusTone(viewing.status)}>{titleCase(viewing.status)}</Badge>
-              </div>
-            </div>
-            {viewing.featured && (
-              <Badge tone="warning"><StarIcon /> Featured</Badge>
-            )}
-            <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4">
-              <Button variant="secondary" onClick={() => { setViewing(null); setEditing(viewing); setShowForm(true); }}>Edit</Button>
-              <Button variant="ghost" onClick={() => setViewing(null)}>Close</Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
+      {/* Toolbar: the view switcher on the left, search on the right. There is
+          no second heading here — the page title above already named this list,
+          and stacking an "Offers" label under "Space plans" made two headings
+          for one thing. */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <CategoryTabs
+          variant="underline"
+          tabs={[
+            {
+              value: "active" as const,
+              label: "Active",
+              count: plans?.filter((p) => p.status !== "archived").length,
+            },
+            {
+              value: "archived" as const,
+              label: "Archived",
+              count: plans?.filter((p) => p.status === "archived").length,
+            },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
+        <Input
+          placeholder="Search plans…"
+          aria-label="Search plans"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          prefix={<SearchIcon />}
+          className="w-full sm:w-[280px]"
+        />
+      </div>
 
-      <TableToolbar
-        title={isGym ? "Membership plans" : "Offers"}
-        subtitle={
-          filtered
-            ? `${filtered.length} ${filter === "archived" ? "archived" : "active"}`
-            : undefined
-        }
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <Input
-              placeholder="Search…"
-              aria-label="Search plans"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              size="sm"
-              className="w-[150px]"
-            />
-            <CategoryTabs
-              className="shrink-0"
-              tabs={[
-                {
-                  value: "active" as const,
-                  label: "Active",
-                  count: plans?.filter((p) => p.status !== "archived").length,
-                },
-                {
-                  value: "archived" as const,
-                  label: "Archived",
-                  count: plans?.filter((p) => p.status === "archived").length,
-                },
-              ]}
-              value={filter}
-              onChange={setFilter}
-            />
-          </div>
-        }
-      />
-
-      {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="border border-foreground/10 bg-card">
+      {/* Flat workspace, not a card: no outer border, no header rule, no
+          per-row boxes. Rows are held together by a single hairline under each
+          one and by the shared column rhythm — the eye should read rows, not
+          cells. */}
+      <div className="mt-3 overflow-x-auto">
         {filtered === null ? (
           <Spinner label="Loading offers..." />
-        ) : filtered.length === 0 && filter === "active" && plans?.length === 0 ? (
-          <div className="px-5 pb-10">
-            {isGym ? (
+        ) : filtered.length === 0 ? (
+          filter === "active" && plans?.length === 0 ? (
+            isGym ? (
               <EmptyState
                 title="No plans yet"
-                hint="Create your first plan — members can't sign up until one is published."
+                hint={"Create your first plan — members can’t sign up until one is published."}
                 icon={<span className="flex h-10 w-10 items-center justify-center rounded-md bg-brand/10 text-brand"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg></span>}
-                action={
-                  <Button onClick={() => setShowForm(true)} size="lg">
-                    + Create your first plan
-                  </Button>
-                }
+                action={<Button onClick={newPlan} size="lg">+ Create your first plan</Button>}
               />
             ) : isOffice ? (
               <EmptyState
                 title="No space plans yet"
                 hint="Publish a space plan so companies can sign seat contracts and get billed."
                 icon={<span className="flex h-10 w-10 items-center justify-center rounded-md bg-brand/10 text-brand"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18" /><path d="M9 7h6M9 11h6M9 15h4" /></svg></span>}
-                action={
-                  <Button onClick={() => setShowForm(true)} size="lg">
-                    + Create your first space plan
-                  </Button>
-                }
+                action={<Button onClick={newPlan} size="lg">+ Create your first space plan</Button>}
               />
             ) : (
               <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-                <p className="text-sm font-semibold text-[var(--foreground)]">
+                <p className="text-sm font-semibold text-foreground">
                   No {ind.offerKind} offers yet
                 </p>
-                <p className="mt-1 max-w-xs text-sm text-[var(--muted)]">
-                  The {ind.label} offer builder is rolling out in an upcoming release. Your venue's offers will appear here.
+                <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                  The {ind.label} offer builder is rolling out in an upcoming release. Your venue’s offers will appear here.
                 </p>
               </div>
-            )}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="px-5 pb-10">
+            )
+          ) : (
             <EmptyState
               title={search ? `No plans matching "${search}"` : `No ${filter} plans`}
               hint={search ? "Try a different name." : filter === "archived" ? "Archive a plan to see it here." : undefined}
-              icon={<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--background)] text-[var(--muted)]"><SearchIcon /></span>}
+              icon={<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-background text-muted-foreground"><SearchIcon /></span>}
             />
-          </div>
+          )
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-5 py-3 font-medium">Name</th>
-                  <th className="px-5 py-3 font-medium">Price</th>
-                  <th className="px-5 py-3 font-medium">Billing</th>
-                  <th className="px-5 py-3 font-medium">Visibility</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {filtered.map((p) => (
-                  <tr key={p.id} className="group transition-colors hover:bg-[var(--background)]/50">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <button type="button" onClick={() => setViewing(p)} className="max-w-[260px] truncate font-medium text-[var(--foreground)] hover:underline">{p.name}</button>
-                            {p.featured && (
-                              <Badge tone="warning"><StarIcon /> Featured</Badge>
-                            )}
-                            {p.offer_kind && p.offer_kind !== "membership" && (
-                              <Badge tone="info">{titleCase(p.offer_kind)}</Badge>
-                            )}
-                          </div>
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <th className="pb-3 pr-4 font-medium">Name</th>
+                <th className={CELL + " pb-3 font-medium"}>Price</th>
+                <th className={CELL + " pb-3 font-medium"}>Billing</th>
+                <th className={CELL + " pb-3 font-medium"}>Visibility</th>
+                <th className={CELL + " pb-3 font-medium"}>Status</th>
+                <th className="w-10 pb-3 pl-4" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((p) => (
+                <tr
+                  key={p.id}
+                  onClick={() => openPlan(p)}
+                  className="group cursor-pointer border-b border-foreground/[0.06] transition-colors last:border-0 hover:bg-foreground/[0.02]"
+                >
+                  <td className="py-2.5 pr-4 align-middle">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openPlan(p); }}
+                          className="max-w-[280px] cursor-pointer truncate rounded-sm text-left text-[13px] font-medium leading-5 text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
+                        >
+                          {p.name}
+                        </button>
+                        {p.featured && <span className="shrink-0 text-warning"><StarIcon /></span>}
+                      </div>
+                      <div className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground">
+                        {titleCase(p.offer_kind ?? "membership")}
+                      </div>
+                    </div>
+                  </td>
 
-                        </div>
+                  <td className={CELL + " py-2.5"}>
+                    <div className="tabular-nums">
+                      <div className="text-[13px] font-medium leading-5 text-foreground">
+                        {money(p.price, p.currency)}
                       </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="tabular-nums font-semibold text-[var(--foreground)]">{money(p.price, p.currency)}</div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
-                        <BillingIcon type={p.billing_type} />
-                        <span>{titleCase(p.billing_type)}</span>
+                      <div className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                        {cadence(p.billing_type)}
                       </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
-                        <VisibilityIcon type={p.visibility} />
-                        <span>{titleCase(p.visibility)}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Badge tone={statusTone(p.status)}>
-                        {p.status === "draft" ? "Draft" : p.status === "published" ? "Published" : titleCase(p.status)}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <KebabMenu
+                    </div>
+                  </td>
+
+                  <td className={CELL + " py-2.5"}>
+                    <span className="flex items-center gap-1.5 whitespace-nowrap text-[13px] leading-5 text-foreground">
+                      <span className="text-muted-foreground"><BillingIcon type={p.billing_type} /></span>
+                      {titleCase(p.billing_type)}
+                    </span>
+                  </td>
+
+                  <td className={CELL + " py-2.5"}>
+                    <span className="flex items-center gap-1.5 whitespace-nowrap text-[13px] leading-5 text-muted-foreground">
+                      <VisibilityIcon type={p.visibility} />
+                      {titleCase(p.visibility)}
+                    </span>
+                  </td>
+
+                  <td className={CELL + " py-2.5"}>
+                    <Badge tone={statusTone(p.status)}>
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+                      {STATUS_LABEL[p.status] ?? titleCase(p.status)}
+                    </Badge>
+                  </td>
+
+                  <td className="py-2.5 pl-4 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-end opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+                      <RowMenu
                         actions={[
                           ...(p.status !== "archived"
                             ? [
                                 ...(p.status === "draft"
-                                  ? [{ label: "Publish", icon: "publish", onClick: () => act(p.id, "publish") }]
+                                  ? [{ label: "Publish", icon: <PublishIcon />, onSelect: () => act(p.id, "publish") }]
                                   : []),
                                 ...(p.status === "published"
-                                  ? [{ label: "Pause", icon: "pause", onClick: () => act(p.id, "pause") }]
+                                  ? [{ label: "Pause", icon: <PauseIcon />, onSelect: () => act(p.id, "pause") }]
                                   : []),
                                 ...(p.status === "paused"
-                                  ? [{ label: "Resume", icon: "play", onClick: () => act(p.id, "resume") }]
+                                  ? [{ label: "Resume", icon: <PlayIcon />, onSelect: () => act(p.id, "resume") }]
                                   : []),
                               ]
                             : []),
-                          { label: "View", icon: "view", onClick: () => setViewing(p) },
-                          { label: "Edit", icon: "edit", onClick: () => { setEditing(p); setShowForm(true); } },
-                          { label: "Duplicate", icon: "copy", onClick: () => act(p.id, "duplicate") },
+                          { label: "View", icon: <ViewIcon />, onSelect: () => openPlan(p) },
+                          { label: "Edit", icon: <EditIcon />, onSelect: () => { setEditing(p); setShowForm(true); } },
+                          { label: "Duplicate", icon: <CopyIcon />, onSelect: () => act(p.id, "duplicate") },
                           ...(p.status !== "archived"
-                            ? [{ label: "Archive", icon: "archive", onClick: () => act(p.id, "archive"), danger: true }]
-                            : [{ label: "Unarchive", icon: "unarchive", onClick: () => act(p.id, "unarchive") }]),
-                          { label: "Delete", icon: "trash", onClick: () => setDeleteId(p.id), danger: true },
+                            ? [{ label: "Archive", icon: <ArchiveIcon />, onSelect: () => act(p.id, "archive"), variant: "destructive" as const }]
+                            : [{ label: "Unarchive", icon: <UnarchiveIcon />, onSelect: () => act(p.id, "unarchive") }]),
+                          { label: "Delete", icon: <TrashIcon />, onSelect: () => setDeleteId(p.id), variant: "destructive" as const },
                         ]}
                       />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </>
+  );
+}
+
+/* A labelled Radix Select. The in-house `ui/Select` portals its listbox to
+   <body>, which a Radix dialog (the Sheet) makes inert by setting
+   `pointer-events: none` on the body — so its options could not be clicked
+   inside the sheet. The Radix-based Select composes as a nested layer, so it
+   stays interactive and keeps the sheet open. */
+function FieldSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <span className="mb-1.5 block text-[13px] font-medium text-foreground">{label}</span>
+      <RadixSelect value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-9 w-full rounded-md border border-foreground/20 bg-card px-3 text-sm text-foreground outline-none transition-colors hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>{children}</SelectContent>
+      </RadixSelect>
+    </div>
   );
 }
 
@@ -590,67 +743,278 @@ function PlanForm({ plan, industryKey = "gym", onCreated }: { plan?: PlanOut | n
     }
   }
 
+  /* `display: contents` lets the <form> own submit while its children stay the
+     Sheet's direct flex items — so SheetBody scrolls and SheetFooter's mt-auto
+     still pins the actions to the bottom. The fields sit in one calm column;
+     only Billing type + Visibility share a row, because that pair is genuinely
+     a two-up choice and stacking everything else just made the sheet top-heavy. */
   return (
-    <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
-      {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
+    <form onSubmit={submit} className="contents">
+      <SheetHeader className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <SheetTitle>{plan ? "Edit plan" : "Create plan"}</SheetTitle>
+          <SheetDescription>
+            {plan ? "Update plan details" : "Saved as a draft — publish it when ready"}
+          </SheetDescription>
+        </div>
+        <SheetClose asChild>
+          <button
+            type="button"
+            aria-label="Close"
+            className="-mr-1 -mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
+          >
+            <CloseIcon />
+          </button>
+        </SheetClose>
+      </SheetHeader>
 
-      <Input label={isOffice ? "Space plan name" : "Plan name"} required value={name} onChange={(e) => setName(e.target.value)} placeholder={isOffice ? "Fixed Desk" : "Monthly Unlimited"} />
+      <SheetBody className="space-y-5">
+        {error && <Alert>{error}</Alert>}
 
-      <Input label={isOffice ? "Price / seat / term" : "Price"} type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
-
-      {isOffice && (
-        <>
-          <Select label="Space type" value={spaceType} onChange={(e) => setSpaceType(e.target.value)}>
-            <option value="hot_desk">Hot desk</option>
-            <option value="fixed_desk">Fixed desk</option>
-            <option value="private_office">Private office</option>
-            <option value="meeting_room">Meeting room</option>
-            <option value="day_pass">Day pass</option>
-          </Select>
-          <Select label="Billing term" value={term} onChange={(e) => setTerm(e.target.value)}>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="annual">Annual</option>
-          </Select>
-          <div className="sm:col-span-2">
-            <Input label="Room credits per term (optional)" type="number" min="0" value={roomCredits} onChange={(e) => setRoomCredits(e.target.value)} />
-          </div>
-          <p className="text-xs text-[var(--muted)] sm:col-span-2">
-            Companies are billed by invoice each {term} term; the price above is per seat per term.
-          </p>
-        </>
-      )}
-
-      <Select label="Billing type" value={billing} onChange={(e) => setBilling(e.target.value)}>
-        <option value="recurring">Recurring</option>
-        <option value="one_time_pack">One-time pack</option>
-        <option value="drop_in">Drop-in</option>
-      </Select>
-
-      <Select label="Visibility" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
-        <option value="public">Public</option>
-        <option value="members_only">Members only</option>
-        <option value="invite_only">Invite only</option>
-      </Select>
-
-      <div className="sm:col-span-2">
-        <Textarea label="Public description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={isOffice ? "What companies see when choosing a plan" : "What members see on the signup screen"} rows={3} />
-      </div>
-
-      <div className="sm:col-span-2 flex items-center gap-2">
-        <input
-          id="featured"
-          type="checkbox"
-          checked={featured}
-          onChange={(e) => setFeatured(e.target.checked)}
-          className="h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--primary)] accent-[var(--primary)]"
+        <Input
+          labelVariant="sentence"
+          label={isOffice ? "Space plan name" : "Plan name"}
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={isOffice ? "Fixed Desk" : "Monthly Unlimited"}
         />
-        <label htmlFor="featured" className="text-sm text-[var(--foreground)] cursor-pointer">Featured plan</label>
-      </div>
 
-      <div className="sm:col-span-2 flex justify-end gap-2 border-t border-[var(--border)] pt-5">
-        <Button type="submit" loading={loading} size="lg">{plan ? "Save changes" : "Save draft"}</Button>
-      </div>
+        <Input
+          labelVariant="sentence"
+          label={isOffice ? "Price per seat / term" : "Price"}
+          type="number"
+          min="0"
+          step="0.01"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          hint={isOffice ? "Companies are billed by invoice; the price above is per seat per term." : undefined}
+        />
+
+        {isOffice && (
+          <>
+            <FieldSelect label="Space type" value={spaceType} onChange={setSpaceType}>
+              <SelectItem value="hot_desk">Hot desk</SelectItem>
+              <SelectItem value="fixed_desk">Fixed desk</SelectItem>
+              <SelectItem value="private_office">Private office</SelectItem>
+              <SelectItem value="meeting_room">Meeting room</SelectItem>
+              <SelectItem value="day_pass">Day pass</SelectItem>
+            </FieldSelect>
+
+            <FieldSelect label="Billing term" value={term} onChange={setTerm}>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="quarterly">Quarterly</SelectItem>
+              <SelectItem value="annual">Annual</SelectItem>
+            </FieldSelect>
+
+            <Input
+              labelVariant="sentence"
+              label="Room credits per term"
+              type="number"
+              min="0"
+              value={roomCredits}
+              onChange={(e) => setRoomCredits(e.target.value)}
+              hint="Optional — meeting-room credits included with each term."
+            />
+          </>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <FieldSelect label="Billing type" value={billing} onChange={setBilling}>
+            <SelectItem value="recurring">Recurring</SelectItem>
+            <SelectItem value="one_time_pack">One-time pack</SelectItem>
+            <SelectItem value="drop_in">Drop-in</SelectItem>
+          </FieldSelect>
+
+          <FieldSelect label="Visibility" value={visibility} onChange={setVisibility}>
+            <SelectItem value="public">Public</SelectItem>
+            <SelectItem value="members_only">Members only</SelectItem>
+            <SelectItem value="invite_only">Invite only</SelectItem>
+          </FieldSelect>
+        </div>
+
+        <Textarea
+          labelVariant="sentence"
+          label="Public description"
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          placeholder={isOffice ? "What companies see when choosing a plan" : "What members see on the signup screen"}
+          rows={4}
+        />
+
+        <label className="flex items-center gap-2.5 text-[13px] text-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            checked={featured}
+            onChange={(e) => setFeatured(e.target.checked)}
+            className="h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--primary)] accent-[var(--primary)]"
+          />
+          Featured plan
+        </label>
+      </SheetBody>
+
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">Cancel</Button>
+        </SheetClose>
+        <Button type="submit" loading={loading}>{plan ? "Save changes" : "Save draft"}</Button>
+      </SheetFooter>
     </form>
+  );
+}
+
+/* Read-only counterpart to PlanForm, shaped like a CRM record panel: a header
+   with corner icon buttons, one column of icon-led field rows, and the
+   AI-written plan summary at the foot. */
+function FieldRow({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 py-2.5">
+      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">{icon}</span>
+      <span className="w-24 shrink-0 pt-px text-[13px] text-muted-foreground">{label}</span>
+      <span className="min-w-0 flex-1 text-[13px] leading-5 text-foreground">{children}</span>
+    </div>
+  );
+}
+
+function PlanView({
+  plan,
+  expanded,
+  onToggleExpand,
+  onEdit,
+  onUpdated,
+}: {
+  plan: PlanOut;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onEdit: () => void;
+  onUpdated: (plan: PlanOut) => void;
+}) {
+  const [summary, setSummary] = useState(plan.summary ?? "");
+  const [loadingSummary, setLoadingSummary] = useState(!plan.summary);
+  const [summaryError, setSummaryError] = useState("");
+
+  // Generate on open, then record it on the plan. Later opens read the stored
+  // text straight off the list payload, so the model runs at most once. The
+  // component is keyed by plan id, so initial state already reflects `plan`.
+  useEffect(() => {
+    if (plan.summary) return;
+    let cancelled = false;
+    api
+      .post<PlanOut>(`/plans/${plan.id}/summary`)
+      .then((updated) => {
+        if (cancelled) return;
+        setSummary(updated.summary ?? "");
+        onUpdated(updated);
+      })
+      .catch((e) => {
+        if (!cancelled) setSummaryError((e as ApiError).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSummary(false);
+      });
+    return () => { cancelled = true; };
+  }, [plan.id, plan.summary, onUpdated]);
+
+  const spec = plan.spec ?? {};
+  const isSpace = !!plan.offer_kind && plan.offer_kind !== "membership";
+  const statusLabel = STATUS_LABEL[plan.status] ?? titleCase(plan.status);
+
+  return (
+    <>
+      <SheetHeader className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <SheetTitle className="text-[17px]">{plan.name}</SheetTitle>
+          <SheetDescription>
+            {titleCase(plan.offer_kind ?? "membership")} offer · {statusLabel}
+          </SheetDescription>
+          {plan.featured && (
+            <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-warning">
+              <StarIcon /> Featured
+            </span>
+          )}
+        </div>
+        <div className="-mr-1 flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            aria-label={expanded ? "Collapse panel" : "Expand panel"}
+            onClick={onToggleExpand}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
+          >
+            {expanded ? <CollapseIcon /> : <ExpandIcon />}
+          </button>
+          <SheetClose asChild>
+            <button
+              type="button"
+              aria-label="Close"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
+            >
+              <CloseIcon />
+            </button>
+          </SheetClose>
+        </div>
+      </SheetHeader>
+
+      <SheetBody className="space-y-6">
+        <div className="divide-y divide-foreground/[0.06]">
+          <FieldRow icon={<IdIcon />} label="Name">{plan.name}</FieldRow>
+          <FieldRow icon={<LayersIcon />} label="Offer">{titleCase(plan.offer_kind ?? "membership")}</FieldRow>
+          <FieldRow icon={<TagIcon />} label="Price">
+            <span className="font-medium tabular-nums">{money(plan.price, plan.currency)}</span>
+            <span className="ml-1.5 text-muted-foreground">{cadence(plan.billing_type)}</span>
+          </FieldRow>
+          <FieldRow icon={<RepeatIcon />} label="Billing">{titleCase(plan.billing_type)}</FieldRow>
+          <FieldRow icon={<GlobeIcon />} label="Visibility">{titleCase(plan.visibility)}</FieldRow>
+          <FieldRow icon={<StatusIcon />} label="Status">
+            <Badge tone={statusTone(plan.status)}>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+              {statusLabel}
+            </Badge>
+          </FieldRow>
+
+          {isSpace && "space_type" in spec && (
+            <FieldRow icon={<BuildingIcon />} label="Space type">{titleCase(String(spec.space_type))}</FieldRow>
+          )}
+          {isSpace && "term" in spec && (
+            <FieldRow icon={<CalendarIcon />} label="Term">{titleCase(String(spec.term))}</FieldRow>
+          )}
+          {isSpace && "room_credits" in spec && (
+            <FieldRow icon={<DoorIcon />} label="Room credits">{String(spec.room_credits)} per term</FieldRow>
+          )}
+          {plan.public_description && (
+            <FieldRow icon={<TextIcon />} label="Description">
+              <span className="whitespace-pre-wrap break-words">{plan.public_description}</span>
+            </FieldRow>
+          )}
+        </div>
+
+        <div className="border-t border-foreground/[0.08] pt-5">
+          <div className="mb-2 flex items-center gap-1.5 text-muted-foreground">
+            <SparkleIcon />
+            <span className="text-[12px] font-medium">Plan summary</span>
+          </div>
+          {loadingSummary ? (
+            <div>
+              <div className="space-y-2" aria-hidden>
+                <span className="block h-3 w-full animate-pulse rounded bg-foreground/[0.06]" />
+                <span className="block h-3 w-[92%] animate-pulse rounded bg-foreground/[0.06]" />
+                <span className="block h-3 w-[68%] animate-pulse rounded bg-foreground/[0.06]" />
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">Writing summary…</p>
+            </div>
+          ) : summaryError ? (
+            <p className="text-[13px] text-muted-foreground">{summaryError}</p>
+          ) : (
+            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">{summary}</p>
+          )}
+        </div>
+      </SheetBody>
+
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">Close</Button>
+        </SheetClose>
+        <Button type="button" onClick={onEdit}>Edit plan</Button>
+      </SheetFooter>
+    </>
   );
 }

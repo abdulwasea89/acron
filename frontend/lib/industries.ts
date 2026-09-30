@@ -124,7 +124,7 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     sampleName: "Downtown Serviced Offices",
     offerPageTitle: "Space plans",
     offerPageSubtitle: "Desk, room & office offers billed to companies",
-    offerNewLabel: "New space plan",
+    offerNewLabel: "New plan",
   },
   academy: {
     key: "academy",

@@ -73,6 +73,8 @@ export interface PlanOut {
   offer_kind?: string;
   /** Industry-specific attributes for space/course offers (validated server-side). */
   spec?: Record<string, unknown> | null;
+  /** AI-written summary, recorded on first view. Null until generated. */
+  summary?: string | null;
 }
 
 export interface PlanCreate {

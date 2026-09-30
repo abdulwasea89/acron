@@ -41,6 +41,7 @@ class PlanUpdate(BaseModel):
     price: float | None = None
     tax_mode: TaxMode | None = None
     tax_rate: float | None = None
+    billing_type: PlanBillingType | None = None
     cycle_length: int | None = None
     cycle_unit: str | None = None
     auto_renew: bool | None = None
@@ -51,6 +52,10 @@ class PlanUpdate(BaseModel):
     rules_json: str | None = None
     visibility: PlanVisibility | None = None
     featured: bool | None = None
+    # Multi-industry offer shape — kept in lockstep with PlanCreate so an edit
+    # can change billing type and the vertical spec, not just the core columns.
+    offer_kind: OfferKind | None = None
+    spec: dict | None = None
 
 
 class ArchiveRequest(BaseModel):
@@ -71,3 +76,5 @@ class PlanOut(BaseModel):
     featured: bool
     offer_kind: str = "membership"
     spec: dict | None = None
+    # AI-written summary, recorded on first view. Null until generated.
+    summary: str | None = None
