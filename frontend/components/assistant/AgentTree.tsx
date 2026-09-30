@@ -74,14 +74,20 @@ export function AgentTree({ steps }: { steps: AssistantAgentStep[] }) {
     if (override !== undefined) return override;
     if (mode === "open") return true;
     if (mode === "closed") return false;
-    // The default: teams open, orchestrators open, specialists folded.
+    // The default: categories folded, everything inside an opened category
+    // already expanded.
     //
-    // An orchestrator is open because it is the cheap half of the tree to read —
-    // five of them, one digest each, and together they are the answer's skeleton.
-    // A specialist is folded because it is the expensive half: forty rows, each
-    // able to carry thousands of characters of raw evidence, and the ones that
-    // would say something are the ones whose team digest already said it.
-    return kind !== "row";
+    // A category is folded because the tree is opened to check *what ran* far
+    // more often than to read all of it — five closed rows answer that at a
+    // glance, where five open ones bury the answer's own text under forty
+    // specialist rows. But once you have opened a category you have said you
+    // want its detail, so the orchestrator's digest is already there rather than
+    // waiting behind a second click.
+    //
+    // A specialist row stays folded: it is the expensive half, able to carry
+    // thousands of characters of raw evidence, and the findings worth reading
+    // are the ones its team's digest already distilled.
+    return kind === "orchestrator";
   }
 
   function toggle(id: string, kind: Kind) {
