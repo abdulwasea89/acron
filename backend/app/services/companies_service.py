@@ -341,11 +341,12 @@ async def _occupied_seats(session: AsyncSession, *, org_id: str, company_id: str
 
 async def invite_seat_holder(
     session: AsyncSession, *, org_id: str, company_id: str, email: str, actor_id: str,
-) -> tuple[OrganizationMember, str]:
+) -> tuple[OrganizationMember, str, bool]:
     """Invite someone to sit under this company (invite-only office onboarding).
 
     Refuses when the company's active seat capacity is already fully occupied so
-    admins can't oversell a signed contract."""
+    admins can't oversell a signed contract. Returns (member, code, delivered).
+    """
 
     company = await _get_owned_company(session, org_id, company_id)
     if company.status != "active":
@@ -359,7 +360,7 @@ async def invite_seat_holder(
                    "Add seats to a contract to invite more people.",
         )
 
-    member, code = await members_service.invite_member(
+    member, code, delivered = await members_service.invite_member(
         session, org_id=org_id, email=email, actor_id=actor_id, company_id=company_id,
     )
-    return member, code
+    return member, code, delivered

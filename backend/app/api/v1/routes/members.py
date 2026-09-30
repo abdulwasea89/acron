@@ -302,13 +302,11 @@ async def unassign_trainer(
     return Message(message="Trainer unassigned.")
 
 
-def _invite_out(member, email: str, code: str) -> MemberInviteOut:
-    """Only expose the raw invite code when email delivery is off (stub mode);
-    with a real provider the code goes out by email and must stay secret."""
+def _invite_out(member, email: str, code: str, delivered: bool) -> MemberInviteOut:
+    """Only expose the raw invite code when delivery actually failed (or no
+    provider is configured); otherwise the code goes out by email and must stay
+    secret. ``delivered`` is the send's own result, not a config check."""
 
-    from app.core.config import settings
-
-    delivered = settings.email_active
     return MemberInviteOut(
         member_id=member.id, email=email, member_status=member.member_status.value,
         email_delivered=delivered,
@@ -322,9 +320,9 @@ async def invite_member(
     ctx: TenantContext = Depends(require_capability(Capability.INVITE_MEMBERS)),
     session: AsyncSession = Depends(get_session),
 ):
-    member, code = await members.invite_member(session, org_id=ctx.org_id, email=data.email,
-                                                actor_id=ctx.user_id)
-    return _invite_out(member, data.email, code)
+    member, code, delivered = await members.invite_member(session, org_id=ctx.org_id, email=data.email,
+                                                          actor_id=ctx.user_id)
+    return _invite_out(member, data.email, code, delivered)
 
 
 @router.post("/{member_id}/resend-invite", response_model=MemberInviteOut)
@@ -335,10 +333,10 @@ async def resend_invite(
 ):
     from app.models.user import User
 
-    member, code = await members.resend_invite(session, org_id=ctx.org_id, member_id=member_id,
-                                               actor_id=ctx.user_id)
+    member, code, delivered = await members.resend_invite(session, org_id=ctx.org_id, member_id=member_id,
+                                                          actor_id=ctx.user_id)
     user = await session.get(User, member.user_id)
-    return _invite_out(member, user.email, code)
+    return _invite_out(member, user.email, code, delivered)
 
 
 @router.post("/import", response_model=BulkImportResult, status_code=201)

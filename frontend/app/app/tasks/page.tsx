@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar, Textarea } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import type { TaskOut, MemberDirectoryItem } from "@/lib/types";
 
@@ -13,6 +13,7 @@ export default function TasksPage() {
   const [members, setMembers] = useState<MemberDirectoryItem[]>([]);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<TaskOut | null>(null);
   const [deleting, setDeleting] = useState<TaskOut | null>(null);
@@ -53,10 +54,17 @@ export default function TasksPage() {
     members.map((m) => [m.member_id, m.full_name || m.email]),
   );
 
+  const q = search.trim().toLowerCase();
   const filtered = (tasks ?? []).filter((t) => {
-    if (filter === "active") return !t.done;
-    if (filter === "completed") return t.done;
-    return true;
+    if (filter === "active" && t.done) return false;
+    if (filter === "completed" && !t.done) return false;
+    if (!q) return true;
+    const assignee = t.assignee_member_id ? memberById[t.assignee_member_id] ?? "" : "";
+    return (
+      t.title.toLowerCase().includes(q) ||
+      (t.description ?? "").toLowerCase().includes(q) ||
+      assignee.toLowerCase().includes(q)
+    );
   });
 
   // Create task
@@ -164,9 +172,9 @@ export default function TasksPage() {
   }
 
   const tabs = [
-    { value: "all" as const, label: "All" },
-    { value: "active" as const, label: "Active" },
-    { value: "completed" as const, label: "Completed" },
+    { value: "all" as const, label: "All", count: (tasks ?? []).length },
+    { value: "active" as const, label: "Active", count: (tasks ?? []).filter((t) => !t.done).length },
+    { value: "completed" as const, label: "Completed", count: (tasks ?? []).filter((t) => t.done).length },
   ];
 
   return (
@@ -185,13 +193,6 @@ export default function TasksPage() {
       />
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
-
-      <CategoryTabs
-        tabs={tabs}
-        value={filter}
-        onChange={setFilter}
-        className="mb-4"
-      />
 
       {/* Create / Edit dialog */}
       <Dialog
@@ -287,11 +288,31 @@ export default function TasksPage() {
         )}
       </Dialog>
 
-      <Card>
-        <CardHeader
-          title="Tasks"
-          subtitle={tasks ? `${filtered.length} task${filtered.length === 1 ? "" : "s"}` : undefined}
-        />
+      <TableToolbar
+        title="Tasks"
+        subtitle={tasks ? `${filtered.length} task${filtered.length === 1 ? "" : "s"}` : undefined}
+        action={
+          <div className="flex items-center gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search tasks"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              size="sm"
+              className="w-[150px]"
+            />
+            <CategoryTabs
+              className="shrink-0"
+              tabs={tabs}
+              value={filter}
+              onChange={setFilter}
+            />
+          </div>
+        }
+      />
+
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="border border-foreground/10 bg-card">
         {tasks === null ? (
           <Spinner label="Loading tasks..." />
         ) : filtered.length === 0 ? (
@@ -304,16 +325,16 @@ export default function TasksPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="w-12 px-4 py-3" />
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Assignee</th>
-                  <th className="px-4 py-3">Deadline</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                <tr className="border-b border-foreground/10">
+                  <th className="w-12 px-5 py-3" />
+                  <th className="px-5 py-3">Title</th>
+                  <th className="px-5 py-3">Assignee</th>
+                  <th className="px-5 py-3">Deadline</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-foreground/[0.06]">
                 {filtered.map((task) => {
                   const overdue = task.deadline && !task.done && new Date(task.deadline) < new Date();
                   return (
@@ -321,7 +342,7 @@ export default function TasksPage() {
                       key={task.id}
                       className={`transition-colors hover:bg-[var(--background)] ${task.done ? "opacity-50" : ""}`}
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         <button
                           type="button"
                           disabled={task.done}
@@ -340,12 +361,12 @@ export default function TasksPage() {
                           )}
                         </button>
                       </td>
-                      <td className={`max-w-[260px] px-4 py-3 font-medium ${task.done ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>
+                      <td className={`max-w-[260px] px-5 py-3.5 font-medium ${task.done ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>
                         <button type="button" onClick={() => setViewing(task)} className="block w-full truncate text-left hover:underline">
                           {task.title}
                         </button>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         {task.assignee_member_id ? (
                           <div className="flex items-center gap-2">
                             <Avatar name={memberById[task.assignee_member_id] || "?"} size="sm" />
@@ -357,7 +378,7 @@ export default function TasksPage() {
                           <span className="text-[var(--muted)]">Unassigned</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         {task.deadline ? (
                           <span className={`tabular-nums ${overdue ? "font-medium text-[var(--danger)]" : "text-[var(--foreground-muted)]"}`}>
                             {formatDate(task.deadline)}
@@ -366,10 +387,10 @@ export default function TasksPage() {
                           <span className="text-[var(--muted)]">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         <Badge tone={task.done ? "success" : "neutral"}>{task.done ? "Done" : "Active"}</Badge>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="flex justify-end">
                           <button
                             type="button"
@@ -391,7 +412,7 @@ export default function TasksPage() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Portal-based kebab menu */}
       {menuTask && menuPos && createPortal(

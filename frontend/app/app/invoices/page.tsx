@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar } from "@/components/ui";
 import { KebabMenu } from "@/components/KebabMenu";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
@@ -113,42 +113,54 @@ function InvoicesContent() {
 
       {error && <div className="mb-5"><Alert>{error}</Alert></div>}
 
-      <Card>
-        <CardHeader title="Invoices" subtitle={invoices ? `${filtered?.length ?? 0} results` : undefined} />
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 px-5 pb-5 pt-4">
-          {/* Fixed-width track: 7 statuses overflow on purpose and scroll horizontally. */}
-          <div className="w-full sm:w-auto sm:max-w-[26rem]">
-            <CategoryTabs
-              tabs={[
-                { value: "all", label: "All" },
-                { value: "draft", label: "Draft" },
-                { value: "sent", label: "Sent" },
-                { value: "partial", label: "Part paid" },
-                { value: "overdue", label: "Overdue" },
-                { value: "paid", label: "Paid" },
-                { value: "void", label: "Void" },
-              ]}
-              value={statusFilter}
-              onChange={setStatusFilter}
-            />
-          </div>
-          <Select aria-label="Company" value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} size="sm" className="w-52">
-            <option value="">All companies</option>
-            {companyOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-          <div className="relative ml-auto w-full max-w-xs">
-            <input
-              type="text"
+      <TableToolbar
+        title="Invoices"
+        subtitle={invoices ? `${filtered?.length ?? 0} results` : undefined}
+        action={
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search invoices"
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="Search invoice # or company..."
-              className="w-full rounded-md border border-foreground/20 bg-transparent h-8 px-3 text-[12px] text-foreground placeholder:text-muted-foreground outline-none transition-colors hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20"
+              size="sm"
+              className="w-[180px]"
             />
+            <Select aria-label="Company" value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} size="sm" className="w-44">
+              <option value="">All companies</option>
+              {companyOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+            {/* Fixed-length strip: the status tabs scroll horizontally inside this
+                fixed width instead of stretching the row. `shrink-0` stops the
+                search and company controls from squeezing it. Styled to match the
+                Input/Select controls beside it (`rounded-md border
+                border-foreground/20`). `flex` stretches the tab track to the inner
+                height so `CategoryTabs`' own 2px padding lands on all four sides of
+                the pills — which needs 2 + 28 + 2 inside the 1px borders, hence
+                34px rather than the neighbouring controls' h-8. Counts are omitted
+                — the status filter is applied server-side, so a client-side count
+                would describe only the already-filtered page. */}
+            <div className="flex h-[34px] w-full overflow-hidden rounded-md border border-foreground/20 transition-colors hover:border-foreground/35 sm:w-[12rem] sm:shrink-0">
+              <CategoryTabs
+                tabs={[
+                  { value: "all", label: "All" },
+                  { value: "draft", label: "Draft" },
+                  { value: "sent", label: "Sent" },
+                  { value: "partial", label: "Part paid" },
+                  { value: "overdue", label: "Overdue" },
+                  { value: "paid", label: "Paid" },
+                  { value: "void", label: "Void" },
+                ]}
+                value={statusFilter}
+                onChange={setStatusFilter}
+              />
+            </div>
           </div>
-        </div>
+        }
+      />
 
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="border border-foreground/10 bg-card">
         {filtered === null ? (
           <Spinner label="Loading invoices..." />
         ) : filtered.length === 0 ? (
@@ -162,7 +174,7 @@ function InvoicesContent() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
+                <tr className="border-b border-foreground/10">
                   <th className="px-5 py-3 font-medium">Invoice</th>
                   <th className="px-5 py-3 font-medium">Company</th>
                   <th className="px-5 py-3 font-medium">Due</th>
@@ -223,7 +235,7 @@ function InvoicesContent() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Detail dialog */}
       <Dialog open={!!viewing} onClose={() => setViewing(null)} title={viewing?.invoice_number ?? ""} subtitle="Invoice details" className="max-w-xl">
@@ -240,19 +252,19 @@ function InvoicesContent() {
             <div className="rounded-lg border border-[var(--border)]">
               <table className="w-full text-sm">
                 <thead className="border-b border-[var(--border)] text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                  <tr><th className="px-4 py-2 font-medium">Description</th><th className="px-4 py-2 text-right font-medium">Amount</th></tr>
+                  <tr><th className="px-5 py-3 font-medium">Description</th><th className="px-5 py-3 text-right font-medium">Amount</th></tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-foreground/[0.06]">
                   {viewing.line_items.map((li, idx) => (
                     <tr key={idx}>
-                      <td className="px-4 py-2.5 text-[var(--foreground)]">{String((li as { description?: unknown }).description ?? "")}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--foreground)]">
+                      <td className="px-5 py-3.5 text-[var(--foreground)]">{String((li as { description?: unknown }).description ?? "")}</td>
+                      <td className="px-5 py-3.5 text-right tabular-nums text-[var(--foreground)]">
                         {money(Number((li as { amount?: unknown }).amount ?? 0), viewing.currency)}
                       </td>
                     </tr>
                   ))}
                   {viewing.tax_amount > 0 && (
-                    <tr><td className="px-4 py-2 text-[var(--muted)]">Tax</td><td className="px-4 py-2 text-right tabular-nums text-[var(--muted)]">{money(viewing.tax_amount, viewing.currency)}</td></tr>
+                    <tr><td className="px-5 py-3.5 text-[var(--muted)]">Tax</td><td className="px-5 py-3.5 text-right tabular-nums text-[var(--muted)]">{money(viewing.tax_amount, viewing.currency)}</td></tr>
                   )}
                 </tbody>
               </table>

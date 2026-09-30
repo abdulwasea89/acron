@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.constants import Role
 
@@ -31,9 +31,18 @@ class InviteRoleUpdate(BaseModel):
 
 
 class StaffInviteRedeem(BaseModel):
-    code: str
+    # Codes are long tokens that mail clients soft-wrap; see RedeemInvite.
+    code: str = Field(min_length=1, max_length=256)
     full_name: str
     password: str
+
+    @field_validator("code")
+    @classmethod
+    def _strip_code(cls, v: str) -> str:
+        cleaned = "".join(v.split())
+        if not cleaned:
+            raise ValueError("Invite code is required.")
+        return cleaned
 
 
 class ShiftOut(BaseModel):

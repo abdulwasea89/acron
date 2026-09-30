@@ -537,6 +537,34 @@ export function CardHeader({ title, subtitle, action }: { title: string; subtitl
   );
 }
 
+/* ── TableToolbar (label row floating above a table card) ─────────────────
+   Same title/subtitle/action shape as CardHeader, but rendered OUTSIDE the
+   Card: no background, no border, no bottom hairline. The title and its
+   filters stay on the page background so only the table carries the panel
+   surface. Use this when the list below is the thing that should read as a
+   discrete card; keep CardHeader when the header belongs to the panel. */
+export function TableToolbar({
+  title,
+  subtitle,
+  action,
+  className,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cx("mb-3 flex flex-wrap items-center justify-between gap-4", className)}>
+      <div className="min-w-0">
+        <h3 className="text-[14px] font-semibold leading-tight text-foreground">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-[12px] text-muted-foreground">{subtitle}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
 /* ── Badge (bordered mono capsule — DESIGN §6.4 cell status) ───────────── */
 export function Badge({
   tone = "neutral",
@@ -596,10 +624,10 @@ export function Spinner({ label }: { label?: string }) {
   );
 }
 
-/* ── EmptyState (dashed hairline callout — DESIGN §6.7) ────────────────── */
+/* ── EmptyState (flat callout — sits inside the table surface, no outline) ── */
 export function EmptyState({ title, hint, icon, action }: { title: string; hint?: string; icon?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center border border-dashed border-foreground/15 px-6 py-16 text-center">
+    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       {icon ? (
         <div className="mb-4 text-foreground/40">{icon}</div>
       ) : (

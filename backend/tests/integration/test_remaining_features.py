@@ -233,7 +233,14 @@ async def test_bulk_import_csv(client):
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["created"] == 2
-    assert len(body["errors"]) == 1
+    # Stub email mode: the activation email genuinely did not go out, so both
+    # imported rows are reported as undelivered alongside the bad-email row.
+    # send_email returns False without a provider, which is what makes this true.
+    assert {e["error"] for e in body["errors"]} == {
+        "invalid or missing email",
+        "member created but activation email not delivered",
+    }
+    assert {e["row"] for e in body["errors"] if e["error"].startswith("member created")} == {2, 3}
 
     # Imported members appear in the directory as pending_activation.
     r = await client.get("/api/v1/members", headers=headers, params={"status": "pending_activation"})

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Select, Spinner } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Select, Spinner, TableToolbar } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -336,38 +336,43 @@ export default function MemberDetailPage() {
       </Card>
 
       {/* Payment history */}
-      <Card className="mt-5">
-        <CardHeader title="Payment history" subtitle={data.payments.length ? `${data.payments.length} total` : "No payments yet"} />
+      <TableToolbar
+        className="mt-5"
+        title="Payment history"
+        subtitle={data.payments.length ? `${data.payments.length} total` : "No payments yet"}
+      />
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="mt-5 border border-foreground/10 bg-card">
         {data.payments.length === 0 ? (
           <EmptyState
             title="No payments yet"
             hint="Payments will appear here once this member pays."
             icon={
-              <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
+              <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75a.75.75 0 01-.75.75h-3m-2.25 0h.75c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125H3.75m0 0a1.5 1.5 0 01-1.5-1.5V15a1.5 1.5 0 011.5-1.5h1.5M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
             }
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-6 py-3.5">Date</th>
-                  <th className="px-6 py-3.5">Method</th>
-                  <th className="px-6 py-3.5">Amount</th>
-                  <th className="px-6 py-3.5">Refunded</th>
-                  <th className="px-6 py-3.5">Status</th>
+                <tr className="border-b border-foreground/10">
+                  <th className="px-5 py-3">Date</th>
+                  <th className="px-5 py-3">Method</th>
+                  <th className="px-5 py-3">Amount</th>
+                  <th className="px-5 py-3">Refunded</th>
+                  <th className="px-5 py-3">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-foreground/[0.06]">
                 {data.payments.map((p) => (
                   <tr key={p.id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-6 py-4 whitespace-nowrap tabular-nums">{(p.paid_at || p.created_at).slice(0, 10)}</td>
-                    <td className="px-6 py-4 text-[var(--foreground-muted)]">{titleCase(p.method)}</td>
-                    <td className="px-6 py-4 tabular-nums font-medium text-[var(--foreground)]">{money(p.amount, p.currency)}</td>
-                    <td className="px-6 py-4 tabular-nums text-[var(--foreground-muted)]">
+                    <td className="px-5 py-3.5 whitespace-nowrap tabular-nums">{(p.paid_at || p.created_at).slice(0, 10)}</td>
+                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{titleCase(p.method)}</td>
+                    <td className="px-5 py-3.5 tabular-nums font-medium text-[var(--foreground)]">{money(p.amount, p.currency)}</td>
+                    <td className="px-5 py-3.5 tabular-nums text-[var(--foreground-muted)]">
                       {p.refunded_amount > 0 ? money(p.refunded_amount, p.currency) : "—"}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3.5">
                       <Badge tone={statusTone(p.status)}>{titleCase(p.status)}</Badge>
                     </td>
                   </tr>
@@ -376,7 +381,7 @@ export default function MemberDetailPage() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
     </>
   );
 }

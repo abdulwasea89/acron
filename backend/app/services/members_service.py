@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import io
 import secrets
+from urllib.parse import quote
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -23,6 +24,7 @@ from app.core.constants import (
     SubscriptionStatus,
     VerificationPurpose,
 )
+from app.core.config import settings
 from app.core.security import hash_password
 from app.integrations.email import EmailDeliveryError, send_email, send_email_safe
 from app.models.membership import OrganizationMember
@@ -175,21 +177,33 @@ async def decide_approval(
 
 
 # ------------------------------------------------------- invite-only invite
-async def _send_invite_email(email: str, org_name: str, code: str, *, org_code: str | None = None) -> None:
-    """Send an invite email, surfacing a delivery failure as a clear 502.
+async def _send_invite_email(
+    email: str, org_name: str, code: str, *, org_code: str | None = None
+) -> bool:
+    """Send an invite email. Returns True only if a real provider accepted it.
 
     The invite email IS the deliverable — if the provider rejects it (e.g. an
     unverified Resend sender domain), the caller must learn that instead of the
-    UI falsely reporting "invite sent"."""
+    UI falsely reporting "invite sent". The return value is the *actual* send
+    outcome, not a config check, so the API never claims delivery it cannot
+    prove (stub mode -> False -> the code is returned for manual sharing).
+    """
 
-    body = f"You've been invited to join {org_name}. Use this code to join: {code}"
+    body = f"You've been invited to join {org_name}. Use this code to join:\n\n{code}"
     if org_code is not None:
-        # Office invite-only redemption is entered as org code + code (no public
-        # signup step), so the seat-holder must see the org code in the email.
-        body = (f"You've been invited to join {org_name} as a seat-holder. "
-                f"Org code: {org_code}. Use this code to activate your seat: {code}")
+        # Office invite-only redemption is entered as org code + email + code (no
+        # public signup step), so all three must appear in the email. The web
+        # link pre-fills them, which is the path least likely to fail on a phone.
+        redeem = f"{settings.frontend_url.rstrip('/')}/redeem/member"
+        body = (
+            f"You've been invited to join {org_name} as a seat-holder.\n\n"
+            f"Activate your seat here:\n{redeem}"
+            f"?org_code={org_code}&email={quote(email)}&code={quote(code)}\n\n"
+            f"Or open the Acron app, choose \"Redeem invite\", then enter:\n\n"
+            f"Organization code: {org_code}\nEmail: {email}\nInvite code: {code}"
+        )
     try:
-        await send_email(email, f"You're invited to {org_name}", body)
+        return await send_email(email, f"You're invited to {org_name}", body)
     except EmailDeliveryError as exc:
         raise HTTPException(
             status_code=502,
@@ -210,12 +224,13 @@ def _is_b2b_office(org: Organization) -> bool:
 async def invite_member(
     session: AsyncSession, *, org_id: str, email: str, actor_id: str,
     company_id: str | None = None,
-) -> tuple[OrganizationMember, str]:
+) -> tuple[OrganizationMember, str, bool]:
     """Create a pending member + single-use invite code tied to the email (Section 8.4).
 
-    For office orgs ``company_id`` binds the seat-holder to a tenant company and
-    the invite email carries the org code, because office onboarding is
-    invite-only (no public join-with-code + pay)."""
+    Returns ``(member, code, email_delivered)``. For office orgs ``company_id``
+    binds the seat-holder to a tenant company and the invite email carries the org
+    code, because office onboarding is invite-only (no public join-with-code + pay).
+    """
 
     org = await session.get(Organization, org_id)
     if org is None:
@@ -240,6 +255,7 @@ async def invite_member(
     if user is None:
         # Create a shell user; password set when they claim the invite.
         from app.core.security import hash_password
+
         import secrets
 
         user = User(email=email.lower(), hashed_password=hash_password(secrets.token_urlsafe(16)),
@@ -265,19 +281,23 @@ async def invite_member(
         session, email=email, purpose=VerificationPurpose.MEMBER_INVITE,
         organization_id=org_id, user_id=user.id,
     )
-    await _send_invite_email(email, org.name, code, org_code=org.org_code if office else None)
+    delivered = await _send_invite_email(
+        email, org.name, code, org_code=org.org_code if office else None
+    )
     await record_audit(session, action="member.invited", organization_id=org_id, actor_user_id=actor_id,
                        entity_type="member", entity_id=member.id,
-                       metadata={"company_id": company_id, "office": office})
-    return member, code
+                       metadata={"company_id": company_id, "office": office,
+                                 "email_delivered": delivered})
+    return member, code, delivered
 
 
 async def resend_invite(
     session: AsyncSession, *, org_id: str, member_id: str, actor_id: str
-) -> tuple[OrganizationMember, str]:
+) -> tuple[OrganizationMember, str, bool]:
     """Re-send the invite email for a pending member (Section 8.4).
 
-    Returns (member, code). The caller surfaces the code only in stub mode."""
+    Returns (member, code, email_delivered). The caller exposes the code only
+    when delivery did not actually happen."""
 
     member = await _get_member(session, org_id, member_id)
     if member.member_status not in (MemberStatus.PENDING_ACTIVATION, MemberStatus.EXPIRED,
@@ -296,11 +316,13 @@ async def resend_invite(
         session, email=user.email, purpose=VerificationPurpose.MEMBER_INVITE,
         organization_id=org_id, user_id=user.id,
     )
-    await _send_invite_email(user.email, org.name, code,
-                             org_code=org.org_code if _is_b2b_office(org) else None)
+    delivered = await _send_invite_email(
+        user.email, org.name, code, org_code=org.org_code if _is_b2b_office(org) else None
+    )
     await record_audit(session, action="member.invite_resent", organization_id=org_id, actor_user_id=actor_id,
-                       entity_type="member", entity_id=member.id)
-    return member, code
+                       entity_type="member", entity_id=member.id,
+                       metadata={"email_delivered": delivered})
+    return member, code, delivered
 
 
 # ------------------------------------------------------- CSV bulk import

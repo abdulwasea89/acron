@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Spinner, TableToolbar } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { InvoiceOut, SaasStatusOut } from "@/lib/types";
@@ -14,6 +14,8 @@ export default function BillingPage() {
   const [invoices, setInvoices] = useState<InvoiceOut[] | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [invoiceStatus, setInvoiceStatus] = useState("all");
 
   async function load() {
     setError("");
@@ -33,6 +35,24 @@ export default function BillingPage() {
   useEffect(() => {
     queueMicrotask(() => void load());
   }, []);
+
+  const allInvoices = invoices ?? [];
+
+  const invoiceTabs = [
+    { value: "all", label: "All", count: allInvoices.length },
+    ...Array.from(new Set(allInvoices.map((i) => i.status))).map((s) => ({
+      value: s,
+      label: titleCase(s),
+      count: allInvoices.filter((i) => i.status === s).length,
+    })),
+  ];
+
+  const invoiceQ = invoiceSearch.trim().toLowerCase();
+  const filteredInvoices = allInvoices.filter((i) => {
+    if (invoiceStatus !== "all" && i.status !== invoiceStatus) return false;
+    if (!invoiceQ) return true;
+    return i.status.toLowerCase().includes(invoiceQ) || new Date(i.created_at).toLocaleDateString().toLowerCase().includes(invoiceQ);
+  });
 
   async function changeTier(tier: string, direction: "upgrade" | "downgrade") {
     setError("");
@@ -210,32 +230,61 @@ export default function BillingPage() {
           </div>
 
           <div className="mt-6">
-            <Card>
-              <CardHeader title="Invoice history" />
+            <TableToolbar
+              title="Invoice history"
+              subtitle={invoices ? `${filteredInvoices.length} of ${invoices.length}` : undefined}
+              action={
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <Input
+                    placeholder="Search…"
+                    aria-label="Search invoices"
+                    value={invoiceSearch}
+                    onChange={(e) => setInvoiceSearch(e.target.value)}
+                    size="sm"
+                    className="w-[150px]"
+                  />
+                  <CategoryTabs
+                    className="shrink-0"
+                    tabs={invoiceTabs}
+                    value={invoiceStatus}
+                    onChange={setInvoiceStatus}
+                  />
+                </div>
+              }
+            />
+            {/* Table surface: hairline border, square corners, flat background. */}
+            <div className="border border-foreground/10 bg-card">
               {invoices === null ? (
                 <Spinner label="Loading invoices..." />
-              ) : invoices.length === 0 ? (
-                <EmptyState title="No invoices yet" hint="Your invoices will appear here." />
+              ) : filteredInvoices.length === 0 ? (
+                <EmptyState
+                  title="No invoices yet"
+                  hint={
+                    invoices.length === 0
+                      ? "Your invoices will appear here."
+                      : "No invoices match the current filter."
+                  }
+                />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                      <tr className="border-b border-[var(--border)]">
-                        <th className="px-6 py-3.5">Date</th>
-                        <th className="px-6 py-3.5">Amount</th>
-                        <th className="px-6 py-3.5">Status</th>
-                        <th className="px-6 py-3.5" />
+                      <tr className="border-b border-foreground/10">
+                        <th className="px-5 py-3">Date</th>
+                        <th className="px-5 py-3">Amount</th>
+                        <th className="px-5 py-3">Status</th>
+                        <th className="px-5 py-3" />
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border)]">
-                      {invoices.map((inv) => (
+                    <tbody className="divide-y divide-foreground/[0.06]">
+                      {filteredInvoices.map((inv) => (
                         <tr key={inv.id} className="transition-colors hover:bg-[var(--background)]">
-                          <td className="px-6 py-4">{new Date(inv.created_at).toLocaleDateString()}</td>
-                          <td className="px-6 py-4 tabular-nums font-medium">{money(inv.amount, inv.currency)}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-5 py-3.5">{new Date(inv.created_at).toLocaleDateString()}</td>
+                          <td className="px-5 py-3.5 tabular-nums font-medium">{money(inv.amount, inv.currency)}</td>
+                          <td className="px-5 py-3.5">
                             <Badge tone={statusTone(inv.status)}>{titleCase(inv.status)}</Badge>
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-5 py-3.5 text-right">
                             <a
                               href={`/api/download/saas-billing/invoices/${inv.id}/pdf`}
                               download
@@ -253,7 +302,7 @@ export default function BillingPage() {
                   </table>
                 </div>
               )}
-            </Card>
+            </div>
           </div>
         </>
       )}

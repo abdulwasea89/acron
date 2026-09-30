@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Dialog } from "@/components/Dialog";
 import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CategoryTabs, EmptyState, Input, Select, Spinner, StatCard, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar, Textarea } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { OrganizationOut, PlanOut } from "@/lib/types";
@@ -30,21 +30,6 @@ function StarIcon() {
   return (
     <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
-
-const STAT_ICONS = {
-  total: "M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z",
-  published: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-  draft: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 16.604a4.5 4.5 0 01-1.897 1.13L4 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125",
-  archived: "M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z",
-} as const;
-
-function StatIcon({ d }: { d: string }) {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={d} />
     </svg>
   );
 }
@@ -303,15 +288,6 @@ export default function PlansPage() {
 
       {error && <div className="mb-5"><Alert>{error}</Alert></div>}
 
-      {plans !== null && (
-        <div className="mb-6 grid grid-cols-1 gap-px overflow-hidden border border-foreground/10 bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard joined label="Total offers" value={String(plans.length)} icon={<StatIcon d={STAT_ICONS.total} />} className="h-full" />
-          <StatCard joined label="Published" value={String(plans.filter((p) => p.status === "published").length)} icon={<StatIcon d={STAT_ICONS.published} />} className="h-full" accent />
-          <StatCard joined label="Drafts" value={String(plans.filter((p) => p.status === "draft").length)} icon={<StatIcon d={STAT_ICONS.draft} />} className="h-full" />
-          <StatCard joined label="Archived" value={String(plans.filter((p) => p.status === "archived").length)} icon={<StatIcon d={STAT_ICONS.archived} />} className="h-full" />
-        </div>
-      )}
-
       <Dialog open={showForm} onClose={() => { setShowForm(false); setEditing(null); }} title={editing ? "Edit plan" : "Create plan"} subtitle={editing ? "Update plan details" : "Saved as a draft — publish it when ready"} className="max-w-xl">
         <PlanForm plan={editing} industryKey={ind.key} onCreated={() => { setShowForm(false); setEditing(null); load(); }} />
       </Dialog>
@@ -389,40 +365,46 @@ export default function PlansPage() {
         )}
       </Dialog>
 
-      <Card>
-        <div className="flex items-center justify-between gap-4 px-5 pb-5 pt-5">
-          <CategoryTabs
-            className="shrink-0"
-            tabs={[
-              {
-                value: "active" as const,
-                label: "Active",
-                count: plans?.filter((p) => p.status !== "archived").length,
-              },
-              {
-                value: "archived" as const,
-                label: "Archived",
-                count: plans?.filter((p) => p.status === "archived").length,
-              },
-            ]}
-            value={filter}
-            onChange={setFilter}
-          />
-
-          <div className="relative flex-1 max-w-xs">
-            <input
-              type="text"
+      <TableToolbar
+        title={isGym ? "Membership plans" : "Offers"}
+        subtitle={
+          filtered
+            ? `${filtered.length} ${filter === "archived" ? "archived" : "active"}`
+            : undefined
+        }
+        action={
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search plans"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search plans..."
-              className="w-full rounded-md border border-foreground/20 bg-transparent h-8 pl-8 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground outline-none transition-colors hover:border-foreground/35 focus:border-brand focus:ring-2 focus:ring-brand/20"
+              size="sm"
+              className="w-[150px]"
             />
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-              <SearchIcon />
-            </div>
+            <CategoryTabs
+              className="shrink-0"
+              tabs={[
+                {
+                  value: "active" as const,
+                  label: "Active",
+                  count: plans?.filter((p) => p.status !== "archived").length,
+                },
+                {
+                  value: "archived" as const,
+                  label: "Archived",
+                  count: plans?.filter((p) => p.status === "archived").length,
+                },
+              ]}
+              value={filter}
+              onChange={setFilter}
+            />
           </div>
-        </div>
+        }
+      />
 
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="border border-foreground/10 bg-card">
         {filtered === null ? (
           <Spinner label="Loading offers..." />
         ) : filtered.length === 0 && filter === "active" && plans?.length === 0 ? (
@@ -450,7 +432,7 @@ export default function PlansPage() {
                 }
               />
             ) : (
-              <div className="flex flex-col items-center justify-center border border-dashed border-[var(--border)] px-6 py-16 text-center">
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
                 <p className="text-sm font-semibold text-[var(--foreground)]">
                   No {ind.offerKind} offers yet
                 </p>
@@ -552,7 +534,7 @@ export default function PlansPage() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
     </>
   );
 }

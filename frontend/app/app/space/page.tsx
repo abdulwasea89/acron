@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Spinner, TableToolbar } from "@/components/ui";
 import { KebabMenu } from "@/components/KebabMenu";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
@@ -17,6 +17,7 @@ export default function SpacePage() {
   const [slots, setSlots] = useState<SpaceSlotOut[] | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("upcoming");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   const [creating, setCreating] = useState<SpaceSlotOut | null>(null); // cancel target
@@ -37,13 +38,20 @@ export default function SpacePage() {
     if (ready) queueMicrotask(() => void load());
   }, [ready, load]);
 
-  const filtered = (slots ?? [])
-    .filter((s) => {
-      if (s.cancelled) return filter === "cancelled";
-      const start = new Date(s.starts_at).getTime();
-      const now = Date.now();
-      return filter === "upcoming" ? start > now : filter === "past" ? start <= now : false;
-    })
+  const all = slots ?? [];
+
+  const inTab = (s: SpaceSlotOut, tab: Filter) => {
+    if (s.cancelled) return tab === "cancelled";
+    if (tab === "cancelled") return false;
+    const start = new Date(s.starts_at).getTime();
+    const now = Date.now();
+    return tab === "upcoming" ? start > now : start <= now;
+  };
+
+  const q = search.trim().toLowerCase();
+  const filtered = all
+    .filter((s) => inTab(s, filter))
+    .filter((s) => !q || s.title.toLowerCase().includes(q))
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
 
   async function openBookings(slot: SpaceSlotOut) {
@@ -75,9 +83,9 @@ export default function SpacePage() {
   }
 
   const counts = {
-    upcoming: (slots ?? []).filter((s) => !s.cancelled && new Date(s.starts_at).getTime() > Date.now()).length,
-    past: (slots ?? []).filter((s) => !s.cancelled && new Date(s.starts_at).getTime() <= Date.now()).length,
-    cancelled: (slots ?? []).filter((s) => s.cancelled).length,
+    upcoming: all.filter((s) => inTab(s, "upcoming")).length,
+    past: all.filter((s) => inTab(s, "past")).length,
+    cancelled: all.filter((s) => inTab(s, "cancelled")).length,
   };
 
   return (
@@ -98,35 +106,55 @@ export default function SpacePage() {
         <SlotForm onDone={() => { setShowForm(false); load(); }} />
       </Dialog>
 
-      <Card>
-        <CardHeader title="Slots" subtitle={slots ? `${filtered.length} shown` : undefined} />
+      <TableToolbar
+        title="Slots"
+        subtitle={slots ? `${filtered.length} of ${all.length} shown` : undefined}
+        action={
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search slots"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              size="sm"
+              className="w-[150px]"
+            />
+            <CategoryTabs
+              className="shrink-0"
+              tabs={[
+                { value: "upcoming" as const, label: "Upcoming", count: counts.upcoming },
+                { value: "past" as const, label: "Past", count: counts.past },
+                { value: "cancelled" as const, label: "Cancelled", count: counts.cancelled },
+              ]}
+              value={filter}
+              onChange={setFilter}
+            />
+          </div>
+        }
+      />
 
-        <div className="px-5 pb-5 pt-4">
-          <CategoryTabs
-            tabs={[
-              { value: "upcoming" as const, label: "Upcoming", count: counts.upcoming },
-              { value: "past" as const, label: "Past", count: counts.past },
-              { value: "cancelled" as const, label: "Cancelled", count: counts.cancelled },
-            ]}
-            value={filter}
-            onChange={setFilter}
-          />
-        </div>
-
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="border border-foreground/10 bg-card">
         {slots === null ? (
           <Spinner label="Loading slots..." />
         ) : filtered.length === 0 ? (
-          <div className="px-5 pb-10">
-            <EmptyState
-              title={slots.length === 0 ? "No space slots yet" : `No ${filter} slots`}
-              hint={slots.length === 0 ? "Create desks and meeting rooms here — seat-holders book them from their app." : undefined}
-              action={slots.length === 0 ? <Button onClick={() => setShowForm(true)} size="lg">+ Create your first slot</Button> : undefined}
-            />
-          </div>
+          <EmptyState
+            title={all.length === 0 ? "No space slots yet" : "No slots match"}
+            hint={
+              all.length === 0
+                ? "Create desks and meeting rooms here — seat-holders book them from their app."
+                : "Try a different search or filter."
+            }
+            action={
+              all.length === 0
+                ? <Button onClick={() => setShowForm(true)} size="lg">+ Create your first slot</Button>
+                : undefined
+            }
+          />
         ) : (
-          <ul className="divide-y divide-[var(--border)]">
+          <ul className="divide-y divide-foreground/[0.06]">
             {filtered.map((s) => (
-              <li key={s.id} className={`flex items-center justify-between gap-3 px-5 py-3.5 ${s.cancelled ? "opacity-55" : ""}`}>
+              <li key={s.id} className={`flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--background)] ${s.cancelled ? "opacity-55" : ""}`}>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className={`truncate font-medium ${s.cancelled ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>{s.title}</span>
@@ -153,7 +181,7 @@ export default function SpacePage() {
             ))}
           </ul>
         )}
-      </Card>
+      </div>
 
       {/* Cancel confirm */}
       <Dialog open={!!creating} onClose={() => setCreating(null)} title="Cancel slot" className="max-w-sm">

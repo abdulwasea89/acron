@@ -140,7 +140,12 @@ export const redeemSchema = z
   .object({
     org_code: orgCodeSchema,
     email: emailSchema,
-    code: z.string().min(1, "Invite code is required"),
+    // Codes are 43-char tokens that mail clients soft-wrap, so a paste often
+    // carries a newline or space. Strip it before the server hashes the value.
+    code: z
+      .string()
+      .transform((v) => v.replace(/\s+/g, ""))
+      .pipe(z.string().min(1, "Invite code is required")),
     password: passwordSchema,
     confirm_password: z.string(),
   })

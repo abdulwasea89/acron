@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class SignupStart(BaseModel):
@@ -52,7 +52,20 @@ class RedeemInvite(BaseModel):
 
     org_code: str
     email: EmailStr
-    code: str
+    # Invite codes are 43-char tokens, long enough that mail clients soft-wrap them.
+    # Copying from an email therefore tends to carry a newline or a space into the
+    # field, which would otherwise hash to a different value and read as a wrong
+    # code. Normalize before hashing.
+    code: str = Field(min_length=1, max_length=256)
+
+    @field_validator("code")
+    @classmethod
+    def _strip_code(cls, v: str) -> str:
+        cleaned = "".join(v.split())
+        if not cleaned:
+            raise ValueError("Invite code is required.")
+        return cleaned
+
     password: str
 
 

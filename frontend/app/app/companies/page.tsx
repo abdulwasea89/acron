@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Spinner, TableToolbar, Textarea } from "@/components/ui";
 import { KebabMenu } from "@/components/KebabMenu";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
-import { money, statusTone } from "@/lib/format";
+import { money, titleCase } from "@/lib/format";
 import type { CompanyListItem } from "@/lib/types";
 
 function CompanyForm({ onDone }: { onDone: () => void }) {
@@ -71,6 +71,8 @@ export default function CompaniesPage() {
   const { org, ready } = useModuleGate("companies");
   const [rows, setRows] = useState<CompanyListItem[] | null>(null);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
   const [showNew, setShowNew] = useState(false);
   const currency = org?.default_currency ?? "USD";
 
@@ -94,6 +96,29 @@ export default function CompaniesPage() {
     const occupied = rows.reduce((s, r) => s + r.occupied_seats, 0);
     return `${occupied} of ${totalCap} seats`;
   }, [rows]);
+
+  const all = rows ?? [];
+
+  const tabs = [
+    { value: "all", label: "All", count: all.length },
+    ...Array.from(new Set(all.map((c) => c.status))).map((s) => ({
+      value: s,
+      label: titleCase(s),
+      count: all.filter((c) => c.status === s).length,
+    })),
+  ];
+
+  const q = search.trim().toLowerCase();
+  const filtered = all.filter((c) => {
+    if (status !== "all" && c.status !== status) return false;
+    if (!q) return true;
+    return (
+      c.name.toLowerCase().includes(q) ||
+      (c.billing_email ?? "").toLowerCase().includes(q) ||
+      (c.contact_email ?? "").toLowerCase().includes(q) ||
+      (c.tax_id ?? "").toLowerCase().includes(q)
+    );
+  });
 
   if (!ready) {
     return (
@@ -121,23 +146,54 @@ export default function CompaniesPage() {
         <CompanyForm onDone={() => { setShowNew(false); load(); }} />
       </Dialog>
 
-      <Card>
-        <CardHeader title="Companies" subtitle={rows ? `${rows.length} on file` : undefined} />
+      <TableToolbar
+        title="Companies"
+        subtitle={rows ? `${filtered.length} of ${all.length} on file` : undefined}
+        action={
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search companies"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              size="sm"
+              className="w-[150px]"
+            />
+            <CategoryTabs
+              className="shrink-0"
+              tabs={tabs}
+              value={status}
+              onChange={setStatus}
+            />
+          </div>
+        }
+      />
+
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="border border-foreground/10 bg-card">
         {rows === null ? (
           <Spinner label="Loading companies..." />
-        ) : rows.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="px-5 pb-10">
             <EmptyState
-              title="No companies yet"
-              hint="Add your first company — then sign it onto a published space plan to bill for seats."
-              action={<Button onClick={() => setShowNew(true)} size="lg">+ Add your first company</Button>}
+              title={all.length === 0 ? "No companies yet" : "No companies match"}
+              hint={
+                all.length === 0
+                  ? "Add your first company — then sign it onto a published space plan to bill for seats."
+                  : "Try a different search or status filter."
+              }
+              action={
+                all.length === 0
+                  ? <Button onClick={() => setShowNew(true)} size="lg">+ Add your first company</Button>
+                  : undefined
+              }
             />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
+                <tr className="border-b border-foreground/10">
                   <th className="px-5 py-3 font-medium">Company</th>
                   <th className="px-5 py-3 font-medium">Billing email</th>
                   <th className="px-5 py-3 font-medium">Seats</th>
@@ -146,8 +202,8 @@ export default function CompaniesPage() {
                   <th className="px-5 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {rows.map((c) => (
+              <tbody className="divide-y divide-foreground/[0.06]">
+                {filtered.map((c) => (
                   <tr key={c.id} className="group transition-colors hover:bg-[var(--background)]/50">
                     <td className="px-5 py-3.5">
                       <Link href={`/app/companies/${c.id}`} className="font-medium text-[var(--foreground)] hover:underline">
@@ -185,7 +241,7 @@ export default function CompaniesPage() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
     </>
   );
 }

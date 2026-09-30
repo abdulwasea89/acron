@@ -42,7 +42,7 @@ export default function CompanyDetailPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showContract, setShowContract] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteResult, setInviteResult] = useState<{ email: string; code: string } | null>(null);
+  const [inviteResult, setInviteResult] = useState<{ email: string; code: string; delivered: boolean; action: "invite" | "resend" } | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState<CompanyContractOut | null>(null);
   const confirmEndRef = useRef<CompanyContractOut | null>(null);
@@ -219,7 +219,8 @@ export default function CompanyDetailPage() {
               {detail.seat_holders.map((h) => (
                 <SeatHolderRow key={h.member_id} holder={h} onResend={() => run(async () => {
                   const res = await api.post<{ email_delivered: boolean; invite_code: string }>(`/companies/${companyId}/seat-holders/${h.member_id}/resend`);
-                  if (!res.email_delivered && res.invite_code) setInviteResult({ email: h.email, code: res.invite_code });
+                  setInviteResult({ email: h.email, code: res.invite_code, delivered: res.email_delivered, action: "resend" });
+                  setShowInvite(true);
                 })} />
               ))}
             </ul>
@@ -269,7 +270,7 @@ export default function CompanyDetailPage() {
         {inviteResult ? (
           <InviteDone result={inviteResult} onDone={() => { setShowInvite(false); setInviteResult(null); load(); }} />
         ) : (
-          <SeatHolderForm companyId={companyId} onSent={(email, code) => setInviteResult({ email, code })} />
+          <SeatHolderForm companyId={companyId} onSent={setInviteResult} />
         )}
       </Dialog>
 
@@ -326,15 +327,34 @@ function SeatHolderRow({ holder, onResend }: { holder: SeatHolderOut; onResend: 
   );
 }
 
-function InviteDone({ result, onDone }: { result: { email: string; code: string }; onDone: () => void }) {
+function InviteDone({ result, onDone }: {
+  result: { email: string; code: string; delivered: boolean; action: "invite" | "resend" };
+  onDone: () => void;
+}) {
+  const verb = result.action === "resend" ? "re-emailed" : "emailed";
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--foreground-muted)]">
-        Invite sent to <strong className="text-[var(--foreground)]">{result.email}</strong>. They&apos;ll need the code below (shown because email delivery is off in this environment).
-      </p>
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3">
-        <div className="font-mono text-base tracking-widest text-[var(--foreground)]">{result.code}<CopyButton text={result.code} /></div>
-      </div>
+      {result.delivered ? (
+        <>
+          <Alert tone="success">
+            Invite {verb} to <strong>{result.email}</strong>. The code is in that email — they enter it
+            in the app under &ldquo;Redeem invite&rdquo;.
+          </Alert>
+          <p className="text-xs text-[var(--muted)]">No email arrived? Check their spam folder, then use Resend.</p>
+        </>
+      ) : (
+        <>
+          <Alert tone="warning">
+            The invite could not be emailed, so share this single-use code with {result.email} directly.
+          </Alert>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3">
+            <div className="font-mono text-base tracking-widest text-[var(--foreground)]">
+              {result.code}
+              <CopyButton text={result.code} />
+            </div>
+          </div>
+        </>
+      )}
       <div className="flex justify-end gap-2">
         <Button variant="primary" onClick={onDone}>Done</Button>
       </div>
@@ -342,7 +362,10 @@ function InviteDone({ result, onDone }: { result: { email: string; code: string 
   );
 }
 
-function SeatHolderForm({ companyId, onSent }: { companyId: string; onSent: (email: string, code: string) => void }) {
+function SeatHolderForm({ companyId, onSent }: {
+  companyId: string;
+  onSent: (r: { email: string; code: string; delivered: boolean; action: "invite" | "resend" }) => void;
+}) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -353,8 +376,7 @@ function SeatHolderForm({ companyId, onSent }: { companyId: string; onSent: (ema
     setLoading(true);
     try {
       const res = await api.post<{ email_delivered: boolean; invite_code: string }>(`/companies/${companyId}/seat-holders`, { email });
-      if (!res.email_delivered && res.invite_code) onSent(email, res.invite_code);
-      else onSent(email, "");
+      onSent({ email, code: res.invite_code, delivered: res.email_delivered, action: "invite" });
     } catch (err) {
       setError((err as ApiError).message);
     } finally {

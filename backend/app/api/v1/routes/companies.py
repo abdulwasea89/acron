@@ -70,10 +70,14 @@ async def _contract_outs(session: AsyncSession, rows) -> list[ContractOut]:
     return [await _contract_out(session, c) for c in rows]
 
 
-def _invite_out(member, email: str, code: str) -> SeatHolderInviteOut:
-    from app.core.config import settings
+def _invite_out(member, email: str, code: str, delivered: bool) -> SeatHolderInviteOut:
+    """Report the *actual* delivery outcome, not whether a provider is configured.
 
-    delivered = settings.email_active
+    ``delivered`` comes from the send itself, so the flag can't claim an email
+    went out when the send silently no-op'd. The raw code is exposed only when
+    it was not delivered, since the recipient otherwise has no way to get it.
+    """
+
     return SeatHolderInviteOut(
         member_id=member.id, email=email,
         member_status=member.member_status.value,
@@ -186,9 +190,9 @@ async def invite_seat_holder(
     session: AsyncSession = Depends(get_session),
 ):
     """Invite someone as a seat-holder under this company (invite-only, capped by seats)."""
-    member, code = await companies.invite_seat_holder(
+    member, code, delivered = await companies.invite_seat_holder(
         session, org_id=ctx.org_id, company_id=company_id, email=data.email, actor_id=ctx.user_id)
-    return _invite_out(member, data.email, code)
+    return _invite_out(member, data.email, code, delivered)
 
 
 @router.post("/{company_id}/seat-holders/{member_id}/resend", response_model=SeatHolderInviteOut)
@@ -205,7 +209,7 @@ async def resend_seat_holder_invite(
     member = await session.get(OrganizationMember, member_id)
     if member is None or member.organization_id != ctx.org_id or member.company_id != company_id:
         raise HTTPException(status_code=404, detail="Seat-holder not found in this company.")
-    member, code = await members.resend_invite(session, org_id=ctx.org_id, member_id=member_id,
-                                               actor_id=ctx.user_id)
+    member, code, delivered = await members.resend_invite(session, org_id=ctx.org_id, member_id=member_id,
+                                                          actor_id=ctx.user_id)
     user = await session.get(User, member.user_id)
-    return _invite_out(member, user.email if user else "", code)
+    return _invite_out(member, user.email if user else "", code, delivered)

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { Dialog } from "@/components/Dialog";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, Card, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtimeEvent } from "@/components/Realtime";
@@ -17,6 +17,8 @@ export default function StaffPage() {
   const [members, setMembers] = useState<MemberDirectoryItem[] | null>(null);
   const [invites, setInvites] = useState<StaffInviteOut[]>([]);
   const [error, setError] = useState("");
+  const [staffSearch, setStaffSearch] = useState("");
+  const [staffRole, setStaffRole] = useState<"all" | "manager" | "trainer" | "front_desk">("all");
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteResult, setInviteResult] = useState<StaffInviteOut | null>(null);
 
@@ -191,6 +193,23 @@ export default function StaffPage() {
 
   const staff = (members ?? []).filter((m) => STAFF_ROLES.includes(m.role));
   const pendingInvites = invites.filter((i) => !i.used);
+
+  const staffTabs = [
+    { value: "all" as const, label: "All", count: staff.length },
+    { value: "manager" as const, label: "Managers", count: staff.filter((s) => s.role === "manager").length },
+    { value: "trainer" as const, label: "Trainers", count: staff.filter((s) => s.role === "trainer").length },
+    { value: "front_desk" as const, label: "Front Desk", count: staff.filter((s) => s.role === "front_desk").length },
+  ];
+
+  const staffQuery = staffSearch.trim().toLowerCase();
+  const filteredStaff = staff.filter((s) => {
+    if (staffRole !== "all" && s.role !== staffRole) return false;
+    if (!staffQuery) return true;
+    return (
+      (s.display_name || s.full_name || "").toLowerCase().includes(staffQuery) ||
+      s.email.toLowerCase().includes(staffQuery)
+    );
+  });
 
   useEffect(() => {
     if (!menuMember && !menuInvite) return;
@@ -514,47 +533,73 @@ export default function StaffPage() {
       </Dialog>
 
       {/* Staff directory */}
-      <Card className="mb-4">
-        <CardHeader
-          title="Active staff"
-          subtitle={staff ? `${staff.length} staff member${staff.length === 1 ? "" : "s"}` : undefined}
-        />
+      <TableToolbar
+        title="Active staff"
+        subtitle={staff ? `${filteredStaff.length} of ${staff.length} staff member${staff.length === 1 ? "" : "s"}` : undefined}
+        action={
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search staff"
+              value={staffSearch}
+              onChange={(e) => setStaffSearch(e.target.value)}
+              size="sm"
+              className="w-[150px]"
+            />
+            <CategoryTabs
+              className="shrink-0"
+              tabs={staffTabs}
+              value={staffRole}
+              onChange={setStaffRole}
+            />
+          </div>
+        }
+      />
+      <div className="mb-4 border border-foreground/10 bg-card">
         {members === null ? (
           <Spinner label="Loading staff..." />
-        ) : staff.length === 0 ? (
+        ) : filteredStaff.length === 0 ? (
           <EmptyState
-            title="No staff yet"
-            hint="Invite managers, trainers, or front desk staff to help run your gym."
-            action={<Button onClick={() => { setInviteResult(null); setShowInviteForm(true); }}>+ Invite staff</Button>}
+            title={staffQuery || staffRole !== "all" ? "No staff match" : "No staff yet"}
+            hint={
+              staffQuery || staffRole !== "all"
+                ? "Try a different search or role filter."
+                : "Invite managers, trainers, or front desk staff to help run your gym."
+            }
+            action={
+              staffQuery || staffRole !== "all"
+                ? undefined
+                : <Button onClick={() => { setInviteResult(null); setShowInviteForm(true); }}>+ Invite staff</Button>
+            }
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Status</th>
-                  {isOwner && <th className="px-4 py-3">Rates</th>}
-                  {isOwner && <th className="w-12 px-4 py-3" />}
+                <tr className="border-b border-foreground/10">
+                  <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Email</th>
+                  <th className="px-5 py-3">Role</th>
+                  <th className="px-5 py-3">Status</th>
+                  {isOwner && <th className="px-5 py-3">Rates</th>}
+                  {isOwner && <th className="w-12 px-5 py-3" />}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {staff.map((s) => (
+              <tbody className="divide-y divide-foreground/[0.06]">
+                {filteredStaff.map((s) => (
                   <tr key={s.member_id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <p className="font-medium text-[var(--foreground)]">{s.display_name || s.full_name || "—"}</p>
                     </td>
-                    <td className="px-4 py-3 text-[var(--foreground-muted)]">{s.email}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{s.email}</td>
+                    <td className="px-5 py-3.5">
                       <Badge tone={roleBadgeTone(s.role)}>{roleLabel(s.role)}</Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <Badge tone={s.member_status === "active" ? "success" : "neutral"}>{s.member_status}</Badge>
                     </td>
                     {isOwner && (
-                      <td className="px-4 py-3 text-xs text-[var(--foreground-muted)]">
+                      <td className="px-5 py-3.5 text-xs text-[var(--foreground-muted)]">
                         {["trainer", "front_desk", "manager"].includes(s.role) ? (
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                             {s.fixed_monthly_salary > 0 && <span>${s.fixed_monthly_salary}/mo</span>}
@@ -571,7 +616,7 @@ export default function StaffPage() {
                       </td>
                     )}
                     {isOwner && (
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="flex justify-end">
                           <button
                             type="button"
@@ -593,7 +638,7 @@ export default function StaffPage() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Kebab menu portal */}
       {menuMember && menuPos && createPortal(
@@ -842,12 +887,13 @@ export default function StaffPage() {
 
       {/* Trainer: my clients */}
       {currentUser?.role === "trainer" && (
-        <Card className="mb-4">
-          <CardHeader
+        <>
+          <TableToolbar
             title="My clients"
             subtitle={myClients ? `${myClients.length} member${myClients.length === 1 ? "" : "s"} assigned to you` : undefined}
           />
-          {myClients === null ? (
+          <div className="mb-4 border border-foreground/10 bg-card">
+            {myClients === null ? (
             <Spinner label="Loading your clients..." />
           ) : myClients.length === 0 ? (
             <EmptyState
@@ -858,18 +904,18 @@ export default function StaffPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                  <tr className="border-b border-[var(--border)]">
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Status</th>
+                  <tr className="border-b border-foreground/10">
+                    <th className="px-5 py-3">Name</th>
+                    <th className="px-5 py-3">Email</th>
+                    <th className="px-5 py-3">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border)]">
+                <tbody className="divide-y divide-foreground/[0.06]">
                   {myClients.map((c) => (
                     <tr key={c.member_id} className="transition-colors hover:bg-[var(--background)]">
-                      <td className="px-4 py-3 font-medium text-[var(--foreground)]">{c.member_name || "—"}</td>
-                      <td className="px-4 py-3 text-[var(--foreground-muted)]">{c.member_email}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5 font-medium text-[var(--foreground)]">{c.member_name || "—"}</td>
+                      <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{c.member_email}</td>
+                      <td className="px-5 py-3.5">
                         <Badge tone={c.member_status === "active" ? "success" : c.member_status === "grace" ? "warning" : "neutral"}>{c.member_status}</Badge>
                       </td>
                     </tr>
@@ -878,7 +924,8 @@ export default function StaffPage() {
               </table>
             </div>
           )}
-        </Card>
+          </div>
+        </>
       )}
 
       {/* Compensation dialog */}
@@ -962,30 +1009,31 @@ export default function StaffPage() {
 
       {/* Pending invites (owner only) */}
       {isOwner && pendingInvites.length > 0 && (
-        <Card>
-          <CardHeader
+        <>
+          <TableToolbar
             title="Pending invites"
             subtitle={`${pendingInvites.length} unredeemed invite${pendingInvites.length === 1 ? "" : "s"}`}
           />
-          <div className="overflow-x-auto">
+          <div className="border border-foreground/10 bg-card">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Code</th>
-                  <th className="w-24 px-4 py-3 text-right">Actions</th>
+                <tr className="border-b border-foreground/10">
+                  <th className="px-5 py-3">Email</th>
+                  <th className="px-5 py-3">Role</th>
+                  <th className="px-5 py-3">Code</th>
+                  <th className="w-24 px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-foreground/[0.06]">
                 {pendingInvites.map((inv) => (
                   <tr key={inv.id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-4 py-3 text-[var(--foreground-muted)]">{inv.email || "—"}</td>
-                    <td className="px-4 py-3"><Badge tone={roleBadgeTone(inv.role)}>{roleLabel(inv.role)}</Badge></td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{inv.email || "—"}</td>
+                    <td className="px-5 py-3.5"><Badge tone={roleBadgeTone(inv.role)}>{roleLabel(inv.role)}</Badge></td>
+                    <td className="px-5 py-3.5">
                       <span className="font-mono text-xs text-[var(--muted)]" title={inv.code}>{maskCode(inv.code)}</span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-5 py-3.5 text-right">
                       <button
                         type="button"
                         onClick={(e) => openInviteMenu(inv, e)}
@@ -1002,8 +1050,9 @@ export default function StaffPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
-        </Card>
+        </>
       )}
     </>
   );

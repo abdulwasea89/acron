@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Button, Card, CardHeader, EmptyState, Input, Spinner, Textarea } from "@/components/ui";
+import { Alert, Avatar, Button, EmptyState, Input, Spinner, TableToolbar, Textarea } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import type { MemberDirectoryItem } from "@/lib/types";
 
@@ -103,25 +103,29 @@ export default function ApprovalsPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader
-          title="Pending approvals"
-          subtitle={
-            members
-              ? `${members.length} member${members.length === 1 ? "" : "s"} awaiting decision`
-              : undefined
-          }
-          action={
-            members && members.length > 0 ? (
-              <Input
-                placeholder="Search by name or email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-64"
-              />
-            ) : undefined
-          }
-        />
+      <TableToolbar
+        title="Pending approvals"
+        subtitle={
+          members
+            ? `${members.length} member${members.length === 1 ? "" : "s"} awaiting decision`
+            : undefined
+        }
+        action={
+          <div className="flex items-center gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search pending approvals"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              size="sm"
+              className="w-[150px]"
+            />
+          </div>
+        }
+      />
+
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="border border-foreground/10 bg-card">
         {members === null ? (
           <Spinner label="Loading approval queue..." />
         ) : filtered.length === 0 ? (
@@ -137,17 +141,17 @@ export default function ApprovalsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-6 py-3.5">Name</th>
-                  <th className="px-6 py-3.5">Phone</th>
-                  <th className="px-6 py-3.5">Signed up</th>
-                  <th className="px-6 py-3.5 text-right">Actions</th>
+                <tr className="border-b border-foreground/10">
+                  <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Phone</th>
+                  <th className="px-5 py-3">Signed up</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-foreground/[0.06]">
                 {filtered.map((m) => (
                   <tr key={m.member_id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <Avatar name={m.display_name || m.full_name || m.email} size="sm" />
                         <div>
@@ -158,9 +162,9 @@ export default function ApprovalsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-[var(--foreground-muted)]">{m.phone || "—"}</td>
-                    <td className="px-6 py-4 text-[var(--foreground-muted)]">{formatDate(m.created_at)}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{m.phone || "—"}</td>
+                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{formatDate(m.created_at)}</td>
+                    <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-2">
                         <Button
                           size="sm"
@@ -192,7 +196,7 @@ export default function ApprovalsPage() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
 
       <Dialog
         open={rejectTarget !== null}

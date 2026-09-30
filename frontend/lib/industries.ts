@@ -90,7 +90,7 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     sampleName: "Iron Pulse Boxing",
     offerPageTitle: "Membership plans",
     offerPageSubtitle: "Owner-defined plans shown to members at signup",
-    offerNewLabel: "+ New plan",
+    offerNewLabel: "New plan",
   },
   office: {
     key: "office",
@@ -124,7 +124,7 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     sampleName: "Downtown Serviced Offices",
     offerPageTitle: "Space plans",
     offerPageSubtitle: "Desk, room & office offers billed to companies",
-    offerNewLabel: "+ New space plan",
+    offerNewLabel: "New space plan",
   },
   academy: {
     key: "academy",
@@ -158,7 +158,7 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     sampleName: "Bright Minds Academy",
     offerPageTitle: "Fee plans",
     offerPageSubtitle: "Term tuition offers for course batches",
-    offerNewLabel: "+ New fee plan",
+    offerNewLabel: "New fee plan",
   },
 };
 

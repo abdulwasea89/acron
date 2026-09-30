@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { statusTone, titleCase } from "@/lib/format";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -282,7 +282,7 @@ export default function MembersPage() {
             <div>
               <div className="text-sm font-semibold text-[var(--foreground)]">Invite code for {inviteShare.email}</div>
               <div className="mt-0.5 text-xs text-[var(--muted)]">
-                Email delivery is off — share this single-use code with them.
+                The invite could not be emailed — share this single-use code with them.
               </div>
             </div>
             <button
@@ -396,37 +396,40 @@ export default function MembersPage() {
         </div>
       </Dialog>
 
-      <Card>
-        <CardHeader
-          title="Member directory"
-          subtitle={
-            tab === "approvals"
-              ? `${filtered.length} pending approval`
-              : members
-                ? `${members.length} member${members.length === 1 ? "" : "s"}`
-                : undefined
-          }
-          action={
-            <div className="flex items-center gap-1.5">
-              <Input
-                placeholder="Search…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                size="sm"
-                className="w-[150px]"
-              />
-              <CategoryTabs
-                className="shrink-0"
-                tabs={[
-                  { value: "all" as const, label: "All", count: members?.length ?? 0 },
-                  { value: "approvals" as const, label: "Approvals", count: pending.length },
-                ]}
-                value={tab}
-                onChange={setTab}
-              />
-            </div>
-          }
-        />
+      <TableToolbar
+        title="Member directory"
+        subtitle={
+          tab === "approvals"
+            ? `${filtered.length} pending approval`
+            : members
+              ? `${members.length} member${members.length === 1 ? "" : "s"}`
+              : undefined
+        }
+        action={
+          <div className="flex items-center gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search members"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              size="sm"
+              className="w-[150px]"
+            />
+            <CategoryTabs
+              className="shrink-0"
+              tabs={[
+                { value: "all" as const, label: "All", count: members?.length ?? 0 },
+                { value: "approvals" as const, label: "Approvals", count: pending.length },
+              ]}
+              value={tab}
+              onChange={setTab}
+            />
+          </div>
+        }
+      />
+
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="border border-foreground/10 bg-card">
         {members === null ? (
           <Spinner label="Loading members..." />
         ) : filtered.length === 0 ? (
@@ -444,22 +447,22 @@ export default function MembersPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-6 py-3.5">Name</th>
-                  <th className="px-6 py-3.5">Email</th>
-                  <th className="px-6 py-3.5">Trainer</th>
-                  <th className="px-6 py-3.5">Role</th>
-                  <th className="px-6 py-3.5">Status</th>
-                  <th className="px-6 py-3.5 text-right">Actions</th>
+                <tr className="border-b border-foreground/10">
+                  <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Email</th>
+                  <th className="px-5 py-3">Trainer</th>
+                  <th className="px-5 py-3">Role</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-foreground/[0.06]">
                 {filtered.map((m) => {
                   const isRowOwner = m.role === "owner";
                   const isRowSelf = m.member_id === currentUser?.member_id;
                   return (
                     <tr key={m.member_id} className="transition-colors hover:bg-[var(--background)]">
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <Avatar name={m.display_name || m.full_name || m.email} size="sm" />
                           <div>
@@ -475,8 +478,8 @@ export default function MembersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-[var(--foreground-muted)]">{m.email}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{m.email}</td>
+                      <td className="px-5 py-3.5">
                         {m.assigned_trainers?.length ? (
                           <div className="flex flex-wrap gap-1.5">
                             {m.assigned_trainers.map((name) => (
@@ -499,11 +502,11 @@ export default function MembersPage() {
                           <span className="text-[var(--muted)]">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">{roleBadge(m.role)}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-3.5">{roleBadge(m.role)}</td>
+                      <td className="px-5 py-3.5">
                         <Badge tone={statusTone(m.member_status)}>{titleCase(m.member_status)}</Badge>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-3.5">
                         <div className="flex justify-end gap-2">
                           {canManage && !isRowSelf && !isRowOwner ? (
                             <KebabMenu
@@ -549,7 +552,7 @@ export default function MembersPage() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
     </>
   );
 }

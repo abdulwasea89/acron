@@ -270,6 +270,39 @@ async def test_office_headline_with_an_open_invoice(client):
     assert r.json()["outstanding_invoices"] == round(total - 100.0, 2)
 
 
+# ------------------------------------------------------- soft-wrapped code
+@pytest.mark.asyncio
+async def test_invite_code_survives_email_soft_wrap(client):
+    """Regression: a code copied out of a wrapped email must still redeem.
+
+    Invite codes are 43-char tokens, long enough that mail clients break them
+    across lines. The pasted value then carries whitespace, which used to hash
+    differently and surface as "Invalid or expired code."
+    """
+
+    headers, org_id, org_code, plan_id = await _provision_office(client)
+    setup = await _add_company_and_contract(client, headers, plan_id, seats=2)
+    company_id = setup["company_id"]
+
+    r = await client.post(f"/api/v1/companies/{company_id}/seat-holders", headers=headers,
+                          json={"email": "wrapped@g.com"})
+    assert r.status_code == 201, r.text
+    code = r.json()["invite_code"]
+    assert code
+
+    # Every flavour of whitespace a copy-paste can introduce is tolerated.
+    mangled = f"  {code[:20]}\n\t{code[20:30]} \r\n {code[30:]}  "
+    r = await client.post("/api/v1/memberships/invite/redeem", json={
+        "org_code": org_code, "email": "wrapped@g.com", "code": mangled, "password": SEAT_PWD})
+    assert r.status_code == 200, r.text
+    assert r.json()["member_status"] == "active"
+
+    # A genuinely wrong code is still rejected (the strip is not a bypass).
+    r = await client.post("/api/v1/memberships/invite/redeem", json={
+        "org_code": org_code, "email": "wrapped@g.com", "code": "not-a-real-code", "password": SEAT_PWD})
+    assert r.status_code == 400, r.text
+
+
 # ------------------------------------------------------------------- seat cap
 @pytest.mark.asyncio
 async def test_office_seat_capacity_enforced(client):

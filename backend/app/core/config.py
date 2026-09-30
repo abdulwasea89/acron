@@ -112,6 +112,11 @@ class Settings(BaseSettings):
     stripe_connect_webhook_secret: str = ""
     stripe_connect_client_id: str = ""
 
+    # ------------------------------------------------------------- web front
+    # Public base URL of the Next.js portal. Used to build links that land in
+    # invite emails, so the recipient can complete the flow in a browser.
+    frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
     # ------------------------------------------------------ email / push / ai
     email_from: str = "no-reply@example.com"
     smtp_url: str = ""

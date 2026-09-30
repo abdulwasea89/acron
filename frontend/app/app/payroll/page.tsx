@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, Card, CategoryTabs, EmptyState, Input, Spinner, TableToolbar } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { MemberDirectoryItem, PayrollRun } from "@/lib/types";
@@ -12,6 +12,8 @@ export default function PayrollPage() {
   const [runs, setRuns] = useState<PayrollRun[] | null>(null);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [runSearch, setRunSearch] = useState("");
+  const [runStatus, setRunStatus] = useState("all");
   const [staffMap, setStaffMap] = useState<Record<string, string>>({});
 
   async function load() {
@@ -42,6 +44,28 @@ export default function PayrollPage() {
       setError((e as ApiError).message);
     }
   }
+
+  const allRuns = runs ?? [];
+
+  const runTabs = [
+    { value: "all", label: "All", count: allRuns.length },
+    ...Array.from(new Set(allRuns.map((r) => r.status))).map((s) => ({
+      value: s,
+      label: titleCase(s),
+      count: allRuns.filter((r) => r.status === s).length,
+    })),
+  ];
+
+  const runQ = runSearch.trim().toLowerCase();
+  const filteredRuns = allRuns.filter((r) => {
+    if (runStatus !== "all" && r.status !== runStatus) return false;
+    if (!runQ) return true;
+    return (
+      r.period_start.includes(runQ) ||
+      r.period_end.includes(runQ) ||
+      r.status.toLowerCase().includes(runQ)
+    );
+  });
 
   return (
     <>
@@ -92,11 +116,44 @@ export default function PayrollPage() {
           />
         </Card>
       ) : (
-        <div className="space-y-6">
-          {runs.map((run) => (
-            <RunCard key={run.id} run={run} staffMap={staffMap} onAction={act} onChanged={load} />
-          ))}
-        </div>
+        <>
+          <TableToolbar
+            title="Payroll runs"
+            subtitle={`${filteredRuns.length} of ${allRuns.length}`}
+            action={
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <Input
+                  placeholder="Search…"
+                  aria-label="Search payroll runs"
+                  value={runSearch}
+                  onChange={(e) => setRunSearch(e.target.value)}
+                  size="sm"
+                  className="w-[150px]"
+                />
+                <CategoryTabs
+                  className="shrink-0"
+                  tabs={runTabs}
+                  value={runStatus}
+                  onChange={setRunStatus}
+                />
+              </div>
+            }
+          />
+          {filteredRuns.length === 0 ? (
+            <Card>
+              <EmptyState
+                title="No runs match"
+                hint="Try a different search or status filter."
+              />
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {filteredRuns.map((run) => (
+                <RunCard key={run.id} run={run} staffMap={staffMap} onAction={act} onChanged={load} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
   );
@@ -150,8 +207,8 @@ function RunCard({
 }) {
   const editable = run.status === "draft";
   return (
-    <Card>
-      <CardHeader
+    <>
+      <TableToolbar
         title={`${run.period_start} → ${run.period_end}`}
         subtitle={`Gross ${money(run.total_gross)} · Deductions ${money(run.total_deductions)} · Net ${money(run.total_net)}`}
         action={
@@ -172,7 +229,7 @@ function RunCard({
               )}
               {run.status === "finalized" && (
                 <Button size="sm" onClick={() => onAction(run.id, "pay")}>
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75a.75.75 0 01-.75.75h-3m-2.25 0h.75c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125H3.75m0 0a1.5 1.5 0 01-1.5-1.5V15a1.5 1.5 0 011.5-1.5h1.5M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
                   Mark paid
                 </Button>
               )}
@@ -181,29 +238,32 @@ function RunCard({
         }
       />
 
+    {/* Table surface: hairline border, square corners, flat background. */}
+    <div className="border border-foreground/10 bg-card">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-            <tr className="border-b border-[var(--border)]">
-              <th className="px-6 py-3.5">Staff</th>
-              <th className="px-6 py-3.5">Fixed</th>
-              <th className="px-6 py-3.5">Hourly</th>
-              <th className="px-6 py-3.5">Classes</th>
-              <th className="px-6 py-3.5">Commission</th>
-              <th className="px-6 py-3.5">Bonus</th>
-              <th className="px-6 py-3.5">Deductions</th>
-              <th className="px-6 py-3.5 text-right">Net</th>
-              {editable && <th className="px-6 py-3.5 text-right">Adjust</th>}
+            <tr className="border-b border-foreground/10">
+              <th className="px-5 py-3">Staff</th>
+              <th className="px-5 py-3">Fixed</th>
+              <th className="px-5 py-3">Hourly</th>
+              <th className="px-5 py-3">Classes</th>
+              <th className="px-5 py-3">Commission</th>
+              <th className="px-5 py-3">Bonus</th>
+              <th className="px-5 py-3">Deductions</th>
+              <th className="px-5 py-3 text-right">Net</th>
+              {editable && <th className="px-5 py-3 text-right">Adjust</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--border)]">
+          <tbody className="divide-y divide-foreground/[0.06]">
             {run.entries.map((e) => (
               <EntryRow key={e.id} runId={run.id} entry={e} staffMap={staffMap} editable={editable} onChanged={onChanged} />
             ))}
           </tbody>
         </table>
       </div>
-    </Card>
+    </div>
+    </>
   );
 }
 
@@ -248,16 +308,16 @@ function EntryRow({
   return (
     <>
       <tr className="transition-colors hover:bg-[var(--background)]">
-        <td className="px-6 py-4 font-medium text-[var(--foreground)]">{staffMap[entry.staff_member_id] || entry.staff_member_id.slice(0, 8)}</td>
-        <td className="px-6 py-4 tabular-nums">{money(entry.fixed)}</td>
-        <td className="px-6 py-4 tabular-nums">{money(entry.hourly_amount)}</td>
-        <td className="px-6 py-4 tabular-nums">{money(entry.class_amount)}</td>
-        <td className="px-6 py-4 tabular-nums">{money(entry.commission_amount)}</td>
-        <td className="px-6 py-4 tabular-nums">{money(entry.bonus)}</td>
-        <td className="px-6 py-4 tabular-nums">{money(entry.deductions)}</td>
-        <td className="px-6 py-4 text-right font-semibold tabular-nums text-[var(--foreground)]">{money(entry.net)}</td>
+        <td className="px-5 py-3.5 font-medium text-[var(--foreground)]">{staffMap[entry.staff_member_id] || entry.staff_member_id.slice(0, 8)}</td>
+        <td className="px-5 py-3.5 tabular-nums">{money(entry.fixed)}</td>
+        <td className="px-5 py-3.5 tabular-nums">{money(entry.hourly_amount)}</td>
+        <td className="px-5 py-3.5 tabular-nums">{money(entry.class_amount)}</td>
+        <td className="px-5 py-3.5 tabular-nums">{money(entry.commission_amount)}</td>
+        <td className="px-5 py-3.5 tabular-nums">{money(entry.bonus)}</td>
+        <td className="px-5 py-3.5 tabular-nums">{money(entry.deductions)}</td>
+        <td className="px-5 py-3.5 text-right font-semibold tabular-nums text-[var(--foreground)]">{money(entry.net)}</td>
         {editable && (
-          <td className="px-6 py-4 text-right">
+          <td className="px-5 py-3.5 text-right">
             <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)}>
               {open ? (
                 <>
@@ -276,7 +336,7 @@ function EntryRow({
       </tr>
       {open && (
         <tr>
-          <td colSpan={9} className="bg-[var(--background)] px-6 py-5">
+          <td colSpan={9} className="bg-[var(--background)] px-5 py-3.5">
             {error && <div className="mb-3"><Alert>{error}</Alert></div>}
             <div className="grid gap-4 sm:grid-cols-4">
               <Input label="Bonus" type="number" step="0.01" value={bonus} onChange={(e) => setBonus(e.target.value)} />

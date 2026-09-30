@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { Dialog } from "@/components/Dialog";
-import { Alert, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtimeEvent } from "@/components/Realtime";
@@ -16,6 +16,7 @@ export default function ClassesPage() {
   const [members, setMembers] = useState<MemberDirectoryItem[]>([]);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"upcoming" | "past" | "cancelled">("upcoming");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [cancelling, setCancelling] = useState<ClassSessionOut | null>(null);
 
@@ -72,18 +73,27 @@ export default function ClassesPage() {
   const trainers = members.filter((m) => m.role === "trainer" || m.role === "manager" || m.role === "owner");
 
   const now = new Date();
-  const filtered = (sessions ?? []).filter((s) => {
-    if (s.cancelled) return filter === "cancelled";
+  const all = sessions ?? [];
+
+  const inTab = (s: ClassSessionOut, tab: typeof filter) => {
+    if (s.cancelled) return tab === "cancelled";
+    if (tab === "cancelled") return false;
     const start = new Date(s.starts_at);
-    if (filter === "upcoming") return start >= now;
-    if (filter === "past") return start < now;
-    return true;
+    return tab === "upcoming" ? start >= now : start < now;
+  };
+
+  const q = search.trim().toLowerCase();
+  const filtered = all.filter((s) => {
+    if (!inTab(s, filter)) return false;
+    if (!q) return true;
+    const trainer = s.trainer_member_id ? trainerById[s.trainer_member_id] ?? "" : "";
+    return s.title.toLowerCase().includes(q) || trainer.toLowerCase().includes(q);
   });
 
   const tabs = [
-    { value: "upcoming" as const, label: "Upcoming" },
-    { value: "past" as const, label: "Past" },
-    { value: "cancelled" as const, label: "Cancelled" },
+    { value: "upcoming" as const, label: "Upcoming", count: all.filter((s) => inTab(s, "upcoming")).length },
+    { value: "past" as const, label: "Past", count: all.filter((s) => inTab(s, "past")).length },
+    { value: "cancelled" as const, label: "Cancelled", count: all.filter((s) => inTab(s, "cancelled")).length },
   ];
 
   function resetForm() {
@@ -215,13 +225,6 @@ export default function ClassesPage() {
       />
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
-
-      <CategoryTabs
-        tabs={tabs}
-        value={filter}
-        onChange={setFilter}
-        className="mb-4"
-      />
 
       {/* Create dialog */}
       <Dialog
@@ -362,11 +365,31 @@ export default function ClassesPage() {
         document.body,
       )}
 
-      <Card>
-        <CardHeader
-          title={filter === "upcoming" ? "Upcoming classes" : filter === "past" ? "Past classes" : "Cancelled classes"}
-          subtitle={sessions ? `${filtered.length} session${filtered.length === 1 ? "" : "s"}` : undefined}
-        />
+      <TableToolbar
+        title={filter === "upcoming" ? "Upcoming classes" : filter === "past" ? "Past classes" : "Cancelled classes"}
+        subtitle={sessions ? `${filtered.length} session${filtered.length === 1 ? "" : "s"}` : undefined}
+        action={
+          <div className="flex items-center gap-1.5">
+            <Input
+              placeholder="Search…"
+              aria-label="Search classes"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              size="sm"
+              className="w-[150px]"
+            />
+            <CategoryTabs
+              className="shrink-0"
+              tabs={tabs}
+              value={filter}
+              onChange={setFilter}
+            />
+          </div>
+        }
+      />
+
+      {/* Table surface: hairline border, square corners, flat background. */}
+      <div className="border border-foreground/10 bg-card">
         {sessions === null ? (
           <Spinner label="Loading classes..." />
         ) : filtered.length === 0 ? (
@@ -385,16 +408,16 @@ export default function ClassesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-4 py-3">Class</th>
-                  <th className="px-4 py-3">Trainer</th>
-                  <th className="px-4 py-3">Date / Time</th>
-                  <th className="px-4 py-3">Capacity</th>
-                  <th className="px-4 py-3">Status</th>
-                  {isStaff && <th className="w-12 px-4 py-3" />}
+                <tr className="border-b border-foreground/10">
+                  <th className="px-5 py-3">Class</th>
+                  <th className="px-5 py-3">Trainer</th>
+                  <th className="px-5 py-3">Date / Time</th>
+                  <th className="px-5 py-3">Capacity</th>
+                  <th className="px-5 py-3">Status</th>
+                  {isStaff && <th className="w-12 px-5 py-3" />}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-foreground/[0.06]">
                 {filtered.map((s) => {
                   const st = sessionStatus(s);
                   return (
@@ -402,17 +425,17 @@ export default function ClassesPage() {
                       key={s.id}
                       className={`transition-colors hover:bg-[var(--background)] ${s.cancelled ? "opacity-50" : ""}`}
                     >
-                      <td className="max-w-[200px] px-4 py-3">
+                      <td className="max-w-[200px] px-5 py-3.5">
                         <p className={`truncate font-medium ${s.cancelled ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>
                           {s.title}
                         </p>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         <span className="text-[var(--foreground-muted)]">
                           {s.trainer_member_id ? (trainerById[s.trainer_member_id] || "—") : "Unassigned"}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="text-[var(--foreground-muted)]">
                           <p className="whitespace-nowrap">{fmtDateTime(s.starts_at)}</p>
                           {s.ends_at && (
@@ -422,7 +445,7 @@ export default function ClassesPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
                           <div className="flex-1">
                             <div className="h-2 w-20 rounded-full bg-[var(--border)]">
@@ -437,7 +460,7 @@ export default function ClassesPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <Badge tone={st.tone}>{st.label}</Badge>
                           {!s.cancelled && s.trainer_checked_in && (
@@ -446,7 +469,7 @@ export default function ClassesPage() {
                         </div>
                       </td>
                       {isStaff && (
-                        <td className="px-4 py-3">
+                        <td className="px-5 py-3.5">
                           <div className="flex justify-end">
                             <button
                               type="button"
@@ -469,7 +492,7 @@ export default function ClassesPage() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
     </>
   );
 }

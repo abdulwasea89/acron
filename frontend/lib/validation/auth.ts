@@ -5,6 +5,26 @@ import { z } from "zod";
 
 import { emailField, orgCodeField, mfaField } from "./shared";
 
+// Member / seat-holder invite redemption. Mirrors the backend Pydantic schema
+// RedeemInvite in backend/app/schemas/memberships.py.
+export const redeemMemberInviteSchema = z.object({
+  orgCode: orgCodeField,
+  email: emailField,
+  // Codes are 43-char tokens that mail clients soft-wrap. Strip any whitespace
+  // so a copy-paste out of the email body still matches.
+  code: z
+    .string()
+    .transform((v) => v.replace(/\s+/g, ""))
+    .pipe(z.string().min(1, "Invite code is required")),
+  password: z
+    .string()
+    .min(12, "At least 12 characters")
+    .regex(/[a-z]/, "Needs lowercase")
+    .regex(/[A-Z]/, "Needs uppercase")
+    .regex(/[0-9]/, "Needs a number")
+    .regex(/[^A-Za-z0-9]/, "Needs a symbol"),
+});
+
 // Login: org code is optional (owners managing one gym can omit it).
 export const loginSchema = z.object({
   email: emailField,
