@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, CategoryTabs, EmptyState, Input, Spinner, TableToolbar } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, EmptyState, Spinner } from "@/components/ui";
+import { ListToolbar } from "@/components/ListToolbar";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { InvoiceOut, SaasStatusOut } from "@/lib/types";
 
 const TIERS = ["starter", "pro", "enterprise"];
 
-export default function BillingPage() {
+export default function BillingPage({ embedded = false }: { embedded?: boolean }) {
   const [status, setStatus] = useState<SaasStatusOut | null>(null);
   const [invoices, setInvoices] = useState<InvoiceOut[] | null>(null);
   const [error, setError] = useState("");
@@ -71,7 +72,7 @@ export default function BillingPage() {
 
   return (
     <>
-      <PageHeader title="Billing" subtitle="Your platform subscription & invoices" />
+      {!embedded && <PageHeader title="Billing" subtitle="Your platform subscription & invoices" />}
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
@@ -229,80 +230,64 @@ export default function BillingPage() {
             </Card>
           </div>
 
-          <div className="mt-6">
-            <TableToolbar
-              title="Invoice history"
-              subtitle={invoices ? `${filteredInvoices.length} of ${invoices.length}` : undefined}
-              action={
-                <div className="flex flex-wrap items-center justify-end gap-1.5">
-                  <Input
-                    placeholder="Search…"
-                    aria-label="Search invoices"
-                    value={invoiceSearch}
-                    onChange={(e) => setInvoiceSearch(e.target.value)}
-                    size="sm"
-                    className="w-[150px]"
-                  />
-                  <CategoryTabs
-                    className="shrink-0"
-                    tabs={invoiceTabs}
-                    value={invoiceStatus}
-                    onChange={setInvoiceStatus}
-                  />
-                </div>
-              }
-            />
-            {/* Table surface: hairline border, square corners, flat background. */}
-            <div className="border border-foreground/10 bg-card">
-              {invoices === null ? (
-                <Spinner label="Loading invoices..." />
-              ) : filteredInvoices.length === 0 ? (
-                <EmptyState
-                  title="No invoices yet"
-                  hint={
-                    invoices.length === 0
-                      ? "Your invoices will appear here."
-                      : "No invoices match the current filter."
-                  }
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                      <tr className="border-b border-foreground/10">
-                        <th className="px-5 py-3">Date</th>
-                        <th className="px-5 py-3">Amount</th>
-                        <th className="px-5 py-3">Status</th>
-                        <th className="px-5 py-3" />
+          <ListToolbar
+            tabs={invoiceTabs}
+            value={invoiceStatus}
+            onChange={setInvoiceStatus}
+            search={invoiceSearch}
+            onSearch={setInvoiceSearch}
+            searchPlaceholder="Search invoices…"
+          />
+          {/* Table surface: hairline border, square corners, flat background. */}
+          <div className="mt-3 border border-foreground/10 bg-card">
+            {invoices === null ? (
+              <Spinner label="Loading invoices..." />
+            ) : filteredInvoices.length === 0 ? (
+              <EmptyState
+                title="No invoices yet"
+                hint={
+                  invoices.length === 0
+                    ? "Your invoices will appear here."
+                    : "No invoices match the current filter."
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+                    <tr className="border-b border-foreground/10">
+                      <th className="px-5 py-3">Date</th>
+                      <th className="px-5 py-3">Amount</th>
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-foreground/[0.06]">
+                    {filteredInvoices.map((inv) => (
+                      <tr key={inv.id} className="transition-colors hover:bg-[var(--background)]">
+                        <td className="px-5 py-3.5">{new Date(inv.created_at).toLocaleDateString()}</td>
+                        <td className="px-5 py-3.5 tabular-nums font-medium">{money(inv.amount, inv.currency)}</td>
+                        <td className="px-5 py-3.5">
+                          <Badge tone={statusTone(inv.status)}>{titleCase(inv.status)}</Badge>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <a
+                            href={`/api/download/saas-billing/invoices/${inv.id}/pdf`}
+                            download
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--primary)] hover:underline"
+                          >
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                            PDF
+                          </a>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-foreground/[0.06]">
-                      {filteredInvoices.map((inv) => (
-                        <tr key={inv.id} className="transition-colors hover:bg-[var(--background)]">
-                          <td className="px-5 py-3.5">{new Date(inv.created_at).toLocaleDateString()}</td>
-                          <td className="px-5 py-3.5 tabular-nums font-medium">{money(inv.amount, inv.currency)}</td>
-                          <td className="px-5 py-3.5">
-                            <Badge tone={statusTone(inv.status)}>{titleCase(inv.status)}</Badge>
-                          </td>
-                          <td className="px-5 py-3.5 text-right">
-                            <a
-                              href={`/api/download/saas-billing/invoices/${inv.id}/pdf`}
-                              download
-                              className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--primary)] hover:underline"
-                            >
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                              PDF
-                            </a>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </>
       )}

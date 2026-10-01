@@ -1,28 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type Ref } from "react";
-import { ChatComposer } from "@/components/assistant/ChatComposer";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAssistantChats } from "@/components/assistant/AssistantChats";
 import { useAssistantDock } from "@/components/assistant/AssistantDock";
 
 /* ── ChatInput ────────────────────────────────────────────────────────────
-   The assistant's entry point on every dashboard page: a compact launcher in
-   the bottom-right corner that opens a floating panel with a welcome state,
-   suggested prompts, and the prompt field.
+   The assistant's entry point on every dashboard page: a compact circular
+   button in the bottom-right corner that expands into a horizontal prompt bar
+   to its left.
 
    It starts a chat; it never renders one. Submitting hands the prompt to
    AssistantDock, which carries it to /app/assistant and navigates there — that
    page's ChatPanel creates the conversation and streams the reply, so exactly
-   one code path talks to the model. The panel therefore shows the *welcome*
-   state rather than a transcript, and closes as soon as a prompt is sent.
+   one code path talks to the model.
 
-   Position is viewport-relative (`fixed`), not tied to the content column the
-   way the old bottom bar was — a corner affordance belongs to the viewport
-   corner. z-40 keeps it *below* dialogs, selects and menus (z-50), so opening
-   a modal still wins the stacking order.
+   The bar is anchored to the button (which stays put at the corner) and grows
+   leftward, so the reveal reads as the circle stretching into a field rather
+   than a panel dropping over the page. Position is viewport-relative (`fixed`);
+   z-40 keeps it *below* dialogs, selects and menus (z-50), so opening a modal
+   still wins the stacking order.
 
-   Keyboard: ⌘K / Ctrl+K (or "/") opens the panel and focuses the field from
+   Keyboard: ⌘K / Ctrl+K (or "/") opens the bar and focuses the field from
    anywhere on the page; "/" is ignored while the user is already typing in a
-   field. Escape closes. Shift+Enter inserts a newline (Enter sends). */
+   field. Escape (or a click outside) collapses it. Enter sends. */
 
 /** True when the event target is a field that should keep its keystrokes. */
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -36,37 +36,24 @@ function isTypingTarget(target: EventTarget | null): boolean {
   );
 }
 
-/* The panel placeholder is deliberately a conversational constant rather than
-   the per-page hint the old bar used: "Ask about your space plans…" read like a
-   label on a search box, and the panel now has a greeting to carry the page
-   context instead. */
 const PLACEHOLDER = "Ask anything about your plans…";
 
-/* Example questions shown while the panel is empty. These describe things the
-   assistant can actually answer in any vertical, so the global launcher never
-   promises a page-specific capability it does not have. */
-const SUGGESTIONS = [
-  "How many active plans?",
-  "Which plans are in draft?",
-  "What needs my attention today?",
-  "Summarize this month's revenue",
-] as const;
+/* The button is 52px and the bar sits 8px to its left; both are 52px tall. */
+const BUTTON_SIZE = 52;
+const GAP = 8;
 
-const PANEL_ID = "ai-assistant-panel";
+/* The expanded bar's length. A fixed 22rem felt cramped for a real prompt, so it
+   scales with the viewport up to a comfortable reading width. Applied to both
+   the clipping wrapper and the form inside it, which must stay the same width
+   for the reveal to read as one box growing. */
+const BAR_WIDTH =
+  "w-[min(calc(100vw-6.5rem),22rem)] sm:w-[min(calc(100vw-6.5rem),28rem)] lg:w-[min(calc(100vw-6.5rem),34rem)]";
 
 function SparkIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
       <path d="M12 8.5 13.6 12l3.5 1.6-3.5 1.6L12 18.7l-1.6-3.5L6.9 13.6 10.4 12z" />
-    </svg>
-  );
-}
-
-function ArrowRightIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12h14M13 6l6 6-6 6" />
     </svg>
   );
 }
@@ -79,137 +66,36 @@ function CloseIcon({ className }: { className?: string }) {
   );
 }
 
-/** The collapsed affordance: one compact circle, not a glowing call to action.
- *  It only renders while the panel is closed, so it has no expanded state of
- *  its own — the panel carries its own close control. */
-function AssistantLauncher({
-  onOpen,
-  buttonRef,
-}: {
-  onOpen: () => void;
-  buttonRef: Ref<HTMLButtonElement>;
-}) {
+function SendIcon({ className }: { className?: string }) {
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      onClick={onOpen}
-      aria-label="Open the assistant"
-      className="flex h-[52px] w-[52px] cursor-pointer items-center justify-center rounded-full border border-foreground/15 bg-popover text-foreground shadow-xl shadow-black/25 transition duration-150 hover:scale-[1.02] hover:border-foreground/25 hover:text-brand focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
-    >
-      <SparkIcon className="h-5 w-5" />
-    </button>
-  );
-}
-
-function SuggestionRow({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full items-center gap-2 rounded-lg border border-foreground/10 bg-foreground/[0.02] px-3 py-2 text-left text-[13px] leading-5 text-foreground transition duration-150 hover:border-foreground/20 hover:bg-foreground/[0.05] focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
-    >
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <ArrowRightIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5" />
-    </button>
-  );
-}
-
-interface AssistantPanelProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
-  onSuggestion: (prompt: string) => void;
-  onClose: () => void;
-  focusSignal: number;
-}
-
-function AssistantPanel({
-  value,
-  onChange,
-  onSubmit,
-  onSuggestion,
-  onClose,
-  focusSignal,
-}: AssistantPanelProps) {
-  return (
-    <section
-      id={PANEL_ID}
-      role="dialog"
-      aria-label="AI Assistant"
-      className="flex max-h-[calc(100dvh-2.5rem)] w-[380px] max-w-[calc(100vw-24px)] animate-dialog-in flex-col overflow-hidden rounded-2xl border border-foreground/10 bg-popover shadow-xl shadow-black/25"
-    >
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-foreground/[0.08] px-4 py-3.5">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-          <SparkIcon className="h-3.5 w-3.5" />
-        </span>
-        <span className="text-[13px] font-semibold text-foreground">AI Assistant</span>
-        <span className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
-          Online
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close the assistant"
-          className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
-        >
-          <CloseIcon className="h-4 w-4" />
-        </button>
-      </header>
-
-      {/* The welcome state is the panel's only body today: the dock starts a
-          chat rather than rendering one. It scrolls so the composer can stay
-          pinned when the panel is shorter than its content (short viewports). */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <h2 className="text-[15px] font-semibold leading-6 text-foreground">Hello 👋</h2>
-        <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground">
-          I can help you understand your plans, pricing, billing, and operations.
-        </p>
-
-        <div className="mt-4 space-y-2">
-          {SUGGESTIONS.map((suggestion) => (
-            <SuggestionRow
-              key={suggestion}
-              label={suggestion}
-              onClick={() => onSuggestion(suggestion)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="shrink-0 border-t border-foreground/[0.08] px-3 py-2.5">
-        <ChatComposer
-          variant="panel"
-          value={value}
-          onChange={onChange}
-          onSubmit={onSubmit}
-          autoFocus
-          focusSignal={focusSignal}
-          placeholder={PLACEHOLDER}
-        />
-        <p className="mt-2 px-1 text-center text-[10px] leading-4 text-muted-foreground">
-          AI can make mistakes. Verify important information.
-        </p>
-      </div>
-    </section>
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
   );
 }
 
 export function ChatInput() {
   const dock = useAssistantDock();
+  const chats = useAssistantChats();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [focusSignal, setFocusSignal] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
 
-  // Return focus to the launcher when the panel closes (Escape or the ×), so a
-  // keyboard user is not dropped back at the top of the document.
+  // Return focus to the launcher when the bar collapses, so a keyboard user is
+  // not dropped back at the top of the document.
   useEffect(() => {
     if (wasOpen.current && !open) launcherRef.current?.focus();
     wasOpen.current = open;
   }, [open]);
+
+  // Focus the field whenever the bar opens or the shortcut bumps the signal.
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open, focusSignal]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -219,13 +105,7 @@ export function ChatInput() {
         setFocusSignal((n) => n + 1);
         return;
       }
-      if (
-        e.key === "/" &&
-        !e.metaKey &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !isTypingTarget(e.target)
-      ) {
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !isTypingTarget(e.target)) {
         e.preventDefault();
         setOpen(true);
         setFocusSignal((n) => n + 1);
@@ -242,46 +122,90 @@ export function ChatInput() {
     // here, so leaving it in the field would show the same prompt twice.
     setValue("");
     setOpen(false);
+    // A bar prompt starts a fresh thread. If one is already open, the assistant
+    // page would otherwise append to it and never consume the handed-over
+    // prompt — so drop the active thread first.
+    chats?.setActiveId(null);
     dock.ask(prompt);
-  }, [value, dock]);
+  }, [value, dock, chats]);
 
-  // A suggestion is just a prompt the user did not have to type — it takes the
-  // exact same handoff to the assistant page.
-  const onSubmitSuggestion = useCallback(
-    (prompt: string) => {
-      if (!dock) return;
-      setValue("");
-      setOpen(false);
-      dock.ask(prompt);
-    },
-    [dock],
-  );
-
-  // Escape closes, but only while the panel is open — the handler stays off the
-  // document otherwise so it never swallows Escape from a dialog above this.
+  // Escape collapses the bar; so does a press outside it. Both handlers stay off
+  // the document unless the bar is open, so Escape in a dialog above still wins.
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    function onPointerDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+    };
   }, [open]);
 
+  const canSend = value.trim().length > 0;
+
   return (
-    <div className="fixed bottom-4 right-4 z-40 sm:bottom-6 sm:right-6">
-      {open ? (
-        <AssistantPanel
-          value={value}
-          onChange={setValue}
-          onSubmit={submit}
-          onSuggestion={onSubmitSuggestion}
-          onClose={() => setOpen(false)}
-          focusSignal={focusSignal}
-        />
-      ) : (
-        <AssistantLauncher onOpen={() => setOpen(true)} buttonRef={launcherRef} />
-      )}
+    <div ref={containerRef} className="fixed bottom-4 right-4 z-40 sm:bottom-6 sm:right-6">
+      <div className="relative flex items-center justify-end">
+        {/* The prompt bar: anchored to the left of the button, growing leftward.
+            `overflow-hidden` + a fixed-width inner form means the reveal is a
+            clean clip rather than the field reflowing as it widens. */}
+        <div
+          className={`absolute origin-right overflow-hidden transition-[width,opacity] duration-200 ease-out ${
+            open ? `${BAR_WIDTH} opacity-100` : "w-0 opacity-0"
+          }`}
+          style={{ right: BUTTON_SIZE + GAP }}
+        >
+          <form
+            onSubmit={(e) => { e.preventDefault(); submit(); }}
+            className={`flex h-[52px] ${BAR_WIDTH} items-center gap-1.5 rounded-full border border-foreground/15 bg-popover pl-4 pr-1.5 shadow-xl shadow-black/25`}
+          >
+            <input
+              ref={inputRef}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={PLACEHOLDER}
+              aria-label="Ask the assistant"
+              className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!canSend}
+              aria-label="Send"
+              className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-brand-foreground transition duration-150 hover:bg-brand/90 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60"
+            >
+              <SendIcon className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
+
+        <button
+          ref={launcherRef}
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? "Close the assistant" : "Open the assistant"}
+          aria-expanded={open}
+          className="relative flex h-[52px] w-[52px] cursor-pointer items-center justify-center rounded-full border border-foreground/15 bg-popover text-foreground shadow-xl shadow-black/25 transition duration-150 hover:border-foreground/25 hover:text-brand focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
+        >
+          <span className="relative flex h-5 w-5 items-center justify-center">
+            <SparkIcon
+              className={`absolute h-5 w-5 transition-all duration-200 ease-out ${
+                open ? "-rotate-45 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100"
+              }`}
+            />
+            <CloseIcon
+              className={`absolute h-4 w-4 transition-all duration-200 ease-out ${
+                open ? "rotate-0 scale-100 opacity-100" : "rotate-45 scale-50 opacity-0"
+              }`}
+            />
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

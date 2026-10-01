@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Avatar, Button, EmptyState, Input, Spinner, TableToolbar, Textarea } from "@/components/ui";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { api, ApiError } from "@/lib/api";
 import type { MemberDirectoryItem } from "@/lib/types";
 
@@ -124,8 +133,8 @@ export default function ApprovalsPage() {
         }
       />
 
-      {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="border border-foreground/10 bg-card">
+      {/* Flat workspace, not a card: rows are held by hairlines. */}
+      <div className="mt-3">
         {members === null ? (
           <Spinner label="Loading approval queue..." />
         ) : filtered.length === 0 ? (
@@ -139,19 +148,19 @@ export default function ApprovalsPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Phone</th>
-                  <th className="px-5 py-3">Signed up</th>
-                  <th className="px-5 py-3 text-right">Actions</th>
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Name</th>
+                  <th className={`${TH} ${CELL}`}>Phone</th>
+                  <th className={`${TH} ${CELL}`}>Signed up</th>
+                  <th className={`${TH} ${CELL_LAST} text-right`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
+              <tbody>
                 {filtered.map((m) => (
-                  <tr key={m.member_id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-5 py-3.5">
+                  <tr key={m.member_id} className={`${TR} transition-colors hover:bg-foreground/[0.02]`}>
+                    <td className={`${TD} ${CELL_FIRST} py-2.5`}>
                       <div className="flex items-center gap-3">
                         <Avatar name={m.display_name || m.full_name || m.email} size="sm" />
                         <div>
@@ -162,9 +171,9 @@ export default function ApprovalsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{m.phone || "—"}</td>
-                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{formatDate(m.created_at)}</td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5 text-[var(--foreground-muted)]`}>{m.phone || "—"}</td>
+                    <td className={`${TD} ${CELL} py-2.5 text-[var(--foreground-muted)]`}>{formatDate(m.created_at)}</td>
+                    <td className={`${TD} ${CELL_LAST} py-2.5`}>
                       <div className="flex justify-end gap-2">
                         <Button
                           size="sm"
@@ -198,36 +207,45 @@ export default function ApprovalsPage() {
         )}
       </div>
 
-      <Dialog
+      {/* Rejecting is destructive — it cancels an application and notifies the
+          member — so it gets a centred AlertDialog: two answers, and it should
+          stop you. The reason field rides inside it, since it is only ever
+          needed here. Being a Radix AlertDialog, outside-press and Escape
+          deliberately do nothing. */}
+      <AlertDialog
         open={rejectTarget !== null}
-        onClose={() => { setRejectTarget(null); setRejectReason(""); }}
-        title={`Reject ${rejectTarget ? (rejectTarget.display_name || rejectTarget.full_name || rejectTarget.email) : ""}`}
+        onOpenChange={(open) => { if (!open) { setRejectTarget(null); setRejectReason(""); } }}
       >
-        <div className="space-y-4">
-          <p className="text-sm text-[var(--foreground-muted)]">
+        <AlertDialogContent>
+          <AlertDialogTitle>
+            Reject {rejectTarget ? (rejectTarget.display_name || rejectTarget.full_name || rejectTarget.email) : ""}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
             This member will be notified and their application cancelled.
-          </p>
-          <Textarea
-            label="Reason (optional)"
-            placeholder="Why are you rejecting this application?"
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            rows={3}
-          />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setRejectTarget(null); setRejectReason(""); }}
-            >
-              Cancel
-            </Button>
-            <Button variant="danger" size="sm" onClick={handleReject}>
-              Reject membership
-            </Button>
+          </AlertDialogDescription>
+          <div className="mt-4">
+            <Textarea
+              label="Reason (optional)"
+              placeholder="Why are you rejecting this application?"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={3}
+            />
           </div>
-        </div>
-      </Dialog>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary" onClick={() => { setRejectTarget(null); setRejectReason(""); }}>
+                Cancel
+              </Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" onClick={handleReject}>
+                Reject membership
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -3,10 +3,30 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Select, Spinner, Textarea } from "@/components/ui";
-import { KebabMenu } from "@/components/KebabMenu";
+import { Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Spinner, Textarea } from "@/components/ui";
+import { FieldSelect, NONE } from "@/components/FieldSelect";
+import { SelectItem } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { RowMenu } from "@/components/RowMenu";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
 import { fmtDate, invoiceLabel, invoiceTone, money, titleCase } from "@/lib/format";
@@ -188,7 +208,7 @@ export default function CompanyDetailPage() {
                         )
                       )}
                       {ct.status === "active" && (
-                        <KebabMenu actions={[{ label: "End contract", danger: true, onClick: () => setConfirmEnd(ct) }]} />
+                        <RowMenu actions={[{ label: "End contract", variant: "destructive", onSelect: () => setConfirmEnd(ct) }]} />
                       )}
                     </div>
                   </li>
@@ -255,46 +275,98 @@ export default function CompanyDetailPage() {
         </Card>
       </div>
 
-      {/* Dialogs */}
-      <Dialog open={showEdit} onClose={() => setShowEdit(false)} title="Edit company" className="max-w-xl">
-        <EditCompanyForm company={c} onDone={() => { setShowEdit(false); load(); }} />
-      </Dialog>
+      {/* Editing the company is a form about the record above it, so it rides in a
+          sheet: the contracts, seat-holders and invoices stay in view. */}
+      <Sheet open={showEdit} onOpenChange={setShowEdit}>
+        <SheetContent className="[--sheet-max-w:520px]">
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>Edit company</SheetTitle>
+              <SheetDescription>Details, billing contact and address</SheetDescription>
+            </div>
+          </SheetHeader>
+          <EditCompanyForm company={c} onDone={() => { setShowEdit(false); load(); }} />
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={showContract} onClose={() => setShowContract(false)} title="New seat contract" subtitle="Sign this company onto a published space plan" className="max-w-xl">
-        <ContractForm companyId={companyId} plans={spacePlans} currency={currency} onDone={() => { setShowContract(false); load(); }} />
-      </Dialog>
+      {/* Signing a company onto a plan is a create task, and the plan list behind
+          it is the thing you are choosing from — a sheet keeps both visible. */}
+      <Sheet open={showContract} onOpenChange={setShowContract}>
+        <SheetContent className="[--sheet-max-w:520px]">
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>New seat contract</SheetTitle>
+              <SheetDescription>Sign this company onto a published space plan</SheetDescription>
+            </div>
+          </SheetHeader>
+          <ContractForm companyId={companyId} plans={spacePlans} currency={currency} onDone={() => { setShowContract(false); load(); }} />
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={showInvite} onClose={() => { setShowInvite(false); setInviteResult(null); }} title="Add seat-holder" subtitle="Invite by email — this company's seats cap the roster" className="max-w-md">
-        {inviteResult ? (
-          <InviteDone result={inviteResult} onDone={() => { setShowInvite(false); setInviteResult(null); load(); }} />
-        ) : (
-          <SeatHolderForm companyId={companyId} onSent={setInviteResult} />
-        )}
-      </Dialog>
+      {/* Adding a seat-holder is the same shape as signing: a create form, with
+          the generated invite code as its tail. */}
+      <Sheet
+        open={showInvite}
+        onOpenChange={(open) => { if (!open) { setShowInvite(false); setInviteResult(null); } }}
+      >
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>Add seat-holder</SheetTitle>
+              <SheetDescription>Invite by email — this company&apos;s seats cap the roster</SheetDescription>
+            </div>
+          </SheetHeader>
+          {inviteResult ? (
+            <InviteDone result={inviteResult} onDone={() => { setShowInvite(false); setInviteResult(null); load(); }} />
+          ) : (
+            <SeatHolderForm companyId={companyId} onSent={setInviteResult} />
+          )}
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={confirmDeactivate} onClose={() => setConfirmDeactivate(false)} title="Deactivate company" className="max-w-sm">
-        <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-          Deactivate <strong className="text-[var(--foreground)]">{c.name}</strong>? Existing contracts and invoices stay on record, but no new contracts can be signed.
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setConfirmDeactivate(false)}>Cancel</Button>
-          <Button variant="danger" loading={busy} onClick={() => run(async () => { await api.post(`/companies/${companyId}/deactivate`); setConfirmDeactivate(false); })}>Deactivate</Button>
-        </div>
-      </Dialog>
+      {/* Deactivating stops future contracts, so it gets a centred AlertDialog:
+          two answers, and it should stop you. */}
+      <AlertDialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Deactivate company</AlertDialogTitle>
+          <AlertDialogDescription>
+            Deactivate <strong className="text-foreground">{c.name}</strong>? Existing contracts and
+            invoices stay on record, but no new contracts can be signed.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" loading={busy} onClick={() => run(async () => { await api.post(`/companies/${companyId}/deactivate`); setConfirmDeactivate(false); })}>Deactivate</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      <Dialog open={!!confirmEnd} onClose={() => setConfirmEnd(null)} title="End contract" className="max-w-sm">
-        <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-          End the <strong className="text-[var(--foreground)]">{confirmEnd?.plan_name}</strong> contract? Future invoices stop; already-open invoices still need settling.
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setConfirmEnd(null)}>Cancel</Button>
-          <Button variant="danger" loading={busy} onClick={() => {
-            const target = confirmEnd;
-            if (!target) return;
-            void run(async () => { await api.post(`/companies/${companyId}/contracts/${target.id}/end`); setConfirmEnd(null); });
-          }}>End contract</Button>
-        </div>
-      </Dialog>
+      {/* Ending a contract is destructive too — it stops the billing — so it
+          gets the same treatment. */}
+      <AlertDialog open={!!confirmEnd} onOpenChange={(open) => { if (!open) setConfirmEnd(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>End contract</AlertDialogTitle>
+          <AlertDialogDescription>
+            End the <strong className="text-foreground">{confirmEnd?.plan_name}</strong> contract? Future
+            invoices stop; already-open invoices still need settling.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" loading={busy} onClick={() => {
+                const target = confirmEnd;
+                if (!target) return;
+                void run(async () => { await api.post(`/companies/${companyId}/contracts/${target.id}/end`); setConfirmEnd(null); });
+              }}>End contract</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -331,31 +403,35 @@ function InviteDone({ result, onDone }: {
 }) {
   const verb = result.action === "resend" ? "re-emailed" : "emailed";
   return (
-    <div className="space-y-4">
-      {result.delivered ? (
-        <>
-          <Alert tone="success">
-            Invite {verb} to <strong>{result.email}</strong>. The code is in that email — they enter it
-            in the app under &ldquo;Redeem invite&rdquo;.
-          </Alert>
-          <p className="text-xs text-[var(--muted)]">No email arrived? Check their spam folder, then use Resend.</p>
-        </>
-      ) : (
-        <>
-          <Alert tone="warning">
-            The invite could not be emailed, so share this single-use code with {result.email} directly.
-          </Alert>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3">
-            <div className="font-mono text-base tracking-widest text-[var(--foreground)]">
-              {result.code}
-              <CopyButton text={result.code} />
+    /* `flex` + the panel filling the sheet: the header above and the action
+       below stay put, only the outcome scrolls. */
+    <div className="flex min-h-0 flex-1 flex-col">
+      <SheetBody className="space-y-4">
+        {result.delivered ? (
+          <>
+            <Alert tone="success">
+              Invite {verb} to <strong>{result.email}</strong>. The code is in that email — they enter it
+              in the app under &ldquo;Redeem invite&rdquo;.
+            </Alert>
+            <p className="text-xs text-[var(--muted)]">No email arrived? Check their spam folder, then use Resend.</p>
+          </>
+        ) : (
+          <>
+            <Alert tone="warning">
+              The invite could not be emailed, so share this single-use code with {result.email} directly.
+            </Alert>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-3">
+              <div className="font-mono text-base tracking-widest text-[var(--foreground)]">
+                {result.code}
+                <CopyButton text={result.code} />
+              </div>
             </div>
-          </div>
-        </>
-      )}
-      <div className="flex justify-end gap-2">
-        <Button variant="primary" onClick={onDone}>Done</Button>
-      </div>
+          </>
+        )}
+      </SheetBody>
+      <SheetFooter>
+        <Button onClick={onDone}>Done</Button>
+      </SheetFooter>
     </div>
   );
 }
@@ -383,12 +459,19 @@ function SeatHolderForm({ companyId, onSent }: {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5">
-      {error && <Alert>{error}</Alert>}
-      <Input label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@company.com" />
-      <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-5">
-        <Button type="submit" loading={loading} size="lg">Send invite</Button>
-      </div>
+    /* `flex` + the form filling the sheet: header and footer stay put, only the
+       body scrolls. */
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <SheetBody className="space-y-5">
+        {error && <Alert>{error}</Alert>}
+        <Input label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@company.com" />
+      </SheetBody>
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">Cancel</Button>
+        </SheetClose>
+        <Button type="submit" loading={loading}>Send invite</Button>
+      </SheetFooter>
     </form>
   );
 }
@@ -423,28 +506,43 @@ function ContractForm({ companyId, plans, currency, onDone }: {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
-      {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
-      {!plans.length && (
-        <div className="sm:col-span-2">
+    /* `flex` + the form filling the sheet: header and footer stay put, only the
+       body scrolls. The plan picker is a Radix Select — the in-house one portals
+       its listbox to <body>, which a Radix dialog makes inert. */
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <SheetBody className="space-y-5">
+        {error && <Alert>{error}</Alert>}
+        {!plans.length && (
           <Alert tone="warning">No published space plans. Publish one under Space plans first.</Alert>
+        )}
+        <FieldSelect
+          label="Space plan"
+          value={planId || NONE}
+          onChange={(v) => setPlanId(v === NONE ? "" : v)}
+        >
+          <SelectItem value={NONE}>Select a space plan…</SelectItem>
+          {plans.map((p) => (
+            <SelectItem
+              key={p.id}
+              value={p.id}
+              label={p.name}
+            >
+              {p.name} — {money(p.price, currency)}/seat · {p.spec && "term" in p.spec ? String((p.spec as Record<string, unknown>).term) : ""}
+            </SelectItem>
+          ))}
+        </FieldSelect>
+        <Input label="Seats" type="number" min="1" required value={seats} onChange={(e) => setSeats(e.target.value)} />
+        <div className="text-xs text-[var(--muted)]">
+          {selected ? `≈ ${money(selected.price * (parseInt(seats, 10) || 1), currency)} per term` : ""}
         </div>
-      )}
-      <div className="sm:col-span-2">
-        <Select label="Space plan" value={planId} onChange={(e) => setPlanId(e.target.value)}>
-          {plans.map((p) => <option key={p.id} value={p.id}>{p.name} — {money(p.price, currency)}/seat · {p.spec && "term" in p.spec ? String((p.spec as Record<string, unknown>).term) : ""}</option>)}
-        </Select>
-      </div>
-      <Input label="Seats" type="number" min="1" required value={seats} onChange={(e) => setSeats(e.target.value)} />
-      <div className="flex items-end pb-2 text-xs text-[var(--muted)]">
-        {selected ? `≈ ${money(selected.price * (parseInt(seats, 10) || 1), currency)} per term` : ""}
-      </div>
-      <div className="sm:col-span-2">
         <Textarea label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-      </div>
-      <div className="sm:col-span-2 flex justify-end gap-2 border-t border-[var(--border)] pt-5">
-        <Button type="submit" loading={loading} size="lg" disabled={!planId}>Sign contract</Button>
-      </div>
+      </SheetBody>
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">Cancel</Button>
+        </SheetClose>
+        <Button type="submit" loading={loading} disabled={!planId}>Sign contract</Button>
+      </SheetFooter>
     </form>
   );
 }
@@ -483,24 +581,26 @@ function EditCompanyForm({ company, onDone }: { company: CompanyOut; onDone: () 
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
-      {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
-      <Input label="Company name" required value={name} onChange={(e) => setName(e.target.value)} />
-      <Input label="Tax / registration ID" value={taxId} onChange={(e) => setTaxId(e.target.value)} />
-      <div className="sm:col-span-2">
+    /* `flex` + the form filling the sheet: header and footer stay put, only the
+       body scrolls. A centred modal could do the same, but a sheet keeps the
+       company's contracts and invoices in view while you edit them. */
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <SheetBody className="space-y-5">
+        {error && <Alert>{error}</Alert>}
+        <Input label="Company name" required value={name} onChange={(e) => setName(e.target.value)} />
+        <Input label="Tax / registration ID" value={taxId} onChange={(e) => setTaxId(e.target.value)} />
         <Input label="Billing email" type="email" value={billingEmail} onChange={(e) => setBillingEmail(e.target.value)} />
-      </div>
-      <Input label="Contact name" value={contactName} onChange={(e) => setContactName(e.target.value)} />
-      <Input label="Contact email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
-      <div className="sm:col-span-2">
+        <Input label="Contact name" value={contactName} onChange={(e) => setContactName(e.target.value)} />
+        <Input label="Contact email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
         <Textarea label="Address" value={address} onChange={(e) => setAddress(e.target.value)} rows={2} />
-      </div>
-      <div className="sm:col-span-2">
         <Textarea label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-      </div>
-      <div className="sm:col-span-2 flex justify-end gap-2 border-t border-[var(--border)] pt-5">
-        <Button type="submit" loading={loading} size="lg">Save changes</Button>
-      </div>
+      </SheetBody>
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">Cancel</Button>
+        </SheetClose>
+        <Button type="submit" loading={loading}>Save changes</Button>
+      </SheetFooter>
     </form>
   );
 }

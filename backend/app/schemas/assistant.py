@@ -7,6 +7,7 @@ fields, explicit mappers in the route module, no ``from_attributes``.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -41,6 +42,8 @@ class MessageOut(BaseModel):
     created_at: datetime
     # Reasoning + tool steps that produced this turn (ADR 018), or None.
     steps: list[dict] | None = None
+    # Thumbs rating the user left on this turn ("up" | "down"), or None.
+    feedback: str | None = None
 
 
 class ResumeRequest(BaseModel):
@@ -52,6 +55,12 @@ class ResumeRequest(BaseModel):
     """
 
     resume: dict
+
+
+class FeedbackRequest(BaseModel):
+    """A thumbs rating on an assistant turn. ``None`` clears the rating."""
+
+    feedback: Literal["up", "down"] | None = None
 
 
 class BriefingOut(BaseModel):

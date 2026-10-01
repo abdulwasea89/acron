@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
+import AccountPage from "@/app/app/account/page";
+import AuditPage from "@/app/app/audit/page";
+import BillingPage from "@/app/app/billing/page";
 import { LiveIndicator } from "@/components/Realtime";
 import { Alert, Badge, Button, Input, Select, Spinner } from "@/components/ui";
 import { getIndustry } from "@/lib/industries";
@@ -23,6 +26,7 @@ interface Baseline {
 
 /** Row labels per section, so the rail search can match the things inside. */
 const SECTION_KEYWORDS: Record<string, string[]> = {
+  account: ["profile", "name", "email", "phone", "password", "mfa", "two-factor"],
   organization: [
     "name", "code", "industry", "status", "currency", "timezone", "plan",
     "subscription", "member", "mfa", "created",
@@ -30,6 +34,8 @@ const SECTION_KEYWORDS: Record<string, string[]> = {
   preferences: ["theme", "connection", "enrollment"],
   invoice: ["legal", "tax", "vat", "address", "payment terms"],
   payments: ["stripe", "connect", "payments"],
+  billing: ["subscription", "plan", "tier", "saas", "invoice"],
+  audit: ["audit", "log", "activity", "trail", "history"],
   sessions: ["sessions", "devices", "login"],
   security: ["rotate", "code", "security"],
 };
@@ -42,6 +48,7 @@ const NAV_ICON: Record<string, string> = {
   card: "M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z",
   shield: "M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z",
   lock: "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z",
+  person: "M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z",
 };
 
 export function SettingsView() {
@@ -195,12 +202,19 @@ export function SettingsView() {
   // Grouped rail (Notion settings modal): Account / Preferences / Billing / Security.
   const navGroups = org
     ? [
-        { label: "Account", items: [{ id: "organization", label: "Organization", icon: NAV_ICON.building }] },
+        {
+          label: "Account",
+          items: [
+            { id: "account", label: "My account", icon: NAV_ICON.person },
+            { id: "organization", label: "Organization", icon: NAV_ICON.building },
+          ],
+        },
         { label: "Preferences", items: [{ id: "preferences", label: "Preferences", icon: NAV_ICON.sliders }] },
         {
           label: "Billing",
           items: [
             ...(invoice ? [{ id: "invoice", label: "Invoice details", icon: NAV_ICON.doc }] : []),
+            { id: "billing", label: "Subscription", icon: NAV_ICON.card },
             ...(org.industry !== "office" ? [{ id: "payments", label: "Payments", icon: NAV_ICON.card }] : []),
           ],
         },
@@ -209,6 +223,7 @@ export function SettingsView() {
           items: [
             { id: "sessions", label: "Sessions", icon: NAV_ICON.shield },
             { id: "security", label: "Security", icon: NAV_ICON.lock },
+            { id: "audit", label: "Audit log", icon: NAV_ICON.doc },
           ],
         },
       ]
@@ -402,6 +417,32 @@ export function SettingsView() {
                 </div>
               </Row>
             </Section>
+
+            {/* Moved here from the sidebar. The full page views are embedded, so
+                there is one implementation of each rather than a lookalike. */}
+            {active === "account" && (
+              <section>
+                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">My account</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Your personal profile, password, and two-factor settings</p>
+                <div className="mt-5"><AccountPage embedded /></div>
+              </section>
+            )}
+
+            {active === "billing" && (
+              <section>
+                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">Subscription</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Your platform plan and invoices</p>
+                <div className="mt-5"><BillingPage embedded /></div>
+              </section>
+            )}
+
+            {active === "audit" && (
+              <section>
+                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">Audit log</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Full searchable trail of every state change</p>
+                <div className="mt-5"><AuditPage embedded /></div>
+              </section>
+            )}
             </div>
 
             {/* One global Save for every staged edit. */}

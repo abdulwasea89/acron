@@ -7,7 +7,7 @@ import { api, ApiError } from "@/lib/api";
 import type { OrganizationOut, ProfileOut } from "@/lib/types";
 import { MfaCard } from "./MfaCard";
 
-export default function AccountPage() {
+export default function AccountPage({ embedded = false }: { embedded?: boolean }) {
   const [profile, setProfile] = useState<ProfileOut | null>(null);
   const [org, setOrg] = useState<OrganizationOut | null>(null);
   const [error, setError] = useState("");
@@ -75,7 +75,7 @@ export default function AccountPage() {
 
   return (
     <>
-      <PageHeader title="Account" subtitle="Manage your personal information" />
+      {!embedded && <PageHeader title="Account" subtitle="Manage your personal information" />}
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
       {notice && <div className="mb-4 animate-slide-down"><Alert tone="success">{notice}</Alert></div>}

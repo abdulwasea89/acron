@@ -2,10 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Spinner, TableToolbar, Textarea } from "@/components/ui";
-import { KebabMenu } from "@/components/KebabMenu";
+import { Alert, Badge, Button, EmptyState, Input, Spinner, Textarea } from "@/components/ui";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ListToolbar } from "@/components/ListToolbar";
+import { RowMenu } from "@/components/RowMenu";
+import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
 import { money, titleCase } from "@/lib/format";
@@ -45,24 +56,26 @@ function CompanyForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
-      {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
-      <Input label="Company name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Northwind Ltd" />
-      <Input label="Tax / registration ID" value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="DE 123456789" />
-      <div className="sm:col-span-2">
+    /* `flex` + the form filling the sheet: the header above and the actions
+       below stay put, only the fields scroll. A centred modal could do the
+       same, but a sheet keeps the company list in view while you fill it in. */
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <SheetBody className="space-y-5">
+        {error && <Alert>{error}</Alert>}
+        <Input label="Company name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Northwind Ltd" />
+        <Input label="Tax / registration ID" value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="DE 123456789" />
         <Input label="Billing email" type="email" value={billingEmail} onChange={(e) => setBillingEmail(e.target.value)} placeholder="ap@northwind.com" />
-      </div>
-      <Input label="Contact name" value={contactName} onChange={(e) => setContactName(e.target.value)} />
-      <Input label="Contact email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
-      <div className="sm:col-span-2">
+        <Input label="Contact name" value={contactName} onChange={(e) => setContactName(e.target.value)} />
+        <Input label="Contact email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
         <Textarea label="Address" value={address} onChange={(e) => setAddress(e.target.value)} rows={2} />
-      </div>
-      <div className="sm:col-span-2">
         <Textarea label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-      </div>
-      <div className="sm:col-span-2 flex justify-end gap-2 border-t border-[var(--border)] pt-5">
-        <Button type="submit" loading={loading} size="lg">Add company</Button>
-      </div>
+      </SheetBody>
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">Cancel</Button>
+        </SheetClose>
+        <Button type="submit" loading={loading}>Add company</Button>
+      </SheetFooter>
     </form>
   );
 }
@@ -142,35 +155,31 @@ export default function CompaniesPage() {
 
       {error && <div className="mb-5"><Alert>{error}</Alert></div>}
 
-      <Dialog open={showNew} onClose={() => setShowNew(false)} title="Add a company" subtitle="A billing tenant that signs seat contracts" className="max-w-xl">
-        <CompanyForm onDone={() => { setShowNew(false); load(); }} />
-      </Dialog>
+      {/* Create lives in a sheet: it is about the companies below it, so the
+          list stays in view while you fill the form in. */}
+      <Sheet open={showNew} onOpenChange={setShowNew}>
+        <SheetContent className="[--sheet-max-w:520px]">
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>Add a company</SheetTitle>
+              <SheetDescription>A billing tenant that signs seat contracts</SheetDescription>
+            </div>
+          </SheetHeader>
+          <CompanyForm onDone={() => { setShowNew(false); load(); }} />
+        </SheetContent>
+      </Sheet>
 
-      <TableToolbar
-        title="Companies"
-        subtitle={rows ? `${filtered.length} of ${all.length} on file` : undefined}
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <Input
-              placeholder="Search…"
-              aria-label="Search companies"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              size="sm"
-              className="w-[150px]"
-            />
-            <CategoryTabs
-              className="shrink-0"
-              tabs={tabs}
-              value={status}
-              onChange={setStatus}
-            />
-          </div>
-        }
+      <ListToolbar
+        tabs={tabs}
+        value={status}
+        onChange={setStatus}
+        search={search}
+        onSearch={(v) => setSearch(v)}
+        searchPlaceholder="Search companies…"
       />
 
       {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="border border-foreground/10 bg-card">
+      <div className="mt-3">
         {rows === null ? (
           <Spinner label="Loading companies..." />
         ) : filtered.length === 0 ? (
@@ -191,21 +200,21 @@ export default function CompaniesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="px-5 py-3 font-medium">Company</th>
-                  <th className="px-5 py-3 font-medium">Billing email</th>
-                  <th className="px-5 py-3 font-medium">Seats</th>
-                  <th className="px-5 py-3 font-medium">Outstanding</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Company</th>
+                  <th className={`${TH} ${CELL}`}>Billing email</th>
+                  <th className={`${TH} ${CELL}`}>Seats</th>
+                  <th className={`${TH} ${CELL}`}>Outstanding</th>
+                  <th className={`${TH} ${CELL}`}>Status</th>
+                  <th className={`${TH} ${CELL_LAST} text-right`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
+              <tbody>
                 {filtered.map((c) => (
-                  <tr key={c.id} className="group transition-colors hover:bg-[var(--background)]/50">
-                    <td className="px-5 py-3.5">
+                  <tr key={c.id} className={`${TR} group transition-colors hover:bg-[var(--background)]/50`}>
+                    <td className={`${TD} ${CELL_FIRST} py-2.5`}>
                       <Link href={`/app/companies/${c.id}`} className="font-medium text-[var(--foreground)] hover:underline">
                         {c.name}
                       </Link>
@@ -213,25 +222,25 @@ export default function CompaniesPage() {
                         <span className="mt-0.5 block font-mono text-[10px] text-[var(--muted)]">{c.tax_id}</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{c.billing_email || "—"}</td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5 text-[var(--foreground-muted)]`}>{c.billing_email || "—"}</td>
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <span className="tabular-nums text-[var(--foreground)]">{c.occupied_seats}</span>
                       <span className="text-[var(--muted)]"> / {c.seat_capacity}</span>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       {c.outstanding_total > 0 ? (
                         <span className="tabular-nums font-semibold text-[var(--foreground)]">{money(c.outstanding_total, currency)}</span>
                       ) : (
                         <span className="text-[var(--muted)]">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <Badge tone={c.status === "active" ? "success" : "neutral"}>{c.status}</Badge>
                     </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <KebabMenu
+                    <td className={`${TD} ${CELL_LAST} py-2.5 text-right`}>
+                      <RowMenu
                         actions={[
-                          { label: "View", onClick: () => { window.location.href = `/app/companies/${c.id}`; } },
+                          { label: "View", onSelect: () => { window.location.href = `/app/companies/${c.id}`; } },
                         ]}
                       />
                     </td>

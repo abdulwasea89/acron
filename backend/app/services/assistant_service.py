@@ -126,6 +126,30 @@ async def list_messages(
     return list((await session.execute(stmt)).scalars())
 
 
+async def set_message_feedback(
+    session: AsyncSession, *, org_id: str, message_id: str, feedback: str | None
+) -> ConversationMessage | None:
+    """Record a thumbs rating on a message, scoped to the org.
+
+    Returns ``None`` when the id is unknown to this tenant — the caller maps
+    that to a 404 so a foreign id is indistinguishable from a missing one.
+    """
+
+    message = (
+        await session.execute(
+            select(ConversationMessage).where(
+                ConversationMessage.id == message_id,
+                ConversationMessage.organization_id == org_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if message is None:
+        return None
+    message.feedback = feedback
+    session.add(message)
+    return message
+
+
 async def append_message(
     session: AsyncSession,
     *,

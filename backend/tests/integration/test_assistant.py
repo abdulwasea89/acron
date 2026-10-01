@@ -352,3 +352,65 @@ async def test_a_colleague_in_the_same_org_cannot_read_it(client, db):
     ).status_code == 404
     # The history rail shows them nothing either.
     assert (await client.get("/api/v1/assistant/conversations", headers=colleague)).json() == []
+
+
+# --------------------------------------------------------------------------- #
+# Message feedback
+# --------------------------------------------------------------------------- #
+
+
+async def _answered_conversation(client, headers: dict, key: str) -> tuple[str, str]:
+    """Create a thread with one answered turn -> (conversation_id, answer_id)."""
+
+    conv = await _create_conversation(client, headers, "Rate me", key)
+    await client.post(
+        f"/api/v1/assistant/conversations/{conv['id']}/stream", headers=headers, json={}
+    )
+    detail = (
+        await client.get(f"/api/v1/assistant/conversations/{conv['id']}", headers=headers)
+    ).json()
+    return conv["id"], detail["messages"][1]["id"]
+
+
+async def test_message_feedback_is_recorded_and_cleared(client):
+    _, headers, _ = await _provision_org(client, email="owner@g.com", name="Iron Pulse")
+    conv_id, answer_id = await _answered_conversation(client, headers, "key-fb")
+
+    r = await client.post(
+        f"/api/v1/assistant/messages/{answer_id}/feedback",
+        headers=headers,
+        json={"feedback": "up"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["feedback"] == "up"
+
+    # Persisted, and it rides along on the next load.
+    detail = (
+        await client.get(f"/api/v1/assistant/conversations/{conv_id}", headers=headers)
+    ).json()
+    assert detail["messages"][1]["feedback"] == "up"
+
+    # Clearing sets it back to null rather than deleting the turn.
+    await client.post(
+        f"/api/v1/assistant/messages/{answer_id}/feedback",
+        headers=headers,
+        json={"feedback": None},
+    )
+    detail = (
+        await client.get(f"/api/v1/assistant/conversations/{conv_id}", headers=headers)
+    ).json()
+    assert detail["messages"][1]["feedback"] is None
+
+
+async def test_feedback_rejects_another_tenant(client):
+    _, org_a, _ = await _provision_org(client, email="a@g.com", name="Org A")
+    _, org_b, _ = await _provision_org(client, email="b@g.com", name="Org B")
+    _, answer_id = await _answered_conversation(client, org_a, "key-a")
+
+    r = await client.post(
+        f"/api/v1/assistant/messages/{answer_id}/feedback",
+        headers=org_b,
+        json={"feedback": "down"},
+    )
+    assert r.status_code == 404
+

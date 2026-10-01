@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChatInput } from "@/components/ChatInput";
+import type { PlanOut } from "@/lib/types";
 
 /* ── AssistantDock ────────────────────────────────────────────────────────
    Puts the floating prompt bar on every dashboard page and hands what you
@@ -20,6 +21,16 @@ import { ChatInput } from "@/components/ChatInput";
    takes it once and clears it, so arriving there later starts a blank thread
    rather than replaying the last thing you asked from somewhere else. */
 
+/** A record the user opened the assistant *about* — e.g. "Ask AI" on a plan.
+ *
+ *  Frontend-only: it rides the same layout-state handoff as `prompt`, so the
+ *  assistant page can render a record panel beside the thread and ground the
+ *  opening question in the record that was on screen. */
+export interface AssistantRecord {
+  kind: "plan";
+  plan: PlanOut;
+}
+
 interface AssistantDockValue {
   /** A prompt typed in the bar, waiting for the assistant page to take it. */
   prompt: string | null;
@@ -30,6 +41,12 @@ interface AssistantDockValue {
   /** What the current page is about, for the panel's prompt hint. */
   hint: string | null;
   setHint: (hint: string | null) => void;
+  /** The record the pending prompt is about, if the assistant was opened from one. */
+  record: AssistantRecord | null;
+  /** Record a prompt *about a record* and go to the assistant page. */
+  askAboutRecord: (prompt: string, record: AssistantRecord) => void;
+  /** Dismiss the record panel without touching the thread. */
+  clearRecord: () => void;
 }
 
 const AssistantDockContext = createContext<AssistantDockValue | null>(null);
@@ -64,21 +81,37 @@ export function AssistantDock({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [prompt, setPrompt] = useState<string | null>(null);
   const [hint, setHintState] = useState<string | null>(null);
+  const [record, setRecord] = useState<AssistantRecord | null>(null);
 
+  const go = useCallback(() => router.push(ASSISTANT_PATH), [router]);
+
+  // The plain bar prompt is record-less: asking from the dock is a fresh,
+  // unscoped question, so a record panel from an earlier handoff is dropped.
   const ask = useCallback(
     (text: string) => {
+      setRecord(null);
       setPrompt(text);
-      router.push(ASSISTANT_PATH);
+      go();
     },
-    [router],
+    [go],
+  );
+
+  const askAboutRecord = useCallback(
+    (text: string, next: AssistantRecord) => {
+      setRecord(next);
+      setPrompt(text);
+      go();
+    },
+    [go],
   );
 
   const clearPrompt = useCallback(() => setPrompt(null), []);
+  const clearRecord = useCallback(() => setRecord(null), []);
   const setHint = useCallback((next: string | null) => setHintState(next), []);
 
   const value = useMemo(
-    () => ({ prompt, ask, clearPrompt, hint, setHint }),
-    [prompt, ask, clearPrompt, hint, setHint],
+    () => ({ prompt, ask, clearPrompt, hint, setHint, record, askAboutRecord, clearRecord }),
+    [prompt, ask, clearPrompt, hint, setHint, record, askAboutRecord, clearRecord],
   );
 
   const onAssistantPage = pathname === ASSISTANT_PATH;

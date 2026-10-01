@@ -1,10 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Spinner, TableToolbar } from "@/components/ui";
-import { KebabMenu } from "@/components/KebabMenu";
+import { Alert, Badge, Button, EmptyState, Input, Spinner } from "@/components/ui";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ListToolbar } from "@/components/ListToolbar";
+import { RowMenu } from "@/components/RowMenu";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
 import { fmtDateTime } from "@/lib/format";
@@ -110,56 +129,56 @@ export default function SpacePage() {
 
       {error && <div className="mb-5"><Alert>{error}</Alert></div>}
 
-      <Dialog open={showForm} onClose={() => setShowForm(false)} title="Create a space slot" subtitle="A desk or meeting room seat-holders can book" className="max-w-lg">
-        <SlotForm onDone={() => { setShowForm(false); load(); }} />
-      </Dialog>
+      {/* Create lives in a sheet so the slot list stays in view. */}
+      <Sheet open={showForm} onOpenChange={setShowForm}>
+        <SheetContent className="[--sheet-max-w:520px]">
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>Create a space slot</SheetTitle>
+              <SheetDescription>A desk or meeting room seat-holders can book.</SheetDescription>
+            </div>
+          </SheetHeader>
+          <SlotForm onDone={() => { setShowForm(false); load(); }} />
+        </SheetContent>
+      </Sheet>
 
-      <TableToolbar
-        title="Slots"
-        subtitle={slots ? `${filtered.length} of ${all.length} shown` : undefined}
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <Input
-              placeholder="Search…"
-              aria-label="Search slots"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              size="sm"
-              className="w-[150px]"
-            />
-            <CategoryTabs
-              className="shrink-0"
-              tabs={[
-                { value: "upcoming" as const, label: "Upcoming", count: counts.upcoming },
-                { value: "past" as const, label: "Past", count: counts.past },
-                { value: "cancelled" as const, label: "Cancelled", count: counts.cancelled },
-              ]}
-              value={filter}
-              onChange={setFilter}
-            />
-          </div>
-        }
+      <ListToolbar
+        tabs={[
+          { value: "upcoming" as const, label: "Upcoming", count: counts.upcoming },
+          { value: "past" as const, label: "Past", count: counts.past },
+          { value: "cancelled" as const, label: "Cancelled", count: counts.cancelled },
+        ]}
+        value={filter}
+        onChange={setFilter}
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search slots…"
       />
 
-      {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="border border-foreground/10 bg-card">
-        {slots === null ? (
+      {/* The bordered surface belongs to the *list*. When there is nothing to
+          list, an empty box with a hairline border reads as a broken table —
+          so the loading and empty states sit on the page, unboxed, and the
+          border only appears once there are rows to hold. */}
+      {slots === null ? (
+        <div className="mt-3">
           <Spinner label="Loading slots..." />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            title={all.length === 0 ? "No space slots yet" : "No slots match"}
-            hint={
-              all.length === 0
-                ? "Create desks and meeting rooms here — seat-holders book them from their app."
-                : "Try a different search or filter."
-            }
-            action={
-              all.length === 0
-                ? <Button onClick={() => setShowForm(true)} size="lg">+ Create your first slot</Button>
-                : undefined
-            }
-          />
-        ) : (
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={all.length === 0 ? "No space slots yet" : "No slots match"}
+          hint={
+            all.length === 0
+              ? "Create desks and meeting rooms here — seat-holders book them from their app."
+              : "Try a different search or filter."
+          }
+          action={
+            all.length === 0
+              ? <Button onClick={() => setShowForm(true)} size="lg">+ Create your first slot</Button>
+              : undefined
+          }
+        />
+      ) : (
+        <div className="mt-3 border border-foreground/10 bg-card">
           <ul className="divide-y divide-foreground/[0.06]">
             {filtered.map((s) => (
               <li key={s.id} className={`flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--background)] ${s.cancelled ? "opacity-55" : ""}`}>
@@ -176,11 +195,11 @@ export default function SpacePage() {
                   <span className={`tabular-nums text-sm ${s.booked_count >= s.capacity ? "font-semibold text-[var(--foreground)]" : "text-[var(--foreground-muted)]"}`}>
                     {s.booked_count}/{s.capacity} booked
                   </span>
-                  <KebabMenu
+                  <RowMenu
                     actions={[
-                      { label: "View bookings", onClick: () => void openBookings(s) },
+                      { label: "View bookings", onSelect: () => void openBookings(s) },
                       ...(!s.cancelled
-                        ? [{ label: "Cancel slot", danger: true, onClick: () => setCreating(s) }]
+                        ? [{ label: "Cancel slot", variant: "destructive" as const, onSelect: () => setCreating(s) }]
                         : []),
                     ]}
                   />
@@ -188,43 +207,66 @@ export default function SpacePage() {
               </li>
             ))}
           </ul>
-        )}
-      </div>
-
-      {/* Cancel confirm */}
-      <Dialog open={!!creating} onClose={() => setCreating(null)} title="Cancel slot" className="max-w-sm">
-        <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-          Cancel <strong className="text-[var(--foreground)]">{creating?.title}</strong>? All bookings are cancelled and seat-holders are notified.
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setCreating(null)}>Cancel</Button>
-          <Button variant="danger" onClick={cancelSlot}>Cancel slot</Button>
         </div>
-      </Dialog>
+      )}
 
-      {/* Bookings dialog */}
-      <Dialog open={!!viewing} onClose={() => setViewing(null)} title={viewing?.title ?? ""} subtitle="Seat-holder bookings" className="max-w-lg">
-        {bookings === null ? (
-          <Spinner label="Loading bookings..." />
-        ) : bookings.length === 0 ? (
-          <EmptyState title="No bookings" hint="Nobody has booked this slot yet." />
-        ) : (
-          <ul className="divide-y divide-[var(--border)]">
-            {bookings.map((b) => (
-              <li key={b.booking_id} className="flex items-center justify-between gap-3 px-2 py-2.5">
-                <div className="min-w-0">
-                  <div className="truncate text-sm text-[var(--foreground)]">{b.member_name || b.member_email}</div>
-                  {b.member_name && <div className="truncate text-xs text-[var(--muted)]">{b.member_email}</div>}
-                </div>
-                <Badge tone={b.status === "booked" ? "success" : "neutral"}>{b.status}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="flex justify-end border-t border-[var(--border)] pt-4">
-          <Button variant="ghost" onClick={() => setViewing(null)}>Close</Button>
-        </div>
-      </Dialog>
+      {/* Cancelling is destructive and affects everyone booked in, so it gets a
+          centred AlertDialog: two answers, and it should stop you. */}
+      <AlertDialog open={!!creating} onOpenChange={(open) => { if (!open) setCreating(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Cancel this slot?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Cancelling <strong className="text-foreground">{creating?.title}</strong> releases every
+            booking in it and notifies the seat-holders. The slot stays in your history as cancelled.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Keep slot</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" onClick={cancelSlot}>Cancel slot</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bookings are a detail, so they read beside the list, not over it. */}
+      <Sheet open={!!viewing} onOpenChange={(open) => { if (!open) setViewing(null); }}>
+        <SheetContent className="[--sheet-max-w:520px]">
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>{viewing?.title ?? ""}</SheetTitle>
+              <SheetDescription>Seat-holder bookings.</SheetDescription>
+            </div>
+          </SheetHeader>
+          <SheetBody className="p-0">
+            {bookings === null ? (
+              <Spinner label="Loading bookings..." />
+            ) : bookings.length === 0 ? (
+              <div className="px-6 py-8">
+                <EmptyState title="No bookings" hint="Nobody has booked this slot yet." />
+              </div>
+            ) : (
+              <ul className="divide-y divide-[var(--border)]">
+                {bookings.map((b) => (
+                  <li key={b.booking_id} className="flex items-center justify-between gap-3 px-6 py-2.5">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm text-[var(--foreground)]">{b.member_name || b.member_email}</div>
+                      {b.member_name && <div className="truncate text-xs text-[var(--muted)]">{b.member_email}</div>}
+                    </div>
+                    <Badge tone={b.status === "booked" ? "success" : "neutral"}>{b.status}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SheetBody>
+          <SheetFooter>
+            <SheetClose asChild>
+              <Button variant="secondary">Close</Button>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
@@ -257,17 +299,25 @@ function SlotForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5">
-      {error && <Alert>{error}</Alert>}
-      <Input label="Name" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Desk 14, Meeting Room A…" />
-      <div className="grid grid-cols-2 gap-4">
-        <Input label="Starts at" type="datetime-local" required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
-        <Input label="Ends at" type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
-      </div>
-      <Input label="Capacity" type="number" min="1" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
-      <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-5">
-        <Button type="submit" loading={loading} size="lg">Create slot</Button>
-      </div>
+    /* `flex` + the form filling the sheet: header and footer stay put, only
+       the body scrolls. A centred modal could do the same, but a sheet keeps
+       the slot list in view. */
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <SheetBody className="space-y-5">
+        {error && <Alert>{error}</Alert>}
+        <Input label="Name" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Desk 14, Meeting Room A…" />
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Starts at" type="datetime-local" required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+          <Input label="Ends at" type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+        </div>
+        <Input label="Capacity" type="number" min="1" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+      </SheetBody>
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">Cancel</Button>
+        </SheetClose>
+        <Button type="submit" loading={loading}>Create slot</Button>
+      </SheetFooter>
     </form>
   );
 }

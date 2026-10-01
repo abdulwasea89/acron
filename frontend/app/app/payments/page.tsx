@@ -1,10 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog } from "@/components/Dialog";
 import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Spinner, TableToolbar } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, Input, Spinner } from "@/components/ui";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ListToolbar } from "@/components/ListToolbar";
+import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { PaymentOut } from "@/lib/types";
@@ -76,44 +87,42 @@ export default function PaymentsPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      <Dialog open={!!refundFor} onClose={() => setRefundFor(null)} title="Process refund" subtitle={refundFor ? `Up to ${money(refundFor.amount - refundFor.refunded_amount, refundFor.currency)} available` : ""}>
-        {refundFor && (
-          <RefundForm
-            payment={refundFor}
-            onClose={() => setRefundFor(null)}
-            onDone={() => {
-              setRefundFor(null);
-              load();
-            }}
-          />
-        )}
-      </Dialog>
+      {/* A refund is work you do against the ledger behind this sheet, so it rides
+          in a sheet: the payments table stays in view while you fill it in. */}
+      <Sheet open={!!refundFor} onOpenChange={(open) => { if (!open) setRefundFor(null); }}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>Process refund</SheetTitle>
+              <SheetDescription>
+                {refundFor ? `Up to ${money(refundFor.amount - refundFor.refunded_amount, refundFor.currency)} available` : ""}
+              </SheetDescription>
+            </div>
+          </SheetHeader>
+          {refundFor && (
+            <RefundForm
+              payment={refundFor}
+              onClose={() => setRefundFor(null)}
+              onDone={() => {
+                setRefundFor(null);
+                load();
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
-      <TableToolbar
-        title="Payment history"
-        subtitle={payments ? `${filtered.length} of ${all.length}` : undefined}
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <Input
-              placeholder="Search…"
-              aria-label="Search payments"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              size="sm"
-              className="w-[150px]"
-            />
-            <CategoryTabs
-              className="shrink-0"
-              tabs={tabs}
-              value={method}
-              onChange={setMethod}
-            />
-          </div>
-        }
+      <ListToolbar
+        tabs={tabs}
+        value={method}
+        onChange={setMethod}
+        search={search}
+        onSearch={(v) => setSearch(v)}
+        searchPlaceholder="Search payments…"
       />
 
       {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="border border-foreground/10 bg-card">
+      <div className="mt-3">
         {payments === null ? (
           <Spinner label="Loading payments..." />
         ) : filtered.length === 0 ? (
@@ -130,38 +139,38 @@ export default function PaymentsPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Kind</th>
-                  <th className="px-5 py-3">Method</th>
-                  <th className="px-5 py-3">Amount</th>
-                  <th className="px-5 py-3">Refunded</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3 text-right">Actions</th>
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Date</th>
+                  <th className={`${TH} ${CELL}`}>Kind</th>
+                  <th className={`${TH} ${CELL}`}>Method</th>
+                  <th className={`${TH} ${CELL}`}>Amount</th>
+                  <th className={`${TH} ${CELL}`}>Refunded</th>
+                  <th className={`${TH} ${CELL}`}>Status</th>
+                  <th className={`${TH} ${CELL_LAST} text-right`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
+              <tbody>
                 {filtered.map((p) => (
-                  <tr key={p.id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-5 py-3.5 whitespace-nowrap tabular-nums">{(p.paid_at || p.created_at).slice(0, 10)}</td>
-                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{titleCase(p.kind)}</td>
-                    <td className="px-5 py-3.5">
+                  <tr key={p.id} className={`${TR} transition-colors hover:bg-[var(--background)]`}>
+                    <td className={`${TD} ${CELL_FIRST} py-2.5 whitespace-nowrap tabular-nums`}>{(p.paid_at || p.created_at).slice(0, 10)}</td>
+                    <td className={`${TD} ${CELL} py-2.5 text-[var(--foreground-muted)]`}>{titleCase(p.kind)}</td>
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <span className="inline-flex items-center gap-1.5">
                         {p.method === "card" && <svg className="h-4 w-4 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>}
                         {p.method === "cash" && <svg className="h-4 w-4 text-[var(--muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
                         {titleCase(p.method)}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 tabular-nums font-medium text-[var(--foreground)]">{money(p.amount, p.currency)}</td>
-                    <td className="px-5 py-3.5 tabular-nums text-[var(--foreground-muted)]">
+                    <td className={`${TD} ${CELL} py-2.5 tabular-nums font-medium text-[var(--foreground)]`}>{money(p.amount, p.currency)}</td>
+                    <td className={`${TD} ${CELL} py-2.5 tabular-nums text-[var(--foreground-muted)]`}>
                       {p.refunded_amount > 0 ? money(p.refunded_amount, p.currency) : "—"}
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <Badge tone={statusTone(p.status)}>{titleCase(p.status)}</Badge>
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className={`${TD} ${CELL_LAST} py-2.5 text-right`}>
                       {refundable(p) && (
                         <Button variant="ghost" size="sm" onClick={() => setRefundFor(p)}>
                           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
@@ -214,17 +223,25 @@ function RefundForm({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-      {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
-      <Input label="Amount" type="number" min="0" step="0.01" max={String(max)} value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <Input label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional" />
-      <div className="sm:col-span-2 flex gap-2">
+    /* `flex` + the form filling the sheet: header and footer stay put, only the
+       fields scroll. */
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <SheetBody className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Amount" type="number" min="0" step="0.01" max={String(max)} value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <Input label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional" />
+        </div>
+      </SheetBody>
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+        </SheetClose>
         <Button type="submit" variant="danger" loading={loading}>
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" /></svg>
           Refund
         </Button>
-        <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-      </div>
+      </SheetFooter>
     </form>
   );
 }

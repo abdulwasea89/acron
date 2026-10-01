@@ -40,29 +40,22 @@ const MAX_ROWS = 5;
 const CHAT_COMPOSER_BOX =
   "border border-foreground/15 bg-surface transition-colors duration-150 focus-within:border-foreground/30";
 
-/* Two sizes of the same control.
+/* One size, for the in-session composer on the assistant page (`ChatPanel`).
+   At rest the row is one line, and the field's height + padding + border fill
+   the radius to a full pill — the same shape as the circular send button. The
+   send button is exactly as tall as the field, so no centring slack is left
+   above or below it, and the container's padding is the only inset on every
+   side:
 
-   `default` is the in-session composer on the assistant page: a full pill whose
-   radius the field's height + padding + border fill exactly, matching the
-   circular send button.
+     40px field (`py-2` + `leading-6`) + `p-2` + 1px border = 58px,
+     against `rounded-[28px]` and an `h-10` button.
 
-   `panel` is the floating assistant (`ChatInput`), which lives inside a bounded
-   panel and reads as a compact composer rather than a page-wide bar. It keeps
-   the same invariant — the send button is exactly as tall as the field, so the
-   container's padding is the only inset on every side — at a tighter scale:
-   32px field (`py-1.5` + `leading-5`) + `p-1.5` + 1px border = 46px, with an
-   `h-8` button and a 12px radius.
-
-   If a size moves, move the field, the button and the radius together. */
-type ChatComposerVariant = "default" | "panel";
-
-const COMPOSER_VARIANTS: Record<
-  ChatComposerVariant,
-  { shell: string; field: string; button: string }
-> = {
-  default: { shell: "rounded-[28px] p-2", field: "px-3 py-2 leading-6", button: "h-10 w-10" },
-  panel: { shell: "rounded-xl p-1.5", field: "px-2.5 py-1.5 leading-5", button: "h-8 w-8" },
-};
+   The slack goes in padding rather than in the line box, because the field is
+   read as prose. If this size moves, move the field, the button and the radius
+   together. */
+const SHELL = "rounded-[28px] p-2";
+const FIELD = "px-3 py-2 leading-6";
+const BUTTON = "h-10 w-10";
 
 interface ChatComposerProps {
   value: string;
@@ -78,8 +71,8 @@ interface ChatComposerProps {
   ariaLabel?: string;
   /** Bump this to focus the field without remounting (keyboard shortcut). */
   focusSignal?: number;
-  /** `default` for the in-session composer; `panel` for the floating assistant. */
-  variant?: ChatComposerVariant;
+  /** When given, a leading "+" button opens a record-reference picker. */
+  onReference?: () => void;
 }
 
 export function ChatComposer({
@@ -93,9 +86,8 @@ export function ChatComposer({
   autoFocus = false,
   ariaLabel = "Ask the assistant",
   focusSignal = 0,
-  variant = "default",
+  onReference,
 }: ChatComposerProps) {
-  const { shell, field, button } = COMPOSER_VARIANTS[variant];
   const [capped, setCapped] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -142,13 +134,26 @@ export function ChatComposer({
         e.preventDefault();
         if (canSend) onSubmit();
       }}
-      className={`${CHAT_COMPOSER_BOX} ${shell} ${className}`}
+      className={`${CHAT_COMPOSER_BOX} ${SHELL} ${className}`}
     >
       {/* items-end, not items-center: the box is bottom-anchored and grows
           upward, so a centred button would re-centre on every new line and
           drift up the screen as you type. Pinned to the bottom edge it holds
           a fixed position while the text grows above it. */}
       <div className="flex items-end gap-1">
+        {onReference && (
+          <button
+            type="button"
+            onClick={onReference}
+            aria-label="Reference a record"
+            title="Reference a record"
+            className={`flex ${BUTTON} shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60`}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        )}
         <textarea
           ref={areaRef}
           rows={1}
@@ -158,7 +163,7 @@ export function ChatComposer({
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           aria-label={ariaLabel}
-          className={`w-full resize-none bg-transparent ${field} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 [scrollbar-color:var(--brand)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[3px] ${
+          className={`w-full resize-none bg-transparent ${FIELD} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 [scrollbar-color:var(--brand)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-brand [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-[3px] ${
             capped ? "overflow-y-auto" : "overflow-hidden"
           }`}
         />
@@ -168,7 +173,7 @@ export function ChatComposer({
           type="submit"
           disabled={!canSend}
           aria-label="Send"
-          className={`flex ${button} shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-brand-foreground transition duration-150 hover:bg-brand/90 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60`}
+          className={`flex ${BUTTON} shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-brand-foreground transition duration-150 hover:bg-brand/90 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60`}
         >
           {sending ? (
             <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">

@@ -3,10 +3,32 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar } from "@/components/ui";
-import { KebabMenu } from "@/components/KebabMenu";
+import { Alert, Badge, Button, EmptyState, Input, Select, Spinner } from "@/components/ui";
+import { FieldSelect } from "@/components/FieldSelect";
+import { SelectItem } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ListToolbar } from "@/components/ListToolbar";
+import { RowMenu } from "@/components/RowMenu";
+import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
 import { fmtDate, invoiceLabel, invoiceTone, money, titleCase } from "@/lib/format";
@@ -113,54 +135,30 @@ function InvoicesContent() {
 
       {error && <div className="mb-5"><Alert>{error}</Alert></div>}
 
-      <TableToolbar
-        title="Invoices"
-        subtitle={invoices ? `${filtered?.length ?? 0} results` : undefined}
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <Input
-              placeholder="Search…"
-              aria-label="Search invoices"
-              value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
-              size="sm"
-              className="w-[180px]"
-            />
-            <Select aria-label="Company" value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} size="sm" className="w-44">
-              <option value="">All companies</option>
-              {companyOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select>
-            {/* Fixed-length strip: the status tabs scroll horizontally inside this
-                fixed width instead of stretching the row. `shrink-0` stops the
-                search and company controls from squeezing it. Styled to match the
-                Input/Select controls beside it (`rounded-md border
-                border-foreground/20`). `flex` stretches the tab track to the inner
-                height so `CategoryTabs`' own 2px padding lands on all four sides of
-                the pills — which needs 2 + 28 + 2 inside the 1px borders, hence
-                34px rather than the neighbouring controls' h-8. Counts are omitted
-                — the status filter is applied server-side, so a client-side count
-                would describe only the already-filtered page. */}
-            <div className="flex h-[34px] w-full overflow-hidden rounded-md border border-foreground/20 transition-colors hover:border-foreground/35 sm:w-[12rem] sm:shrink-0">
-              <CategoryTabs
-                tabs={[
-                  { value: "all", label: "All" },
-                  { value: "draft", label: "Draft" },
-                  { value: "sent", label: "Sent" },
-                  { value: "partial", label: "Part paid" },
-                  { value: "overdue", label: "Overdue" },
-                  { value: "paid", label: "Paid" },
-                  { value: "void", label: "Void" },
-                ]}
-                value={statusFilter}
-                onChange={setStatusFilter}
-              />
-            </div>
-          </div>
-        }
-      />
+      <ListToolbar
+        tabs={[
+          { value: "all", label: "All" },
+          { value: "draft", label: "Draft" },
+          { value: "sent", label: "Sent" },
+          { value: "partial", label: "Part paid" },
+          { value: "overdue", label: "Overdue" },
+          { value: "paid", label: "Paid" },
+          { value: "void", label: "Void" },
+        ]}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        search={searchQ}
+        onSearch={setSearchQ}
+        searchPlaceholder="Search invoices…"
+      >
+        <Select aria-label="Company" value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} size="sm" className="w-44">
+          <option value="">All companies</option>
+          {companyOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+      </ListToolbar>
 
       {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="border border-foreground/10 bg-card">
+      <div className="mt-3">
         {filtered === null ? (
           <Spinner label="Loading invoices..." />
         ) : filtered.length === 0 ? (
@@ -172,59 +170,59 @@ function InvoicesContent() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="px-5 py-3 font-medium">Invoice</th>
-                  <th className="px-5 py-3 font-medium">Company</th>
-                  <th className="px-5 py-3 font-medium">Due</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium">Total</th>
-                  <th className="px-5 py-3 font-medium">Paid</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Invoice</th>
+                  <th className={`${TH} ${CELL}`}>Company</th>
+                  <th className={`${TH} ${CELL}`}>Due</th>
+                  <th className={`${TH} ${CELL}`}>Status</th>
+                  <th className={`${TH} ${CELL}`}>Total</th>
+                  <th className={`${TH} ${CELL}`}>Paid</th>
+                  <th className={`${TH} ${CELL_LAST} text-right`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody>
                 {filtered.map((inv) => (
-                  <tr key={inv.id} className="group transition-colors hover:bg-[var(--background)]/50">
-                    <td className="px-5 py-3.5">
+                  <tr key={inv.id} className={`${TR} group transition-colors hover:bg-[var(--background)]/50`}>
+                    <td className={`${TD} ${CELL_FIRST} py-2.5`}>
                       <button type="button" onClick={() => void openDetail(inv)} className="font-mono text-xs font-medium text-[var(--foreground)] hover:underline">
                         {inv.invoice_number}
                       </button>
                       <div className="mt-0.5 text-[10px] text-[var(--muted)]">issued {fmtDate(inv.issue_date)}</div>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <Link href={`/app/companies/${inv.company_id}`} className="text-[var(--foreground)] hover:underline">
                         {inv.company_name ?? companyName(inv.company_id)}
                       </Link>
                     </td>
-                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{fmtDate(inv.due_date)}</td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5 text-[var(--foreground-muted)]`}>{fmtDate(inv.due_date)}</td>
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <Badge tone={invoiceTone(inv.status)}>{invoiceLabel(inv.status)}</Badge>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <span className="tabular-nums font-semibold text-[var(--foreground)]">{money(inv.total, inv.currency)}</span>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       {inv.paid_amount > 0 ? (
                         <span className="tabular-nums text-[var(--foreground-muted)]">{money(inv.paid_amount, inv.currency)}</span>
                       ) : <span className="text-[var(--muted)]">—</span>}
                     </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <KebabMenu
+                    <td className={`${TD} ${CELL_LAST} py-2.5 text-right`}>
+                      <RowMenu
                         actions={[
-                          { label: "View", onClick: () => void openDetail(inv) },
+                          { label: "View", onSelect: () => void openDetail(inv) },
                           ...(inv.status === "draft"
-                            ? [{ label: "Send", onClick: () => void act(inv.id, "send") }]
+                            ? [{ label: "Send", onSelect: () => void act(inv.id, "send") }]
                             : []),
                           ...(["sent", "partial", "overdue"].includes(inv.status)
                             ? [
-                                { label: "Record payment", onClick: () => setPayFor(inv) },
-                                { label: "Void", danger: true, onClick: () => setConfirmVoid(inv) },
+                                { label: "Record payment", onSelect: () => setPayFor(inv) },
+                                { label: "Void", variant: "destructive" as const, onSelect: () => setConfirmVoid(inv) },
                               ]
                             : []),
                           ...(inv.status === "void"
-                            ? [{ label: "Reopen", onClick: () => void act(inv.id, "reopen") }]
+                            ? [{ label: "Reopen", onSelect: () => void act(inv.id, "reopen") }]
                             : []),
                         ]}
                       />
@@ -237,90 +235,119 @@ function InvoicesContent() {
         )}
       </div>
 
-      {/* Detail dialog */}
-      <Dialog open={!!viewing} onClose={() => setViewing(null)} title={viewing?.invoice_number ?? ""} subtitle="Invoice details" className="max-w-xl">
-        {viewing && (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <span className="block text-[var(--foreground)]">{viewing.company_name ?? "Company"}</span>
-                <span className="text-xs text-[var(--muted)]">Due {fmtDate(viewing.due_date)} · {titleCase(viewing.currency)}</span>
-              </div>
-              <Badge tone={invoiceTone(viewing.status)}>{invoiceLabel(viewing.status)}</Badge>
+      {/* Detail is read-only and belongs beside the list, so it rides in a sheet
+          instead of blanking the table out behind a modal. */}
+      <Sheet open={!!viewing} onOpenChange={(open) => { if (!open) setViewing(null); }}>
+        <SheetContent className="[--sheet-max-w:520px]">
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>{viewing?.invoice_number ?? ""}</SheetTitle>
+              <SheetDescription>Invoice details</SheetDescription>
             </div>
+          </SheetHeader>
+          <SheetBody className="space-y-5">
+            {viewing && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm">
+                    <span className="block text-[var(--foreground)]">{viewing.company_name ?? "Company"}</span>
+                    <span className="text-xs text-[var(--muted)]">Due {fmtDate(viewing.due_date)} · {titleCase(viewing.currency)}</span>
+                  </div>
+                  <Badge tone={invoiceTone(viewing.status)}>{invoiceLabel(viewing.status)}</Badge>
+                </div>
 
-            <div className="rounded-lg border border-[var(--border)]">
-              <table className="w-full text-sm">
-                <thead className="border-b border-[var(--border)] text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                  <tr><th className="px-5 py-3 font-medium">Description</th><th className="px-5 py-3 text-right font-medium">Amount</th></tr>
-                </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
-                  {viewing.line_items.map((li, idx) => (
-                    <tr key={idx}>
-                      <td className="px-5 py-3.5 text-[var(--foreground)]">{String((li as { description?: unknown }).description ?? "")}</td>
-                      <td className="px-5 py-3.5 text-right tabular-nums text-[var(--foreground)]">
-                        {money(Number((li as { amount?: unknown }).amount ?? 0), viewing.currency)}
-                      </td>
-                    </tr>
-                  ))}
-                  {viewing.tax_amount > 0 && (
-                    <tr><td className="px-5 py-3.5 text-[var(--muted)]">Tax</td><td className="px-5 py-3.5 text-right tabular-nums text-[var(--muted)]">{money(viewing.tax_amount, viewing.currency)}</td></tr>
-                  )}
-                </tbody>
-              </table>
-              <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-3">
-                <span className="text-xs font-medium uppercase tracking-widest text-[var(--muted)]">Total</span>
-                <span className="tabular-nums text-base font-bold text-[var(--foreground)]">{money(viewing.total, viewing.currency)}</span>
-              </div>
-            </div>
+                <div className="rounded-lg border border-[var(--border)]">
+                  <table className={TABLE}>
+                    <thead>
+                      <tr className={THEAD_ROW}><th className={`${TH} ${CELL_FIRST}`}>Description</th><th className={`${TH} ${CELL_LAST} text-right`}>Amount</th></tr>
+                    </thead>
+                  <tbody>
+                      {viewing.line_items.map((li, idx) => (
+                        <tr key={idx} className={TR}>
+                          <td className={`${TD} ${CELL_FIRST} py-2.5 text-[var(--foreground)]`}>{String((li as { description?: unknown }).description ?? "")}</td>
+                          <td className={`${TD} ${CELL_LAST} py-2.5 text-right tabular-nums text-[var(--foreground)]`}>
+                            {money(Number((li as { amount?: unknown }).amount ?? 0), viewing.currency)}
+                          </td>
+                        </tr>
+                      ))}
+                      {viewing.tax_amount > 0 && (
+                        <tr className={TR}><td className={`${TD} ${CELL_FIRST} py-2.5 text-[var(--muted)]`}>Tax</td><td className={`${TD} ${CELL_LAST} py-2.5 text-right tabular-nums text-[var(--muted)]`}>{money(viewing.tax_amount, viewing.currency)}</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-3">
+                    <span className="text-xs font-medium uppercase tracking-widest text-[var(--muted)]">Total</span>
+                    <span className="tabular-nums text-base font-bold text-[var(--foreground)]">{money(viewing.total, viewing.currency)}</span>
+                  </div>
+                </div>
 
-            {payments && payments.length > 0 && (
-              <div>
-                <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Payments received</div>
-                <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
-                  {payments.map((p) => (
-                    <li key={p.id} className="flex items-center justify-between px-4 py-2 text-sm">
-                      <span className="text-[var(--foreground-muted)]">
-                        {titleCase(p.method)} · {fmtDate(p.paid_at)}
-                      </span>
-                      <span className="tabular-nums font-semibold text-[var(--foreground)]">{money(p.amount, p.currency)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                {payments && payments.length > 0 && (
+                  <div>
+                    <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-[var(--muted)]">Payments received</div>
+                    <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+                      {payments.map((p) => (
+                        <li key={p.id} className="flex items-center justify-between px-4 py-2 text-sm">
+                          <span className="text-[var(--foreground-muted)]">
+                            {titleCase(p.method)} · {fmtDate(p.paid_at)}
+                          </span>
+                          <span className="tabular-nums font-semibold text-[var(--foreground)]">{money(p.amount, p.currency)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
+          </SheetBody>
+          <SheetFooter>
+            {viewing && ["sent", "partial", "overdue"].includes(viewing.status) && (
+              <Button variant="primary" onClick={() => { setViewing(null); setPayFor(viewing); }}>Record payment</Button>
+            )}
+            <SheetClose asChild>
+              <Button type="button" variant="secondary">Close</Button>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
-            <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4">
-              {["sent", "partial", "overdue"].includes(viewing.status) && (
-                <Button variant="primary" onClick={() => { setViewing(null); setPayFor(viewing); }}>Record payment</Button>
-              )}
-              <Button variant="ghost" onClick={() => setViewing(null)}>Close</Button>
+      {/* Record payment is a form, so it is a sheet too. */}
+      <Sheet open={!!payFor} onOpenChange={(open) => { if (!open) setPayFor(null); }}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>Record payment</SheetTitle>
+              <SheetDescription>Offline settlement — bank transfer or cash</SheetDescription>
             </div>
-          </div>
-        )}
-      </Dialog>
+          </SheetHeader>
+          {payFor && (
+            <RecordPaymentForm
+              invoice={payFor}
+              currency={currency}
+              onDone={() => { setPayFor(null); load(); }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
-      {/* Record payment dialog */}
-      <Dialog open={!!payFor} onClose={() => setPayFor(null)} title="Record payment" subtitle="Offline settlement — bank transfer or cash" className="max-w-md">
-        {payFor && (
-          <RecordPaymentForm
-            invoice={payFor}
-            currency={currency}
-            onDone={() => { setPayFor(null); load(); }}
-          />
-        )}
-      </Dialog>
-
-      {/* Void confirm */}
-      <Dialog open={!!confirmVoid} onClose={() => setConfirmVoid(null)} title="Void invoice" className="max-w-sm">
-        <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-          Void <strong className="font-mono text-[var(--foreground)]">{confirmVoid?.invoice_number}</strong>? It can be reopened later. Invoices with payments need a refund instead.
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setConfirmVoid(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => { const id = confirmVoid?.id; setConfirmVoid(null); if (id) void act(id, "void"); }}>Void invoice</Button>
-        </div>
-      </Dialog>
+      {/* Voiding is destructive, so it gets a centred AlertDialog: two answers,
+          and it should stop you. */}
+      <AlertDialog open={!!confirmVoid} onOpenChange={(open) => { if (!open) setConfirmVoid(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Void invoice</AlertDialogTitle>
+          <AlertDialogDescription>
+            Void <strong className="font-mono text-foreground">{confirmVoid?.invoice_number}</strong>? It can be
+            reopened later. Invoices with payments need a refund instead.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" onClick={() => { const id = confirmVoid?.id; setConfirmVoid(null); if (id) void act(id, "void"); }}>Void invoice</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -361,24 +388,31 @@ function RecordPaymentForm({ invoice, currency, onDone }: {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5">
-      {error && <Alert>{error}</Alert>}
-      <p className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[var(--foreground-muted)]">
-        {invoice.invoice_number} · balance due{" "}
-        <span className="tabular-nums font-semibold text-[var(--foreground)]">{money(remaining, currency)}</span>
-      </p>
-      <Select label="Method" value={method} onChange={(e) => setMethod(e.target.value)}>
-        <option value="bank_transfer">Bank transfer</option>
-        <option value="cash">Cash</option>
-      </Select>
-      <div className="grid grid-cols-2 gap-4">
-        <Input label={`Amount (leave blank for full)`} type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        <Input label="Paid on" type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />
-      </div>
-      <Input label="Note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Wire ref / receipt no." />
-      <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-5">
-        <Button type="submit" loading={loading} size="lg">Record payment</Button>
-      </div>
+    /* `flex` + the form filling the sheet: header and footer stay put, only the
+       fields scroll. */
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <SheetBody className="space-y-5">
+        {error && <Alert>{error}</Alert>}
+        <p className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[var(--foreground-muted)]">
+          {invoice.invoice_number} · balance due{" "}
+          <span className="tabular-nums font-semibold text-[var(--foreground)]">{money(remaining, currency)}</span>
+        </p>
+        <FieldSelect label="Method" value={method} onChange={setMethod}>
+          <SelectItem value="bank_transfer">Bank transfer</SelectItem>
+          <SelectItem value="cash">Cash</SelectItem>
+        </FieldSelect>
+        <div className="grid grid-cols-2 gap-4">
+          <Input label={`Amount (leave blank for full)`} type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <Input label="Paid on" type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />
+        </div>
+        <Input label="Note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Wire ref / receipt no." />
+      </SheetBody>
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">Cancel</Button>
+        </SheetClose>
+        <Button type="submit" loading={loading}>Record payment</Button>
+      </SheetFooter>
     </form>
   );
 }

@@ -3,9 +3,21 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Select, Spinner, TableToolbar } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Spinner, TableToolbar } from "@/components/ui";
+import { FieldSelect, NONE } from "@/components/FieldSelect";
+import { SelectItem } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -183,36 +195,55 @@ export default function MemberDetailPage() {
         />
       </div>
 
-      {/* Assign trainer dialog */}
-      <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} title="Assign a trainer" subtitle={`Choose a trainer for ${name}`}>
-        <div className="space-y-4">
-          {assignError && <Alert>{assignError}</Alert>}
-          <Select
-            label="Trainer"
-            value={trainerChoice}
-            onChange={(e) => setTrainerChoice(e.target.value)}
-            disabled={trainerOptions.length === 0}
-          >
-            <option value="">{trainerOptions.length === 0 ? "No trainers available" : "Select a trainer..."}</option>
-            {trainerOptions.map((t) => (
-              <option key={t.member_id} value={t.member_id}>
-                {t.display_name || t.full_name || t.email}
-              </option>
-            ))}
-          </Select>
-          <p className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
-            <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4M12 8h.01" />
-            </svg>
-            A member can have several trainers. Invite staff with the Trainer role to unlock this list.
-          </p>
-          <div className="flex gap-2 pt-2">
-            <Button onClick={assignTrainer} loading={assignLoading} disabled={!trainerChoice}>Assign</Button>
-            <Button variant="ghost" onClick={() => setAssignOpen(false)}>Cancel</Button>
+      {/* Assigning a trainer edits this member, so it rides in a sheet beside the
+          profile instead of blanking it out behind a modal. The trainer list is a
+          Radix Select, because the in-house one portals its listbox to <body>,
+          which a Radix dialog makes inert. */}
+      <Sheet open={assignOpen} onOpenChange={setAssignOpen}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>Assign a trainer</SheetTitle>
+              <SheetDescription>{`Choose a trainer for ${name}`}</SheetDescription>
+            </div>
+          </SheetHeader>
+          {/* `flex` + the panel filling the sheet: header and footer stay put,
+              only the body scrolls. */}
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SheetBody className="space-y-4">
+              {assignError && <Alert>{assignError}</Alert>}
+              <FieldSelect
+                label="Trainer"
+                value={trainerChoice || NONE}
+                onChange={(v) => setTrainerChoice(v === NONE ? "" : v)}
+                disabled={trainerOptions.length === 0}
+              >
+                <SelectItem value={NONE}>
+                  {trainerOptions.length === 0 ? "No trainers available" : "Select a trainer..."}
+                </SelectItem>
+                {trainerOptions.map((t) => (
+                  <SelectItem key={t.member_id} value={t.member_id}>
+                    {t.display_name || t.full_name || t.email}
+                  </SelectItem>
+                ))}
+              </FieldSelect>
+              <p className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4M12 8h.01" />
+                </svg>
+                A member can have several trainers. Invite staff with the Trainer role to unlock this list.
+              </p>
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button variant="secondary">Cancel</Button>
+              </SheetClose>
+              <Button onClick={assignTrainer} loading={assignLoading} disabled={!trainerChoice}>Assign</Button>
+            </SheetFooter>
           </div>
-        </div>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <div className="grid gap-5 xl:grid-cols-2">
         {/* Member details */}
@@ -341,8 +372,8 @@ export default function MemberDetailPage() {
         title="Payment history"
         subtitle={data.payments.length ? `${data.payments.length} total` : "No payments yet"}
       />
-      {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="mt-5 border border-foreground/10 bg-card">
+      {/* Flat workspace, not a card: rows are held by hairlines. */}
+      <div className="mt-3">
         {data.payments.length === 0 ? (
           <EmptyState
             title="No payments yet"
@@ -353,26 +384,26 @@ export default function MemberDetailPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Method</th>
-                  <th className="px-5 py-3">Amount</th>
-                  <th className="px-5 py-3">Refunded</th>
-                  <th className="px-5 py-3">Status</th>
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Date</th>
+                  <th className={`${TH} ${CELL}`}>Method</th>
+                  <th className={`${TH} ${CELL}`}>Amount</th>
+                  <th className={`${TH} ${CELL}`}>Refunded</th>
+                  <th className={`${TH} ${CELL_LAST}`}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
+              <tbody>
                 {data.payments.map((p) => (
-                  <tr key={p.id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-5 py-3.5 whitespace-nowrap tabular-nums">{(p.paid_at || p.created_at).slice(0, 10)}</td>
-                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{titleCase(p.method)}</td>
-                    <td className="px-5 py-3.5 tabular-nums font-medium text-[var(--foreground)]">{money(p.amount, p.currency)}</td>
-                    <td className="px-5 py-3.5 tabular-nums text-[var(--foreground-muted)]">
+                  <tr key={p.id} className={`${TR} transition-colors hover:bg-foreground/[0.02]`}>
+                    <td className={`${TD} ${CELL_FIRST} py-2.5 whitespace-nowrap tabular-nums`}>{(p.paid_at || p.created_at).slice(0, 10)}</td>
+                    <td className={`${TD} ${CELL} py-2.5 text-[var(--foreground-muted)]`}>{titleCase(p.method)}</td>
+                    <td className={`${TD} ${CELL} py-2.5 tabular-nums font-medium text-[var(--foreground)]`}>{money(p.amount, p.currency)}</td>
+                    <td className={`${TD} ${CELL} py-2.5 tabular-nums text-[var(--foreground-muted)]`}>
                       {p.refunded_amount > 0 ? money(p.refunded_amount, p.currency) : "—"}
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL_LAST} py-2.5`}>
                       <Badge tone={statusTone(p.status)}>{titleCase(p.status)}</Badge>
                     </td>
                   </tr>

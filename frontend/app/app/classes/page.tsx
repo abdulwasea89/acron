@@ -3,8 +3,30 @@
 import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/PageHeader";
-import { Dialog } from "@/components/Dialog";
-import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, Input, Spinner } from "@/components/ui";
+import { FieldSelect, NONE } from "@/components/FieldSelect";
+import { SelectItem } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ListToolbar } from "@/components/ListToolbar";
+import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { api, ApiError } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtimeEvent } from "@/components/Realtime";
@@ -227,94 +249,118 @@ export default function ClassesPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      {/* Create dialog */}
-      <Dialog
-        open={showForm}
-        onClose={resetForm}
-        title="Schedule a class"
-        subtitle="Set up a new class session"
-      >
-        <form onSubmit={submit} className="space-y-4">
-          {formError && <Alert>{formError}</Alert>}
-          <Input
-            label="Class title"
-            required
-            value={formTitle}
-            onChange={(e) => setFormTitle(e.target.value)}
-            placeholder="e.g. Morning HIIT"
-          />
-          <Select label="Trainer" value={formTrainer} onChange={(e) => setFormTrainer(e.target.value)}>
-            <option value="">Unassigned</option>
-            {trainers.map((t) => (
-              <option key={t.member_id} value={t.member_id}>
-                {t.display_name || t.full_name || t.email} ({t.role})
-              </option>
-            ))}
-          </Select>
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Starts at" type="datetime-local" required value={formStartsAt} onChange={(e) => setFormStartsAt(e.target.value)} />
-            <Input label="Ends at" type="datetime-local" value={formEndsAt} onChange={(e) => setFormEndsAt(e.target.value)} />
-          </div>
-          <Input label="Capacity" type="number" min={1} value={formCapacity} onChange={(e) => setFormCapacity(e.target.value)} hint="Maximum number of members" />
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" loading={formLoading}>Schedule</Button>
-            <Button type="button" variant="ghost" onClick={resetForm}>Cancel</Button>
-          </div>
-        </form>
-      </Dialog>
-
-      {/* Cancel confirmation */}
-      <Dialog
-        open={!!cancelling}
-        onClose={() => setCancelling(null)}
-        title=""
-        subtitle=""
-        hideTitle
-      >
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--warning-bg)]">
-            <svg className="h-6 w-6 text-[var(--warning)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-          </div>
-          <h3 className="mb-1 font-heading text-lg text-foreground">Cancel class</h3>
-          <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
-            Are you sure you want to cancel <span className="font-medium text-[var(--foreground)]">&ldquo;{cancelling?.title}&rdquo;</span>? All bookings will be cancelled and members will be notified.
-          </p>
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => setCancelling(null)} className="flex-1">Keep class</Button>
-            <Button variant="danger" onClick={confirmCancel} className="flex-1">Cancel class</Button>
-          </div>
-        </div>
-      </Dialog>
-
-      {/* Bookings dialog */}
-      <Dialog
-        open={!!bookingsSession}
-        onClose={() => { setBookingsSession(null); setBookings(null); }}
-        title={bookingsSession ? `Bookings — ${bookingsSession.title}` : ""}
-        subtitle={`${bookings?.length ?? 0} booking${bookings?.length === 1 ? "" : "s"}`}
-      >
-        {bookings === null ? (
-          <Spinner label="Loading bookings..." />
-        ) : bookingsError ? (
-          <Alert>{bookingsError}</Alert>
-        ) : bookings.length === 0 ? (
-          <p className="py-4 text-center text-sm text-[var(--foreground-muted)]">No bookings yet.</p>
-        ) : (
-          <div className="divide-y divide-[var(--border)]">
-            {bookings.map((b) => (
-              <div key={b.booking_id} className="flex items-center justify-between py-2.5">
-                <div>
-                  <p className="text-sm font-medium text-[var(--foreground)]">{b.member_name || b.member_email}</p>
-                  <p className="text-xs text-[var(--muted)]">{b.member_email}</p>
-                </div>
-                <Badge tone={b.status === "booked" ? "success" : "neutral"}>{b.status}</Badge>
+      {/* Create lives in a sheet: it is about the class timetable below it, so the
+          list stays in view while you fill the session in. */}
+      <Sheet open={showForm} onOpenChange={resetForm}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>Schedule a class</SheetTitle>
+              <SheetDescription>Set up a new class session</SheetDescription>
+            </div>
+          </SheetHeader>
+          {/* `flex` + the form filling the sheet: header and footer stay put,
+              only the fields scroll. */}
+          <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+            <SheetBody className="space-y-4">
+              {formError && <Alert>{formError}</Alert>}
+              <Input
+                label="Class title"
+                required
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                placeholder="e.g. Morning HIIT"
+              />
+              <FieldSelect
+                label="Trainer"
+                value={formTrainer || NONE}
+                onChange={(v) => setFormTrainer(v === NONE ? "" : v)}
+              >
+                <SelectItem value={NONE}>Unassigned</SelectItem>
+                {trainers.map((t) => (
+                  <SelectItem key={t.member_id} value={t.member_id}>
+                    {t.display_name || t.full_name || t.email} ({t.role})
+                  </SelectItem>
+                ))}
+              </FieldSelect>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Starts at" type="datetime-local" required value={formStartsAt} onChange={(e) => setFormStartsAt(e.target.value)} />
+                <Input label="Ends at" type="datetime-local" value={formEndsAt} onChange={(e) => setFormEndsAt(e.target.value)} />
               </div>
-            ))}
-          </div>
-        )}
-      </Dialog>
+              <Input label="Capacity" type="number" min={1} value={formCapacity} onChange={(e) => setFormCapacity(e.target.value)} hint="Maximum number of members" />
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>
+              </SheetClose>
+              <Button type="submit" loading={formLoading}>Schedule</Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Cancelling is destructive and affects everyone booked in, so it gets a
+          centred AlertDialog: two answers, and it should stop you. */}
+      <AlertDialog open={!!cancelling} onOpenChange={(open) => { if (!open) setCancelling(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Cancel class</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to cancel <strong className="text-foreground">{cancelling?.title}</strong>? All
+            bookings will be cancelled and members will be notified.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Keep class</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" onClick={confirmCancel}>Cancel class</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bookings are a detail, so they read beside the timetable, not over it. */}
+      <Sheet
+        open={!!bookingsSession}
+        onOpenChange={(open) => { if (!open) { setBookingsSession(null); setBookings(null); } }}
+      >
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>{bookingsSession ? `Bookings — ${bookingsSession.title}` : ""}</SheetTitle>
+              <SheetDescription>
+                {`${bookings?.length ?? 0} booking${bookings?.length === 1 ? "" : "s"}`}
+              </SheetDescription>
+            </div>
+          </SheetHeader>
+          <SheetBody>
+            {bookings === null ? (
+              <Spinner label="Loading bookings..." />
+            ) : bookingsError ? (
+              <Alert>{bookingsError}</Alert>
+            ) : bookings.length === 0 ? (
+              <p className="py-4 text-center text-sm text-[var(--foreground-muted)]">No bookings yet.</p>
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {bookings.map((b) => (
+                  <div key={b.booking_id} className="flex items-center justify-between py-2.5">
+                    <div>
+                      <p className="text-sm font-medium text-[var(--foreground)]">{b.member_name || b.member_email}</p>
+                      <p className="text-xs text-[var(--muted)]">{b.member_email}</p>
+                    </div>
+                    <Badge tone={b.status === "booked" ? "success" : "neutral"}>{b.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SheetBody>
+          <SheetFooter>
+            <SheetClose asChild>
+              <Button type="button" variant="secondary">Close</Button>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Kebab menu portal */}
       {menuSession && menuPos && createPortal(
@@ -366,31 +412,17 @@ export default function ClassesPage() {
         document.body,
       )}
 
-      <TableToolbar
-        title={filter === "upcoming" ? "Upcoming classes" : filter === "past" ? "Past classes" : "Cancelled classes"}
-        subtitle={sessions ? `${filtered.length} session${filtered.length === 1 ? "" : "s"}` : undefined}
-        action={
-          <div className="flex items-center gap-1.5">
-            <Input
-              placeholder="Search…"
-              aria-label="Search classes"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              size="sm"
-              className="w-[150px]"
-            />
-            <CategoryTabs
-              className="shrink-0"
-              tabs={tabs}
-              value={filter}
-              onChange={setFilter}
-            />
-          </div>
-        }
+      <ListToolbar
+        tabs={tabs}
+        value={filter}
+        onChange={setFilter}
+        search={search}
+        onSearch={(v) => setSearch(v)}
+        searchPlaceholder="Search classes…"
       />
 
-      {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="border border-foreground/10 bg-card">
+      {/* Flat workspace, not a card: rows are held by hairlines. */}
+      <div className="mt-3">
         {sessions === null ? (
           <Spinner label="Loading classes..." />
         ) : filtered.length === 0 ? (
@@ -407,36 +439,36 @@ export default function ClassesPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="px-5 py-3">Class</th>
-                  <th className="px-5 py-3">Trainer</th>
-                  <th className="px-5 py-3">Date / Time</th>
-                  <th className="px-5 py-3">Capacity</th>
-                  <th className="px-5 py-3">Status</th>
-                  {isStaff && <th className="w-12 px-5 py-3" />}
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Class</th>
+                  <th className={`${TH} ${CELL}`}>Trainer</th>
+                  <th className={`${TH} ${CELL}`}>Date / Time</th>
+                  <th className={`${TH} ${CELL}`}>Capacity</th>
+                  <th className={`${TH} ${CELL}`}>Status</th>
+                  {isStaff && <th className={`${TH} ${CELL_LAST} w-12`} />}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
+              <tbody>
                 {filtered.map((s) => {
                   const st = sessionStatus(s);
                   return (
                     <tr
                       key={s.id}
-                      className={`transition-colors hover:bg-[var(--background)] ${s.cancelled ? "opacity-50" : ""}`}
+                      className={`${TR} transition-colors hover:bg-foreground/[0.02] ${s.cancelled ? "opacity-50" : ""}`}
                     >
-                      <td className="max-w-[200px] px-5 py-3.5">
+                      <td className={`${TD} ${CELL_FIRST} py-2.5 max-w-[200px]`}>
                         <p className={`truncate font-medium ${s.cancelled ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>
                           {s.title}
                         </p>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL} py-2.5`}>
                         <span className="text-[var(--foreground-muted)]">
                           {s.trainer_member_id ? (trainerById[s.trainer_member_id] || "—") : "Unassigned"}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL} py-2.5`}>
                         <div className="text-[var(--foreground-muted)]">
                           <p className="whitespace-nowrap">{fmtDateTime(s.starts_at)}</p>
                           {s.ends_at && (
@@ -446,7 +478,7 @@ export default function ClassesPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL} py-2.5`}>
                         <div className="flex items-center gap-2.5">
                           <div className="flex-1">
                             <div className="h-2 w-20 rounded-full bg-[var(--border)]">
@@ -461,7 +493,7 @@ export default function ClassesPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL} py-2.5`}>
                         <div className="flex items-center gap-2">
                           <Badge tone={st.tone}>{st.label}</Badge>
                           {!s.cancelled && s.trainer_checked_in && (
@@ -470,7 +502,7 @@ export default function ClassesPage() {
                         </div>
                       </td>
                       {isStaff && (
-                        <td className="px-5 py-3.5">
+                        <td className={`${TD} ${CELL_LAST} py-2.5`}>
                           <div className="flex justify-end">
                             <button
                               type="button"

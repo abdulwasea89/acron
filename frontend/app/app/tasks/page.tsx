@@ -2,9 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Dialog } from "@/components/Dialog";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Avatar, Badge, Button, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar, Textarea } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, EmptyState, Input, Spinner, Textarea } from "@/components/ui";
+import { FieldSelect, NONE } from "@/components/FieldSelect";
+import { SelectItem } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ListToolbar } from "@/components/ListToolbar";
+import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { api, ApiError } from "@/lib/api";
 import type { TaskOut, MemberDirectoryItem } from "@/lib/types";
 
@@ -194,125 +216,137 @@ export default function TasksPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      {/* Create / Edit dialog */}
-      <Dialog
-        open={showForm}
-        onClose={resetForm}
-        title={editing ? "Edit task" : "New task"}
-        subtitle={editing ? "Update task details" : "Assign a task to a team member"}
-      >
-        <form onSubmit={editing ? update : submit} className="space-y-4">
-          {formError && <Alert>{formError}</Alert>}
-          <Input
-            label="Title"
-            required
-            value={formTitle}
-            onChange={(e) => setFormTitle(e.target.value)}
-            placeholder="What needs to be done?"
-          />
-          <Select label="Assignee" value={formAssignee} onChange={(e) => setFormAssignee(e.target.value)}>
-            <option value="">Unassigned</option>
-            {members.map((m) => (
-              <option key={m.member_id} value={m.member_id}>
-                {m.full_name || m.email}
-              </option>
-            ))}
-          </Select>
-          <Input label="Deadline" type="date" value={formDeadline} onChange={(e) => setFormDeadline(e.target.value)} />
-          <Textarea label="Description" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="Optional details, notes, or instructions" rows={3} />
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" loading={formLoading}>{editing ? "Save changes" : "Create task"}</Button>
-            <Button type="button" variant="ghost" onClick={resetForm}>Cancel</Button>
-          </div>
-        </form>
-      </Dialog>
-
-      {/* Delete confirmation dialog */}
-      <Dialog
-        open={!!deleting}
-        onClose={() => setDeleting(null)}
-        title=""
-        subtitle=""
-        hideTitle
-      >
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-danger-bg">
-            <svg className="h-6 w-6 text-[var(--danger)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-          </div>
-          <h3 className="mb-1 font-heading text-lg text-foreground">Delete task</h3>
-          <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
-            Are you sure you want to delete <span className="font-medium text-[var(--foreground)]">&ldquo;{deleting?.title}&rdquo;</span>? This action cannot be undone.
-          </p>
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => setDeleting(null)} className="flex-1">Cancel</Button>
-            <Button variant="danger" onClick={confirmDelete} className="flex-1">Delete</Button>
-          </div>
-        </div>
-      </Dialog>
-
-      {/* Detail view dialog */}
-      <Dialog open={!!viewing} onClose={() => setViewing(null)} title={viewing?.title ?? ""} subtitle="Task details">
-        {viewing && (
-          <div className="space-y-5">
-            {viewing.description && (
-              <div>
-                <span className="mb-1.5 block text-[12px] font-medium text-[var(--foreground)]">Description</span>
-                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--foreground-muted)]">{viewing.description}</p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Assignee</span>
-                <span className="text-sm text-[var(--foreground-muted)]">
-                  {viewing.assignee_member_id ? (memberById[viewing.assignee_member_id] || "—") : "Unassigned"}
-                </span>
-              </div>
-              <div>
-                <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Deadline</span>
-                <span className="text-sm text-[var(--foreground-muted)]">
-                  {viewing.deadline ? formatDate(viewing.deadline) : "No deadline"}
-                </span>
-              </div>
-            </div>
+      {/* Create / edit lives in a sheet, not a centred modal: it is about the task
+          list behind it, so the list stays in view while you fill it in. */}
+      <Sheet open={showForm} onOpenChange={resetForm}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
             <div>
-              <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Status</span>
-              <Badge tone={viewing.done ? "success" : "neutral"}>{viewing.done ? "Done" : "Active"}</Badge>
+              <SheetTitle>{editing ? "Edit task" : "New task"}</SheetTitle>
+              <SheetDescription>
+                {editing ? "Update task details" : "Assign a task to a team member"}
+              </SheetDescription>
             </div>
-            <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4">
-              <Button variant="secondary" onClick={() => { setViewing(null); openEdit(viewing); }}>Edit</Button>
-              <Button variant="ghost" onClick={() => setViewing(null)}>Close</Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
+          </SheetHeader>
+          {/* `flex` + the form filling the sheet: header and footer stay put,
+              only the fields scroll. */}
+          <form onSubmit={editing ? update : submit} className="flex min-h-0 flex-1 flex-col">
+            <SheetBody className="space-y-4">
+              {formError && <Alert>{formError}</Alert>}
+              <Input
+                label="Title"
+                required
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                placeholder="What needs to be done?"
+              />
+              <FieldSelect
+                label="Assignee"
+                value={formAssignee || NONE}
+                onChange={(v) => setFormAssignee(v === NONE ? "" : v)}
+              >
+                <SelectItem value={NONE}>Unassigned</SelectItem>
+                {members.map((m) => (
+                  <SelectItem key={m.member_id} value={m.member_id}>
+                    {m.full_name || m.email}
+                  </SelectItem>
+                ))}
+              </FieldSelect>
+              <Input label="Deadline" type="date" value={formDeadline} onChange={(e) => setFormDeadline(e.target.value)} />
+              <Textarea label="Description" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="Optional details, notes, or instructions" rows={3} />
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button type="button" variant="secondary" onClick={resetForm}>Cancel</Button>
+              </SheetClose>
+              <Button type="submit" loading={formLoading}>{editing ? "Save changes" : "Create task"}</Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
 
-      <TableToolbar
-        title="Tasks"
-        subtitle={tasks ? `${filtered.length} task${filtered.length === 1 ? "" : "s"}` : undefined}
-        action={
-          <div className="flex items-center gap-1.5">
-            <Input
-              placeholder="Search…"
-              aria-label="Search tasks"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              size="sm"
-              className="w-[150px]"
-            />
-            <CategoryTabs
-              className="shrink-0"
-              tabs={tabs}
-              value={filter}
-              onChange={setFilter}
-            />
-          </div>
-        }
+      {/* Deleting is destructive, so it gets a centred AlertDialog: two answers,
+          and it should stop you. */}
+      <AlertDialog open={!!deleting} onOpenChange={(open) => { if (!open) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Delete task</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete <strong className="text-foreground">{deleting?.title}</strong>? This
+            action cannot be undone.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" onClick={confirmDelete}>Delete task</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Detail view rides in a sheet too, so View and Edit both open the same
+          surface beside the task list instead of a modal that hides it. */}
+      <Sheet open={!!viewing} onOpenChange={(open) => { if (!open) setViewing(null); }}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>{viewing?.title ?? ""}</SheetTitle>
+              <SheetDescription>Task details</SheetDescription>
+            </div>
+          </SheetHeader>
+          <SheetBody className="space-y-5">
+            {viewing && (
+              <>
+                {viewing.description && (
+                  <div>
+                    <span className="mb-1.5 block text-[12px] font-medium text-[var(--foreground)]">Description</span>
+                    <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--foreground-muted)]">{viewing.description}</p>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Assignee</span>
+                    <span className="text-sm text-[var(--foreground-muted)]">
+                      {viewing.assignee_member_id ? (memberById[viewing.assignee_member_id] || "—") : "Unassigned"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Deadline</span>
+                    <span className="text-sm text-[var(--foreground-muted)]">
+                      {viewing.deadline ? formatDate(viewing.deadline) : "No deadline"}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <span className="mb-1 block text-[12px] font-medium text-[var(--foreground)]">Status</span>
+                  <Badge tone={viewing.done ? "success" : "neutral"}>{viewing.done ? "Done" : "Active"}</Badge>
+                </div>
+              </>
+            )}
+          </SheetBody>
+          <SheetFooter>
+            {viewing && (
+              <Button type="button" variant="primary" onClick={() => { setViewing(null); openEdit(viewing); }}>Edit</Button>
+            )}
+            <SheetClose asChild>
+              <Button type="button" variant="secondary">Close</Button>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <ListToolbar
+        tabs={tabs}
+        value={filter}
+        onChange={setFilter}
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search tasks…"
       />
 
-      {/* Table surface: hairline border, square corners, flat background. */}
-      <div className="border border-foreground/10 bg-card">
+      {/* Flat workspace, not a card: rows are held by hairlines. */}
+      <div className="mt-3">
         {tasks === null ? (
           <Spinner label="Loading tasks..." />
         ) : filtered.length === 0 ? (
@@ -323,26 +357,26 @@ export default function TasksPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="w-12 px-5 py-3" />
-                  <th className="px-5 py-3">Title</th>
-                  <th className="px-5 py-3">Assignee</th>
-                  <th className="px-5 py-3">Deadline</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3 text-right">Actions</th>
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST} w-12`} />
+                  <th className={`${TH} ${CELL}`}>Title</th>
+                  <th className={`${TH} ${CELL}`}>Assignee</th>
+                  <th className={`${TH} ${CELL}`}>Deadline</th>
+                  <th className={`${TH} ${CELL}`}>Status</th>
+                  <th className={`${TH} ${CELL_LAST} text-right`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
+              <tbody>
                 {filtered.map((task) => {
                   const overdue = task.deadline && !task.done && new Date(task.deadline) < new Date();
                   return (
                     <tr
                       key={task.id}
-                      className={`transition-colors hover:bg-[var(--background)] ${task.done ? "opacity-50" : ""}`}
+                      className={`${TR} transition-colors hover:bg-foreground/[0.02] ${task.done ? "opacity-50" : ""}`}
                     >
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL_FIRST} py-2.5`}>
                         <button
                           type="button"
                           disabled={task.done}
@@ -361,12 +395,12 @@ export default function TasksPage() {
                           )}
                         </button>
                       </td>
-                      <td className={`max-w-[260px] px-5 py-3.5 font-medium ${task.done ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>
+                      <td className={`${TD} ${CELL} py-2.5 max-w-[260px] font-medium ${task.done ? "text-[var(--muted)] line-through" : "text-[var(--foreground)]"}`}>
                         <button type="button" onClick={() => setViewing(task)} className="block w-full truncate text-left hover:underline">
                           {task.title}
                         </button>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL} py-2.5`}>
                         {task.assignee_member_id ? (
                           <div className="flex items-center gap-2">
                             <Avatar name={memberById[task.assignee_member_id] || "?"} size="sm" />
@@ -378,7 +412,7 @@ export default function TasksPage() {
                           <span className="text-[var(--muted)]">Unassigned</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL} py-2.5`}>
                         {task.deadline ? (
                           <span className={`tabular-nums ${overdue ? "font-medium text-[var(--danger)]" : "text-[var(--foreground-muted)]"}`}>
                             {formatDate(task.deadline)}
@@ -387,10 +421,10 @@ export default function TasksPage() {
                           <span className="text-[var(--muted)]">—</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL} py-2.5`}>
                         <Badge tone={task.done ? "success" : "neutral"}>{task.done ? "Done" : "Active"}</Badge>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL_LAST} py-2.5`}>
                         <div className="flex justify-end">
                           <button
                             type="button"

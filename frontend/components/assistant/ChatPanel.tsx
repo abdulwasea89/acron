@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatComposer } from "./ChatComposer";
 import { ChatThread } from "./ChatThread";
+import { ReferencePicker, type Reference } from "./ReferencePicker";
 import { Alert, Spinner } from "@/components/ui";
 import { api, ApiError, streamPost } from "@/lib/api";
 import type {
@@ -42,6 +43,9 @@ interface ChatPanelProps {
   onCreated: (id: string) => void;
   /** Ask the host to re-sort its recents list (ordering follows recency). */
   onRailRefresh: () => void;
+  /** Fired when the user sends a turn from the composer (not the auto-answer
+   *  to a handed-over prompt). The host drops any record handoff here. */
+  onUserMessage?: () => void;
 }
 
 /** A paused write awaiting the user's yes/no. */
@@ -55,6 +59,7 @@ export function ChatPanel({
   initialPrompt,
   onCreated,
   onRailRefresh,
+  onUserMessage,
 }: ChatPanelProps) {
   const [detail, setDetail] = useState<AssistantConversationDetailOut | null>(null);
   const [value, setValue] = useState("");
@@ -68,6 +73,8 @@ export function ChatPanel({
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
   /** A write the assistant proposed and is waiting for the user to approve. */
   const [approval, setApproval] = useState<Approval | null>(null);
+  /** The record-reference picker above the composer. */
+  const [refsOpen, setRefsOpen] = useState(false);
 
   // Lets a switch (or unmount) cancel a reply still arriving.
   const streamRef = useRef<AbortController | null>(null);
@@ -220,6 +227,24 @@ export function ChatPanel({
     [approval, conversationId, runStream],
   );
 
+  /** Rate an assistant turn. Optimistic; the rating is for review only. */
+  const submitFeedback = useCallback(
+    async (messageId: string, feedback: "up" | "down" | null) => {
+      setDetail((d) =>
+        d
+          ? { ...d, messages: d.messages.map((m) => (m.id === messageId ? { ...m, feedback } : m)) }
+          : d,
+      );
+      try {
+        await api.post(`/assistant/messages/${messageId}/feedback`, { feedback });
+      } catch {
+        // Best-effort: a lost rating is not worth disturbing the thread. The
+        // optimistic mark stays until the next reload reconciles it.
+      }
+    },
+    [],
+  );
+
   // A prompt handed over from the dashboard bar: create the thread first, then
   // stream the reply. The trailing user message is already persisted, so the
   // stream is opened without content.
@@ -316,6 +341,9 @@ export function ChatPanel({
     if (!text || sending) return;
     setValue("");
     setError("");
+    // The user is now driving; any record handoff that opened this thread is
+    // spent, so the host can drop its panel.
+    onUserMessage?.();
 
     if (!conversationId) {
       // Blank thread: create it, then stream. Same path the dashboard bar takes.
@@ -351,7 +379,14 @@ export function ChatPanel({
     };
     setDetail((d) => (d && d.id === conversationId ? { ...d, messages: [...d.messages, optimistic] } : d));
     await runStream(conversationId, text);
-  }, [value, sending, conversationId, onCreated, runStream]);
+  }, [value, sending, conversationId, onCreated, runStream, onUserMessage]);
+
+  /** Insert a picked record as an `@kind:"label"` token at the end of the draft. */
+  const insertReference = useCallback((ref: Reference) => {
+    const token = `@${ref.kind}:"${ref.label}"`;
+    setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")} ${token}` : token));
+    setRefsOpen(false);
+  }, []);
 
   // Read the thread only when the loaded detail is the one being shown.
   // Switching conversations therefore never flashes the previous transcript,
@@ -384,6 +419,7 @@ export function ChatPanel({
           generating={sending}
           approval={approval}
           onDecide={decide}
+          onFeedback={submitFeedback}
         />
       )}
 
@@ -399,7 +435,10 @@ export function ChatPanel({
           20px at both breakpoints: 32 − 12 and 40 − 20. It is a negative margin
           rather than a smaller `pb-*` because the shell's padding is shared with
           every other page and this page is the only one that wants it gone. */}
-      <div className="-mb-3 shrink-0 px-4 pb-0 pt-2 sm:px-6 lg:-mb-5">
+      <div className="relative -mb-3 shrink-0 px-4 pb-0 pt-2 sm:px-6 lg:-mb-5">
+        {refsOpen && (
+          <ReferencePicker onPick={insertReference} onClose={() => setRefsOpen(false)} />
+        )}
         <div className="mx-auto w-full max-w-3xl">
           <ChatComposer
             value={value}
@@ -408,6 +447,7 @@ export function ChatPanel({
             sending={sending}
             autoFocus
             placeholder={conversationId ? "Reply…" : "Ask about members, revenue, or payroll…"}
+            onReference={() => setRefsOpen((v) => !v)}
           />
         </div>
       </div>

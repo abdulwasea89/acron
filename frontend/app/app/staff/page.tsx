@@ -3,8 +3,30 @@
 import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/PageHeader";
-import { Dialog } from "@/components/Dialog";
-import { Alert, Badge, Button, Card, CategoryTabs, EmptyState, Input, Select, Spinner, TableToolbar } from "@/components/ui";
+import { Alert, Badge, Button, Card, EmptyState, Input, Spinner, TableToolbar } from "@/components/ui";
+import { FieldSelect } from "@/components/FieldSelect";
+import { SelectItem } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ListToolbar } from "@/components/ListToolbar";
+import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { api, ApiError } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtimeEvent } from "@/components/Realtime";
@@ -415,148 +437,171 @@ export default function StaffPage() {
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      {/* Invite dialog */}
-      <Dialog
+      {/* Inviting staff is a create task, so it gets a sheet: the directory stays
+          in view while you fill it in. The generated code is the tail of the same
+          task, so it shares the sheet rather than opening a second surface. */}
+      <Sheet
         open={showInviteForm}
-        onClose={() => { setShowInviteForm(false); setInviteResult(null); }}
-        title={inviteResult ? "Invite created" : "Invite a staff member"}
-        subtitle={inviteResult ? "Share this code with the staff member" : "Choose a role and enter their email"}
+        onOpenChange={(open) => { if (!open) { setShowInviteForm(false); setInviteResult(null); } }}
       >
-        {inviteResult ? (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-[var(--success-border)] bg-[var(--success-bg)] p-4 text-center">
-              <p className="mb-1 text-sm font-medium text-[var(--success)]">Invite code</p>
-              <p className="font-mono text-lg font-bold tracking-wider text-[var(--foreground)] select-all">{inviteResult.code}</p>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>{inviteResult ? "Invite created" : "Invite a staff member"}</SheetTitle>
+              <SheetDescription>
+                {inviteResult ? "Share this code with the staff member" : "Choose a role and enter their email"}
+              </SheetDescription>
             </div>
-            <p className="text-sm text-[var(--foreground-muted)]">
-              Share this code with the staff member. They can redeem it at <strong className="text-[var(--foreground)]">/redeem</strong> to create their account.
-            </p>
-            <div className="flex gap-2">
-              <Button onClick={() => { navigator.clipboard.writeText(inviteResult.code); }} className="flex-1">Copy code</Button>
-              <Button variant="secondary" onClick={closeInviteResult} className="flex-1">Done</Button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={createInvite} className="space-y-4">
-            {inviteFormError && <Alert>{inviteFormError}</Alert>}
-            <Input label="Email" type="email" required value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="staff@example.com" />
-            <Select label="Role" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-              <option value="manager">Manager</option>
-              <option value="trainer">Trainer</option>
-              <option value="front_desk">Front Desk</option>
-            </Select>
-            <div className="flex gap-2 pt-2">
-              <Button type="submit" loading={inviteLoading}>Generate invite</Button>
-              <Button type="button" variant="ghost" onClick={() => setShowInviteForm(false)}>Cancel</Button>
-            </div>
-          </form>
-        )}
-      </Dialog>
-
-      {/* Edit email dialog */}
-      <Dialog
-        open={!!editingEmail}
-        onClose={() => setEditingEmail(null)}
-        title="Edit email"
-        subtitle={`Change email for ${editingEmail?.display_name || editingEmail?.full_name || editingEmail?.email}`}
-      >
-        <div className="space-y-4">
-          {emailError && <Alert>{emailError}</Alert>}
-          <Input
-            label="New email"
-            type="email"
-            required
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="newemail@example.com"
-          />
-          <div className="flex gap-2 pt-2">
-            <Button onClick={submitEmailChange} loading={emailLoading}>Save</Button>
-            <Button variant="ghost" onClick={() => setEditingEmail(null)}>Cancel</Button>
-          </div>
-        </div>
-      </Dialog>
-
-      {/* Role change dialog */}
-      <Dialog
-        open={!!changingRole}
-        onClose={() => setChangingRole(null)}
-        title="Change role"
-        subtitle={`Change role for ${changingRole?.display_name || changingRole?.full_name || changingRole?.email}`}
-      >
-        <div className="space-y-4">
-          {roleChangeError && <Alert>{roleChangeError}</Alert>}
-          <Select label="New role" value={newRole || changingRole?.role || ""} onChange={(e) => setNewRole(e.target.value)}>
-            <option value="manager">Manager</option>
-            <option value="trainer">Trainer</option>
-            <option value="front_desk">Front Desk</option>
-            <option value="member">Member</option>
-          </Select>
-          {newRole && newRole !== changingRole?.role && (
-            <p className="text-xs text-[var(--warning)]">
-              {newRole === "member"
-                ? "This will remove all staff privileges."
-                : `This will grant ${roleLabel(newRole)} permissions.`
-              }
-            </p>
+          </SheetHeader>
+          {inviteResult ? (
+            <>
+              <SheetBody className="space-y-4">
+                <div className="rounded-lg border border-[var(--success-border)] bg-[var(--success-bg)] p-4 text-center">
+                  <p className="mb-1 text-sm font-medium text-[var(--success)]">Invite code</p>
+                  <p className="font-mono text-lg font-bold tracking-wider text-[var(--foreground)] select-all">{inviteResult.code}</p>
+                </div>
+                <p className="text-sm text-[var(--foreground-muted)]">
+                  Share this code with the staff member. They can redeem it at <strong className="text-[var(--foreground)]">/redeem</strong> to create their account.
+                </p>
+              </SheetBody>
+              <SheetFooter>
+                <Button onClick={() => { navigator.clipboard.writeText(inviteResult.code); }}>Copy code</Button>
+                <Button variant="secondary" onClick={closeInviteResult}>Done</Button>
+              </SheetFooter>
+            </>
+          ) : (
+            /* `flex` + the form filling the sheet: header and footer stay put,
+               only the body scrolls. */
+            <form onSubmit={createInvite} className="flex min-h-0 flex-1 flex-col">
+              <SheetBody className="space-y-4">
+                {inviteFormError && <Alert>{inviteFormError}</Alert>}
+                <Input label="Email" type="email" required value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="staff@example.com" />
+                <FieldSelect label="Role" value={inviteRole} onChange={setInviteRole}>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="trainer">Trainer</SelectItem>
+                  <SelectItem value="front_desk">Front Desk</SelectItem>
+                </FieldSelect>
+              </SheetBody>
+              <SheetFooter>
+                <SheetClose asChild>
+                  <Button type="button" variant="secondary">Cancel</Button>
+                </SheetClose>
+                <Button type="submit" loading={inviteLoading}>Generate invite</Button>
+              </SheetFooter>
+            </form>
           )}
-          <div className="flex gap-2 pt-2">
-            <Button onClick={submitRoleChange} loading={roleChangeLoading} variant={newRole === "member" ? "danger" : "primary"}>Save</Button>
-            <Button variant="ghost" onClick={() => setChangingRole(null)}>Cancel</Button>
-          </div>
-        </div>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Remove confirmation dialog */}
-      <Dialog
-        open={!!removing}
-        onClose={() => setRemoving(null)}
-        title=""
-        subtitle=""
-        hideTitle
-      >
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--danger-bg)]">
-            <svg className="h-6 w-6 text-[var(--danger)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
+      {/* Editing a staff member's email is a form about the directory behind it,
+          so it rides in a sheet rather than covering it. */}
+      <Sheet open={!!editingEmail} onOpenChange={(open) => { if (!open) setEditingEmail(null); }}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>Edit email</SheetTitle>
+              <SheetDescription>
+                {`Change email for ${editingEmail?.display_name || editingEmail?.full_name || editingEmail?.email}`}
+              </SheetDescription>
+            </div>
+          </SheetHeader>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SheetBody className="space-y-4">
+              {emailError && <Alert>{emailError}</Alert>}
+              <Input
+                label="New email"
+                type="email"
+                required
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="newemail@example.com"
+              />
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button variant="secondary">Cancel</Button>
+              </SheetClose>
+              <Button onClick={submitEmailChange} loading={emailLoading}>Save</Button>
+            </SheetFooter>
           </div>
-          <h3 className="mb-1 font-heading text-lg text-foreground">Remove staff member</h3>
-          <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
-            Are you sure you want to remove <span className="font-medium text-[var(--foreground)]">{removing?.display_name || removing?.full_name || removing?.email}</span> from staff? Their membership will be cancelled.
-          </p>
-          {removeError && <div className="mb-4"><Alert>{removeError}</Alert></div>}
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => setRemoving(null)} className="flex-1">Keep staff</Button>
-            <Button variant="danger" onClick={confirmRemove} loading={removeLoading} className="flex-1">Remove</Button>
+        </SheetContent>
+      </Sheet>
+
+      {/* Role changes edit the staff record, so they get a sheet. The role list
+          is a Radix Select, because the in-house one portals its listbox to
+          <body>, which a Radix dialog makes inert. */}
+      <Sheet open={!!changingRole} onOpenChange={(open) => { if (!open) setChangingRole(null); }}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>Change role</SheetTitle>
+              <SheetDescription>
+                {`Change role for ${changingRole?.display_name || changingRole?.full_name || changingRole?.email}`}
+              </SheetDescription>
+            </div>
+          </SheetHeader>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SheetBody className="space-y-4">
+              {roleChangeError && <Alert>{roleChangeError}</Alert>}
+              <FieldSelect label="New role" value={newRole || changingRole?.role || ""} onChange={setNewRole}>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="trainer">Trainer</SelectItem>
+                <SelectItem value="front_desk">Front Desk</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
+              </FieldSelect>
+              {newRole && newRole !== changingRole?.role && (
+                <p className="text-xs text-[var(--warning)]">
+                  {newRole === "member"
+                    ? "This will remove all staff privileges."
+                    : `This will grant ${roleLabel(newRole)} permissions.`
+                  }
+                </p>
+              )}
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button variant="secondary">Cancel</Button>
+              </SheetClose>
+              <Button onClick={submitRoleChange} loading={roleChangeLoading} variant={newRole === "member" ? "danger" : "primary"}>Save</Button>
+            </SheetFooter>
           </div>
-        </div>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
+
+      {/* Removing staff cancels their membership, so it gets a centred
+          AlertDialog: two answers, and it should stop you. */}
+      <AlertDialog open={!!removing} onOpenChange={(open) => { if (!open) setRemoving(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Remove staff member</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to remove{" "}
+            <strong className="text-foreground">
+              {removing?.display_name || removing?.full_name || removing?.email}
+            </strong>{" "}
+            from staff? Their membership will be cancelled.
+          </AlertDialogDescription>
+          {removeError && <div className="mt-3"><Alert>{removeError}</Alert></div>}
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Keep staff</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" onClick={confirmRemove} loading={removeLoading}>Remove</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Staff directory */}
-      <TableToolbar
-        title="Active staff"
-        subtitle={staff ? `${filteredStaff.length} of ${staff.length} staff member${staff.length === 1 ? "" : "s"}` : undefined}
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <Input
-              placeholder="Search…"
-              aria-label="Search staff"
-              value={staffSearch}
-              onChange={(e) => setStaffSearch(e.target.value)}
-              size="sm"
-              className="w-[150px]"
-            />
-            <CategoryTabs
-              className="shrink-0"
-              tabs={staffTabs}
-              value={staffRole}
-              onChange={setStaffRole}
-            />
-          </div>
-        }
+      <ListToolbar
+        tabs={staffTabs}
+        value={staffRole}
+        onChange={setStaffRole}
+        search={staffSearch}
+        onSearch={(v) => setStaffSearch(v)}
+        searchPlaceholder="Search staff…"
       />
-      <div className="mb-4 border border-foreground/10 bg-card">
+      <div className="mt-3">
         {members === null ? (
           <Spinner label="Loading staff..." />
         ) : filteredStaff.length === 0 ? (
@@ -575,32 +620,32 @@ export default function StaffPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Email</th>
-                  <th className="px-5 py-3">Role</th>
-                  <th className="px-5 py-3">Status</th>
-                  {isOwner && <th className="px-5 py-3">Rates</th>}
-                  {isOwner && <th className="w-12 px-5 py-3" />}
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Name</th>
+                  <th className={`${TH} ${CELL}`}>Email</th>
+                  <th className={`${TH} ${CELL}`}>Role</th>
+                  <th className={`${TH} ${CELL}`}>Status</th>
+                  {isOwner && <th className={`${TH} ${CELL}`}>Rates</th>}
+                  {isOwner && <th className={`${TH} ${CELL_LAST} w-12`} />}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
+              <tbody>
                 {filteredStaff.map((s) => (
-                  <tr key={s.member_id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-5 py-3.5">
+                  <tr key={s.member_id} className={`${TR} transition-colors hover:bg-[var(--background)]`}>
+                    <td className={`${TD} ${CELL_FIRST} py-2.5`}>
                       <p className="font-medium text-[var(--foreground)]">{s.display_name || s.full_name || "—"}</p>
                     </td>
-                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{s.email}</td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5 text-[var(--foreground-muted)]`}>{s.email}</td>
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <Badge tone={roleBadgeTone(s.role)}>{roleLabel(s.role)}</Badge>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <Badge tone={s.member_status === "active" ? "success" : "neutral"}>{s.member_status}</Badge>
                     </td>
                     {isOwner && (
-                      <td className="px-5 py-3.5 text-xs text-[var(--foreground-muted)]">
+                      <td className={`${TD} ${CELL} py-2.5 text-xs text-[var(--foreground-muted)]`}>
                         {["trainer", "front_desk", "manager"].includes(s.role) ? (
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                             {s.fixed_monthly_salary > 0 && <span>${s.fixed_monthly_salary}/mo</span>}
@@ -617,7 +662,7 @@ export default function StaffPage() {
                       </td>
                     )}
                     {isOwner && (
-                      <td className="px-5 py-3.5">
+                      <td className={`${TD} ${CELL_LAST} py-2.5`}>
                         <div className="flex justify-end">
                           <button
                             type="button"
@@ -707,75 +752,86 @@ export default function StaffPage() {
         document.body,
       )}
 
-      {/* Revoke invite confirmation */}
-      <Dialog
-        open={!!revoking}
-        onClose={() => setRevoking(null)}
-        title=""
-        subtitle=""
-        hideTitle
-      >
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--warning-bg)]">
-            <svg className="h-6 w-6 text-[var(--warning)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-          </div>
-          <h3 className="mb-1 font-heading text-lg text-foreground">Revoke invite</h3>
-          <p className="mb-6 text-sm leading-relaxed text-[var(--foreground-muted)]">
-            This invite for <span className="font-medium text-[var(--foreground)]">{revoking?.email || "this person"}</span> will be cancelled. The invite code will no longer work.
-          </p>
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => setRevoking(null)} className="flex-1">Keep invite</Button>
-            <Button variant="danger" onClick={confirmRevoke} loading={revokeLoading} className="flex-1">Revoke</Button>
-          </div>
-        </div>
-      </Dialog>
+      {/* Revoking kills the code outright, so it is a centred AlertDialog: two
+          answers, and it should stop you. */}
+      <AlertDialog open={!!revoking} onOpenChange={(open) => { if (!open) setRevoking(null); }}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Revoke invite</AlertDialogTitle>
+          <AlertDialogDescription>
+            This invite for <strong className="text-foreground">{revoking?.email || "this person"}</strong> will
+            be cancelled. The invite code will no longer work.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="secondary">Keep invite</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="danger" onClick={confirmRevoke} loading={revokeLoading}>Revoke</Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* Invite email edit dialog */}
-      <Dialog
-        open={!!editingInviteEmail}
-        onClose={() => setEditingInviteEmail(null)}
-        title="Edit invite email"
-        subtitle={`Change email for the pending invite`}
-      >
-        <div className="space-y-4">
-          {inviteEmailError && <Alert>{inviteEmailError}</Alert>}
-          <Input
-            label="New email"
-            type="email"
-            required
-            value={inviteEmailValue}
-            onChange={(e) => setInviteEmailValue(e.target.value)}
-            placeholder="newemail@example.com"
-          />
-          <div className="flex gap-2 pt-2">
-            <Button onClick={submitInviteEmailChange} loading={inviteEmailLoading}>Save</Button>
-            <Button variant="ghost" onClick={() => setEditingInviteEmail(null)}>Cancel</Button>
+      {/* Editing a pending invite is a form about the invites table behind it,
+          so it rides in a sheet rather than covering it. */}
+      <Sheet open={!!editingInviteEmail} onOpenChange={(open) => { if (!open) setEditingInviteEmail(null); }}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>Edit invite email</SheetTitle>
+              <SheetDescription>Change email for the pending invite</SheetDescription>
+            </div>
+          </SheetHeader>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SheetBody className="space-y-4">
+              {inviteEmailError && <Alert>{inviteEmailError}</Alert>}
+              <Input
+                label="New email"
+                type="email"
+                required
+                value={inviteEmailValue}
+                onChange={(e) => setInviteEmailValue(e.target.value)}
+                placeholder="newemail@example.com"
+              />
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button variant="secondary">Cancel</Button>
+              </SheetClose>
+              <Button onClick={submitInviteEmailChange} loading={inviteEmailLoading}>Save</Button>
+            </SheetFooter>
           </div>
-        </div>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Invite role change dialog */}
-      <Dialog
-        open={!!changingInviteRole}
-        onClose={() => setChangingInviteRole(null)}
-        title="Change invite role"
-        subtitle={`Change role for the pending invite`}
-      >
-        <div className="space-y-4">
-          {inviteRoleError && <Alert>{inviteRoleError}</Alert>}
-          <Select label="New role" value={inviteRoleValue || "manager"} onChange={(e) => setInviteRoleValue(e.target.value)}>
-            <option value="manager">Manager</option>
-            <option value="trainer">Trainer</option>
-            <option value="front_desk">Front Desk</option>
-          </Select>
-          <div className="flex gap-2 pt-2">
-            <Button onClick={submitInviteRoleChange} loading={inviteRoleLoading}>Save</Button>
-            <Button variant="ghost" onClick={() => setChangingInviteRole(null)}>Cancel</Button>
+      {/* The pending invite's role is the same edit on the same table, so it opens
+          the same surface beside it. Radix Select again, for the same reason. */}
+      <Sheet open={!!changingInviteRole} onOpenChange={(open) => { if (!open) setChangingInviteRole(null); }}>
+        <SheetContent>
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>Change invite role</SheetTitle>
+              <SheetDescription>Change role for the pending invite</SheetDescription>
+            </div>
+          </SheetHeader>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SheetBody className="space-y-4">
+              {inviteRoleError && <Alert>{inviteRoleError}</Alert>}
+              <FieldSelect label="New role" value={inviteRoleValue || "manager"} onChange={setInviteRoleValue}>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="trainer">Trainer</SelectItem>
+                <SelectItem value="front_desk">Front Desk</SelectItem>
+              </FieldSelect>
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button variant="secondary">Cancel</Button>
+              </SheetClose>
+              <Button onClick={submitInviteRoleChange} loading={inviteRoleLoading}>Save</Button>
+            </SheetFooter>
           </div>
-        </div>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Invite kebab menu portal */}
       {menuInvite && menuInvitePos && createPortal(
@@ -893,7 +949,7 @@ export default function StaffPage() {
             title="My clients"
             subtitle={myClients ? `${myClients.length} member${myClients.length === 1 ? "" : "s"} assigned to you` : undefined}
           />
-          <div className="mb-4 border border-foreground/10 bg-card">
+          <div className="mt-3">
             {myClients === null ? (
             <Spinner label="Loading your clients..." />
           ) : myClients.length === 0 ? (
@@ -903,20 +959,20 @@ export default function StaffPage() {
             />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                  <tr className="border-b border-foreground/10">
-                    <th className="px-5 py-3">Name</th>
-                    <th className="px-5 py-3">Email</th>
-                    <th className="px-5 py-3">Status</th>
+              <table className={TABLE}>
+                <thead>
+                  <tr className={THEAD_ROW}>
+                    <th className={`${TH} ${CELL_FIRST}`}>Name</th>
+                    <th className={`${TH} ${CELL}`}>Email</th>
+                    <th className={`${TH} ${CELL_LAST}`}>Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-foreground/[0.06]">
+                <tbody>
                   {myClients.map((c) => (
-                    <tr key={c.member_id} className="transition-colors hover:bg-[var(--background)]">
-                      <td className="px-5 py-3.5 font-medium text-[var(--foreground)]">{c.member_name || "—"}</td>
-                      <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{c.member_email}</td>
-                      <td className="px-5 py-3.5">
+                    <tr key={c.member_id} className={`${TR} transition-colors hover:bg-[var(--background)]`}>
+                      <td className={`${TD} ${CELL_FIRST} py-2.5 font-medium text-[var(--foreground)]`}>{c.member_name || "—"}</td>
+                      <td className={`${TD} ${CELL} py-2.5 text-[var(--foreground-muted)]`}>{c.member_email}</td>
+                      <td className={`${TD} ${CELL_LAST} py-2.5`}>
                         <Badge tone={c.member_status === "active" ? "success" : c.member_status === "grace" ? "warning" : "neutral"}>{c.member_status}</Badge>
                       </td>
                     </tr>
@@ -929,84 +985,92 @@ export default function StaffPage() {
         </>
       )}
 
-      {/* Compensation dialog */}
-      <Dialog
-        open={!!compMember}
-        onClose={() => setCompMember(null)}
-        title="Compensation rates"
-        subtitle={`Set pay rates for ${compMember?.display_name || compMember?.full_name || compMember?.email}`}
-        className="max-w-xl"
-      >
-        <div className="space-y-5">
-          {compError && <Alert>{compError}</Alert>}
-
-          <div>
-            <p className="mb-3 text-[10px] font-semibold text-muted-foreground">Fixed pay</p>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Monthly salary"
-                type="number"
-                min="0"
-                step="0.01"
-                value={compValues.fixed_monthly_salary || ""}
-                onChange={(e) => setCompValues({ ...compValues, fixed_monthly_salary: parseFloat(e.target.value) || 0 })}
-                prefix="$"
-              />
-              <Input
-                label="Hourly rate"
-                type="number"
-                min="0"
-                step="0.01"
-                value={compValues.hourly_rate || ""}
-                onChange={(e) => setCompValues({ ...compValues, hourly_rate: parseFloat(e.target.value) || 0 })}
-                prefix="$"
-                suffix="/hr"
-              />
+      {/* Compensation is four money fields in two two-up groups, so this is the one
+          sheet that needs the wider panel. */}
+      <Sheet open={!!compMember} onOpenChange={(open) => { if (!open) setCompMember(null); }}>
+        <SheetContent className="[--sheet-max-w:520px]">
+          <SheetHeader className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle>Compensation rates</SheetTitle>
+              <SheetDescription>
+                {`Set pay rates for ${compMember?.display_name || compMember?.full_name || compMember?.email}`}
+              </SheetDescription>
             </div>
+          </SheetHeader>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SheetBody className="space-y-5">
+              {compError && <Alert>{compError}</Alert>}
+
+              <div>
+                <p className="mb-3 text-[10px] font-semibold text-muted-foreground">Fixed pay</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Monthly salary"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={compValues.fixed_monthly_salary || ""}
+                    onChange={(e) => setCompValues({ ...compValues, fixed_monthly_salary: parseFloat(e.target.value) || 0 })}
+                    prefix="$"
+                  />
+                  <Input
+                    label="Hourly rate"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={compValues.hourly_rate || ""}
+                    onChange={(e) => setCompValues({ ...compValues, hourly_rate: parseFloat(e.target.value) || 0 })}
+                    prefix="$"
+                    suffix="/hr"
+                  />
+                </div>
+              </div>
+
+              <hr className="border-[var(--border)]" />
+
+              <div>
+                <p className="mb-3 text-[10px] font-semibold text-muted-foreground">Variable pay</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Per-class rate"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={compValues.per_class_rate || ""}
+                    onChange={(e) => setCompValues({ ...compValues, per_class_rate: parseFloat(e.target.value) || 0 })}
+                    prefix="$"
+                    suffix="/class"
+                  />
+                  <Input
+                    label="Commission rate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={compValues.commission_rate ? compValues.commission_rate * 100 : ""}
+                    onChange={(e) => setCompValues({ ...compValues, commission_rate: (parseFloat(e.target.value) || 0) / 100 })}
+                    suffix="%"
+                  />
+                </div>
+              </div>
+
+              <p className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4M12 8h.01" />
+                </svg>
+                Commission is a percentage of revenue from referred members (strict 12-month window).
+              </p>
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button variant="secondary">Cancel</Button>
+              </SheetClose>
+              <Button onClick={saveCompensation} loading={compLoading}>Save changes</Button>
+            </SheetFooter>
           </div>
-
-          <hr className="border-[var(--border)]" />
-
-          <div>
-            <p className="mb-3 text-[10px] font-semibold text-muted-foreground">Variable pay</p>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Per-class rate"
-                type="number"
-                min="0"
-                step="0.01"
-                value={compValues.per_class_rate || ""}
-                onChange={(e) => setCompValues({ ...compValues, per_class_rate: parseFloat(e.target.value) || 0 })}
-                prefix="$"
-                suffix="/class"
-              />
-              <Input
-                label="Commission rate"
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={compValues.commission_rate ? compValues.commission_rate * 100 : ""}
-                onChange={(e) => setCompValues({ ...compValues, commission_rate: (parseFloat(e.target.value) || 0) / 100 })}
-                suffix="%"
-              />
-            </div>
-          </div>
-
-          <p className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
-            <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4M12 8h.01" />
-            </svg>
-            Commission is a percentage of revenue from referred members (strict 12-month window).
-          </p>
-
-          <div className="flex gap-2 pt-2">
-            <Button onClick={saveCompensation} loading={compLoading}>Save changes</Button>
-            <Button variant="ghost" onClick={() => setCompMember(null)}>Cancel</Button>
-          </div>
-        </div>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Pending invites (owner only) */}
       {isOwner && pendingInvites.length > 0 && (
@@ -1015,26 +1079,26 @@ export default function StaffPage() {
             title="Pending invites"
             subtitle={`${pendingInvites.length} unredeemed invite${pendingInvites.length === 1 ? "" : "s"}`}
           />
-          <div className="border border-foreground/10 bg-card">
+          <div className="mt-3">
             <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                <tr className="border-b border-foreground/10">
-                  <th className="px-5 py-3">Email</th>
-                  <th className="px-5 py-3">Role</th>
-                  <th className="px-5 py-3">Code</th>
-                  <th className="w-24 px-5 py-3 text-right">Actions</th>
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Email</th>
+                  <th className={`${TH} ${CELL}`}>Role</th>
+                  <th className={`${TH} ${CELL}`}>Code</th>
+                  <th className={`${TH} ${CELL_LAST} w-24 text-right`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-foreground/[0.06]">
+              <tbody>
                 {pendingInvites.map((inv) => (
-                  <tr key={inv.id} className="transition-colors hover:bg-[var(--background)]">
-                    <td className="px-5 py-3.5 text-[var(--foreground-muted)]">{inv.email || "—"}</td>
-                    <td className="px-5 py-3.5"><Badge tone={roleBadgeTone(inv.role)}>{roleLabel(inv.role)}</Badge></td>
-                    <td className="px-5 py-3.5">
+                  <tr key={inv.id} className={`${TR} transition-colors hover:bg-[var(--background)]`}>
+                    <td className={`${TD} ${CELL_FIRST} py-2.5 text-[var(--foreground-muted)]`}>{inv.email || "—"}</td>
+                    <td className={`${TD} ${CELL} py-2.5`}><Badge tone={roleBadgeTone(inv.role)}>{roleLabel(inv.role)}</Badge></td>
+                    <td className={`${TD} ${CELL} py-2.5`}>
                       <span className="font-mono text-xs text-[var(--muted)]" title={inv.code}>{maskCode(inv.code)}</span>
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className={`${TD} ${CELL_LAST} py-2.5 text-right`}>
                       <button
                         type="button"
                         onClick={(e) => openInviteMenu(inv, e)}

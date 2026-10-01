@@ -34,3 +34,7 @@ class ConversationMessage(UUIDModel, TimestampModel, table=True):
     model: str | None = Field(default=None)
     error: str | None = Field(default=None)
     steps_json: str | None = Field(default=None)
+
+    # Thumbs up/down a user left on an assistant turn — recorded for later
+    # review/improvement, never sent back to the model. "up" | "down" | None.
+    feedback: str | None = Field(default=None)

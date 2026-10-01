@@ -3,8 +3,14 @@
 import { Fragment, useCallback, useEffect, useState, useMemo, type ReactNode } from "react";
 import { useRealtimeEvent } from "@/components/Realtime";
 import { PageHeader } from "@/components/PageHeader";
-import { useAssistantHint } from "@/components/assistant/AssistantDock";
-import { Alert, Badge, Button, CategoryTabs, EmptyState, Input, Spinner, Textarea } from "@/components/ui";
+import { Glyph } from "@/components/Glyph";
+import { TABLE, THEAD_ROW, TH, TR, TR_INTERACTIVE, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
+import { ListToolbar } from "@/components/ListToolbar";
+import { RowMenu } from "@/components/RowMenu";
+import { PlanFields } from "@/components/plans/PlanFields";
+import { useAssistantDock, useAssistantHint } from "@/components/assistant/AssistantDock";
+import { useAssistantChats } from "@/components/assistant/AssistantChats";
+import { Alert, Badge, Button, EmptyState, Input, Spinner, Textarea } from "@/components/ui";
 import {
   Select as RadixSelect,
   SelectContent,
@@ -22,13 +28,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sheet,
   SheetBody,
   SheetClose,
@@ -40,30 +39,13 @@ import {
 } from "@/components/ui/sheet";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
+import { buildPlanSummaryPrompt, planCadence, planStatusLabel } from "@/lib/plans";
 import type { OrganizationOut, PlanOut } from "@/lib/types";
 import { getIndustry } from "@/lib/industries";
 
 /* ── Icons ────────────────────────────────────────────────────────────────
    One stroke voice for every glyph on the page. Sizing is left to the
-   consumer: the row menu sets 16px, the header kebab 16px, the toolbar search
-   14px. */
-function Glyph({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {children}
-    </svg>
-  );
-}
-
-function KebabIcon() {
-  return (
-    <Glyph className="h-4 w-4">
-      <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="19" r="1" fill="currentColor" stroke="none" />
-    </Glyph>
-  );
-}
+   consumer: the toolbar search is 14px. */
 
 function SearchIcon() {
   return (
@@ -89,56 +71,10 @@ function CloseIcon() {
   );
 }
 
-function ExpandIcon() {
-  return (
-    <Glyph className="h-4 w-4">
-      <path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" />
-    </Glyph>
-  );
-}
-
-function CollapseIcon() {
-  return (
-    <Glyph className="h-4 w-4">
-      <path d="M4 14h6v6" /><path d="M20 10h-6V4" /><path d="M14 10l7-7" /><path d="M3 21l7-7" />
-    </Glyph>
-  );
-}
-
 /* Small muted glyphs that lead each field row in the view panel, mirroring the
    record-panel rhythm: icon, label, value. */
-const SparkleIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /></Glyph>
-);
-const IdIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 9h8M8 13h5" /></Glyph>
-);
-const LayersIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><path d="M12 2l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /></Glyph>
-);
-const TagIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" /><path d="M7 7h.01" /></Glyph>
-);
-const RepeatIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></Glyph>
-);
-const GlobeIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z" /></Glyph>
-);
-const StatusIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><circle cx="12" cy="12" r="9" /></Glyph>
-);
-const TextIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><path d="M4 6h16M4 12h16M4 18h10" /></Glyph>
-);
-const BuildingIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" /><path d="M9 8h6M9 12h6M9 16h4" /></Glyph>
-);
-const CalendarIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></Glyph>
-);
-const DoorIcon = () => (
-  <Glyph className="h-3.5 w-3.5"><path d="M13 4h3a2 2 0 0 1 2 2v14" /><path d="M2 20h20" /><path d="M5 20V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v14" /><circle cx="11" cy="12" r="1" /></Glyph>
+const SparkleIcon = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
+  <Glyph className={className}><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /></Glyph>
 );
 
 const PublishIcon = () => (
@@ -174,47 +110,6 @@ const UnarchiveIcon = () => (
 const TrashIcon = () => (
   <Glyph className="h-4 w-4"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></Glyph>
 );
-
-type RowAction = {
-  label: string;
-  icon: ReactNode;
-  onSelect: () => void;
-  variant?: "default" | "destructive";
-};
-
-/* Row actions. Radix owns placement, flip/shift, focus return, Escape and
-   outside-press — the hand-rolled fixed-position popover did not. It portals
-   to <body>, so the table's horizontal scroller can never clip it. A separator
-   is inserted automatically before the first destructive run (Archive/Delete),
-   which keeps the shape right regardless of which status actions are present. */
-function RowMenu({ actions }: { actions: RowAction[] }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Row actions"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground data-[state=open]:bg-foreground/[0.06] data-[state=open]:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
-        >
-          <KebabIcon />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6} className="w-44">
-        {actions.map((a, i) => (
-          <Fragment key={a.label}>
-            {a.variant === "destructive" && i > 0 && actions[i - 1]?.variant !== "destructive" && (
-              <DropdownMenuSeparator />
-            )}
-            <DropdownMenuItem variant={a.variant} onSelect={a.onSelect}>
-              {a.icon}
-              {a.label}
-            </DropdownMenuItem>
-          </Fragment>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 /* Cell glyphs read as metadata, so they inherit the cell's own color rather
    than carrying a hue of their own — the status dot is the only thing in a row
@@ -263,25 +158,9 @@ function VisibilityIcon({ type }: { type: string }) {
   );
 }
 
-/** What the price is *per*, so the number in the Price column is not bare. */
-function cadence(billingType: string): string {
-  if (billingType === "recurring") return "/month";
-  if (billingType === "one_time_pack") return "one-time";
-  return "per visit";
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  published: "Published",
-  paused: "Paused",
-  archived: "Archived",
-};
-
-/* Column widths. The table is borderless, so nothing holds the columns in a
-   grid except these and the shared horizontal padding — see the header row. */
-const CELL = "px-4 align-middle";
-
 export default function PlansPage() {
+  const dock = useAssistantDock();
+  const chats = useAssistantChats();
   const [plans, setPlans] = useState<PlanOut[] | null>(null);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -289,7 +168,6 @@ export default function PlansPage() {
   const [filter, setFilter] = useState<"active" | "archived">("active");
   const [search, setSearch] = useState("");
   const [viewing, setViewing] = useState<PlanOut | null>(null);
-  const [viewExpanded, setViewExpanded] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [industry, setIndustry] = useState<string>("gym");
 
@@ -376,7 +254,17 @@ export default function PlansPage() {
   }, [statusFiltered, search]);
 
   const newPlan = () => { setEditing(null); setShowForm(true); };
-  const openPlan = (p: PlanOut) => { setViewExpanded(false); setViewing(p); };
+  const openPlan = (p: PlanOut) => { setViewing(p); };
+
+  // "Ask AI about this plan": hand the plan to the assistant page as a grounded
+  // record context and start the chat with a summary request. Resetting the
+  // active thread first is what makes ChatPanel create a new conversation from
+  // the handed-over prompt instead of dropping it into the thread already open.
+  const askAboutPlan = (p: PlanOut) => {
+    setViewing(null);
+    chats?.setActiveId(null);
+    dock?.askAboutRecord(buildPlanSummaryPrompt(p), { kind: "plan", plan: p });
+  };
 
   // Fold a freshly generated summary back into the list so reopening the same
   // plan (or a realtime reload) does not trigger the model again.
@@ -470,13 +358,12 @@ export default function PlansPage() {
         open={!!viewing}
         onOpenChange={(open) => { if (!open) setViewing(null); }}
       >
-        <SheetContent className={viewExpanded ? "[--sheet-max-w:768px]" : "[--sheet-max-w:520px]"}>
+        <SheetContent className="[--sheet-max-w:520px]">
           {viewing && (
             <PlanView
               key={viewing.id}
               plan={viewing}
-              expanded={viewExpanded}
-              onToggleExpand={() => setViewExpanded((v) => !v)}
+              onAskAi={() => askAboutPlan(viewing)}
               onEdit={() => { setViewing(null); setEditing(viewing); setShowForm(true); }}
               onUpdated={mergeSummary}
             />
@@ -484,37 +371,26 @@ export default function PlansPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Toolbar: the view switcher on the left, search on the right. There is
-          no second heading here — the page title above already named this list,
-          and stacking an "Offers" label under "Space plans" made two headings
-          for one thing. */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <CategoryTabs
-          variant="underline"
-          tabs={[
-            {
-              value: "active" as const,
-              label: "Active",
-              count: plans?.filter((p) => p.status !== "archived").length,
-            },
-            {
-              value: "archived" as const,
-              label: "Archived",
-              count: plans?.filter((p) => p.status === "archived").length,
-            },
-          ]}
-          value={filter}
-          onChange={setFilter}
-        />
-        <Input
-          placeholder="Search plans…"
-          aria-label="Search plans"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          prefix={<SearchIcon />}
-          className="w-full sm:w-[280px]"
-        />
-      </div>
+      {/* Toolbar: the view switcher on the left, search on the right. */}
+      <ListToolbar
+        tabs={[
+          {
+            value: "active" as const,
+            label: "Active",
+            count: plans?.filter((p) => p.status !== "archived").length,
+          },
+          {
+            value: "archived" as const,
+            label: "Archived",
+            count: plans?.filter((p) => p.status === "archived").length,
+          },
+        ]}
+        value={filter}
+        onChange={setFilter}
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search plans…"
+      />
 
       {/* Flat workspace, not a card: no outer border, no header rule, no
           per-row boxes. Rows are held together by a single hairline under each
@@ -557,15 +433,15 @@ export default function PlansPage() {
             />
           )
         ) : (
-          <table className="w-full min-w-[720px] text-sm">
+          <table className={`${TABLE} min-w-[720px]`}>
             <thead>
-              <tr className="text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                <th className="pb-3 pr-4 font-medium">Name</th>
-                <th className={CELL + " pb-3 font-medium"}>Price</th>
-                <th className={CELL + " pb-3 font-medium"}>Billing</th>
-                <th className={CELL + " pb-3 font-medium"}>Visibility</th>
-                <th className={CELL + " pb-3 font-medium"}>Status</th>
-                <th className="w-10 pb-3 pl-4" />
+              <tr className={THEAD_ROW}>
+                <th className={`${TH} ${CELL_FIRST}`}>Name</th>
+                <th className={`${TH} ${CELL}`}>Price</th>
+                <th className={`${TH} ${CELL}`}>Billing</th>
+                <th className={`${TH} ${CELL}`}>Visibility</th>
+                <th className={`${TH} ${CELL}`}>Status</th>
+                <th className={`${TH} ${CELL_LAST} w-10`} />
               </tr>
             </thead>
             <tbody>
@@ -573,9 +449,9 @@ export default function PlansPage() {
                 <tr
                   key={p.id}
                   onClick={() => openPlan(p)}
-                  className="group cursor-pointer border-b border-foreground/[0.06] transition-colors last:border-0 hover:bg-foreground/[0.02]"
+                  className={`group ${TR} ${TR_INTERACTIVE}`}
                 >
-                  <td className="py-2.5 pr-4 align-middle">
+                  <td className={`${TD} ${CELL_FIRST} py-2.5`}>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <button
@@ -593,39 +469,39 @@ export default function PlansPage() {
                     </div>
                   </td>
 
-                  <td className={CELL + " py-2.5"}>
+                  <td className={`${TD} ${CELL} py-2.5`}>
                     <div className="tabular-nums">
                       <div className="text-[13px] font-medium leading-5 text-foreground">
                         {money(p.price, p.currency)}
                       </div>
                       <div className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
-                        {cadence(p.billing_type)}
+                        {planCadence(p.billing_type)}
                       </div>
                     </div>
                   </td>
 
-                  <td className={CELL + " py-2.5"}>
+                  <td className={`${TD} ${CELL} py-2.5`}>
                     <span className="flex items-center gap-1.5 whitespace-nowrap text-[13px] leading-5 text-foreground">
                       <span className="text-muted-foreground"><BillingIcon type={p.billing_type} /></span>
                       {titleCase(p.billing_type)}
                     </span>
                   </td>
 
-                  <td className={CELL + " py-2.5"}>
+                  <td className={`${TD} ${CELL} py-2.5`}>
                     <span className="flex items-center gap-1.5 whitespace-nowrap text-[13px] leading-5 text-muted-foreground">
                       <VisibilityIcon type={p.visibility} />
                       {titleCase(p.visibility)}
                     </span>
                   </td>
 
-                  <td className={CELL + " py-2.5"}>
+                  <td className={`${TD} ${CELL} py-2.5`}>
                     <Badge tone={statusTone(p.status)}>
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-                      {STATUS_LABEL[p.status] ?? titleCase(p.status)}
+                      {planStatusLabel(p.status)}
                     </Badge>
                   </td>
 
-                  <td className="py-2.5 pl-4 text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className={`${TD} ${CELL_LAST} py-2.5 text-right`} onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
                       <RowMenu
                         actions={[
@@ -863,29 +739,16 @@ function PlanForm({ plan, industryKey = "gym", onCreated }: { plan?: PlanOut | n
   );
 }
 
-/* Read-only counterpart to PlanForm, shaped like a CRM record panel: a header
-   with corner icon buttons, one column of icon-led field rows, and the
-   AI-written plan summary at the foot. */
-function FieldRow({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 py-2.5">
-      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">{icon}</span>
-      <span className="w-24 shrink-0 pt-px text-[13px] text-muted-foreground">{label}</span>
-      <span className="min-w-0 flex-1 text-[13px] leading-5 text-foreground">{children}</span>
-    </div>
-  );
-}
-
+/* Read-only counterpart to PlanForm: a header with corner actions, the shared
+   field rows, and the AI-written plan summary at the foot. */
 function PlanView({
   plan,
-  expanded,
-  onToggleExpand,
+  onAskAi,
   onEdit,
   onUpdated,
 }: {
   plan: PlanOut;
-  expanded: boolean;
-  onToggleExpand: () => void;
+  onAskAi: () => void;
   onEdit: () => void;
   onUpdated: (plan: PlanOut) => void;
 }) {
@@ -915,9 +778,7 @@ function PlanView({
     return () => { cancelled = true; };
   }, [plan.id, plan.summary, onUpdated]);
 
-  const spec = plan.spec ?? {};
-  const isSpace = !!plan.offer_kind && plan.offer_kind !== "membership";
-  const statusLabel = STATUS_LABEL[plan.status] ?? titleCase(plan.status);
+  const statusLabel = planStatusLabel(plan.status);
 
   return (
     <>
@@ -936,11 +797,12 @@ function PlanView({
         <div className="-mr-1 flex shrink-0 items-center gap-0.5">
           <button
             type="button"
-            aria-label={expanded ? "Collapse panel" : "Expand panel"}
-            onClick={onToggleExpand}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
+            aria-label="Ask the assistant about this plan"
+            title="Ask AI about this plan"
+            onClick={onAskAi}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-brand focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60"
           >
-            {expanded ? <CollapseIcon /> : <ExpandIcon />}
+            <SparkleIcon className="h-4 w-4" />
           </button>
           <SheetClose asChild>
             <button
@@ -955,37 +817,7 @@ function PlanView({
       </SheetHeader>
 
       <SheetBody className="space-y-6">
-        <div className="divide-y divide-foreground/[0.06]">
-          <FieldRow icon={<IdIcon />} label="Name">{plan.name}</FieldRow>
-          <FieldRow icon={<LayersIcon />} label="Offer">{titleCase(plan.offer_kind ?? "membership")}</FieldRow>
-          <FieldRow icon={<TagIcon />} label="Price">
-            <span className="font-medium tabular-nums">{money(plan.price, plan.currency)}</span>
-            <span className="ml-1.5 text-muted-foreground">{cadence(plan.billing_type)}</span>
-          </FieldRow>
-          <FieldRow icon={<RepeatIcon />} label="Billing">{titleCase(plan.billing_type)}</FieldRow>
-          <FieldRow icon={<GlobeIcon />} label="Visibility">{titleCase(plan.visibility)}</FieldRow>
-          <FieldRow icon={<StatusIcon />} label="Status">
-            <Badge tone={statusTone(plan.status)}>
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-              {statusLabel}
-            </Badge>
-          </FieldRow>
-
-          {isSpace && "space_type" in spec && (
-            <FieldRow icon={<BuildingIcon />} label="Space type">{titleCase(String(spec.space_type))}</FieldRow>
-          )}
-          {isSpace && "term" in spec && (
-            <FieldRow icon={<CalendarIcon />} label="Term">{titleCase(String(spec.term))}</FieldRow>
-          )}
-          {isSpace && "room_credits" in spec && (
-            <FieldRow icon={<DoorIcon />} label="Room credits">{String(spec.room_credits)} per term</FieldRow>
-          )}
-          {plan.public_description && (
-            <FieldRow icon={<TextIcon />} label="Description">
-              <span className="whitespace-pre-wrap break-words">{plan.public_description}</span>
-            </FieldRow>
-          )}
-        </div>
+        <PlanFields plan={plan} />
 
         <div className="border-t border-foreground/[0.08] pt-5">
           <div className="mb-2 flex items-center gap-1.5 text-muted-foreground">

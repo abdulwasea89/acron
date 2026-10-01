@@ -26,7 +26,7 @@ function actionShort(action: string): string {
   return action.split(".").pop()?.replace(/_/g, " ") ?? action;
 }
 
-export default function AuditPage() {
+export default function AuditPage({ embedded = false }: { embedded?: boolean }) {
   const [logs, setLogs] = useState<AuditLogOut[] | null>(null);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -109,10 +109,12 @@ export default function AuditPage() {
 
   return (
     <>
-      <PageHeader
-        title="Audit Log"
-        subtitle="Full searchable trail of every state change in your organization"
-      />
+      {!embedded && (
+        <PageHeader
+          title="Audit Log"
+          subtitle="Full searchable trail of every state change in your organization"
+        />
+      )}
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 

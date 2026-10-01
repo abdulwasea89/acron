@@ -43,6 +43,8 @@ interface ChatThreadProps {
   approval?: Approval | null;
   /** Answer the confirmation card. */
   onDecide?: (approved: boolean) => void;
+  /** Record a thumbs rating on an assistant turn (not sent as a message). */
+  onFeedback?: (messageId: string, feedback: "up" | "down" | null) => void;
 }
 
 /** How close to the bottom still counts as "following along". */
@@ -56,6 +58,7 @@ export function ChatThread({
   generating,
   approval = null,
   onDecide,
+  onFeedback,
 }: ChatThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
@@ -104,7 +107,7 @@ export function ChatThread({
       ) : (
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
           {messages.map((m) => (
-            <Turn key={m.id} message={m} />
+            <Turn key={m.id} message={m} onFeedback={onFeedback} />
           ))}
 
           {steps.length > 0 && (
@@ -138,7 +141,13 @@ export function ChatThread({
 }
 
 /** One transcript turn: user bubble, or assistant steps + answer bubble. */
-function Turn({ message }: { message: AssistantMessageOut }) {
+function Turn({
+  message,
+  onFeedback,
+}: {
+  message: AssistantMessageOut;
+  onFeedback?: (messageId: string, feedback: "up" | "down" | null) => void;
+}) {
   const isUser = message.role === "user";
   if (isUser) return <Bubble message={message} />;
   return (
@@ -147,6 +156,50 @@ function Turn({ message }: { message: AssistantMessageOut }) {
         <ActivityPanel steps={message.steps} answerStarted={false} />
       )}
       <Bubble message={message} />
+      {onFeedback && <Feedback message={message} onFeedback={onFeedback} />}
+    </div>
+  );
+}
+
+/** Thumbs up/down on an assistant answer. Recorded for improvement only; it is
+ *  never sent back into the conversation. */
+function Feedback({
+  message,
+  onFeedback,
+}: {
+  message: AssistantMessageOut;
+  onFeedback: (messageId: string, feedback: "up" | "down" | null) => void;
+}) {
+  const rate = (value: "up" | "down") =>
+    onFeedback(message.id, message.feedback === value ? null : value);
+
+  const base =
+    "flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60";
+
+  return (
+    <div className="flex items-center gap-0.5 pl-1">
+      <button
+        type="button"
+        onClick={() => rate("up")}
+        aria-label="Good response"
+        aria-pressed={message.feedback === "up"}
+        className={`${base} ${message.feedback === "up" ? "text-brand hover:text-brand" : ""}`}
+      >
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill={message.feedback === "up" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => rate("down")}
+        aria-label="Bad response"
+        aria-pressed={message.feedback === "down"}
+        className={`${base} ${message.feedback === "down" ? "text-danger hover:text-danger" : ""}`}
+      >
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill={message.feedback === "down" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -412,11 +465,11 @@ function UserText({ content }: { content: string }) {
 function Bubble({ message }: { message: AssistantMessageOut }) {
   const isUser = message.role === "user";
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`group flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className={
           isUser
-            ? "w-fit max-w-[85%] break-words rounded-3xl border border-brand/20 bg-brand/10 px-4 py-2.5 text-sm leading-6 text-[var(--foreground)]"
+            ? "w-fit max-w-[85%] break-words rounded-3xl border border-foreground/10 bg-foreground/[0.06] px-4 py-2.5 text-sm leading-6 text-[var(--foreground)]"
             : "w-fit max-w-[85%] break-words px-1 py-1 text-sm leading-6 text-[var(--foreground)]"
         }
       >
@@ -433,7 +486,44 @@ function Bubble({ message }: { message: AssistantMessageOut }) {
           </p>
         )}
       </div>
+      <CopyButton text={message.content} />
     </div>
+  );
+}
+
+/** Copy a turn's text. Revealed on hover/focus so it never crowds the thread. */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard access can be denied (insecure context, permissions). Fail
+      // quietly rather than throwing into the thread.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={copied ? "Copied" : "Copy message"}
+      title={copied ? "Copied" : "Copy"}
+      className="mb-1 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-0 transition hover:bg-foreground/[0.06] hover:text-foreground focus:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand/60 group-hover:opacity-100"
+    >
+      {copied ? (
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
   );
 }
 

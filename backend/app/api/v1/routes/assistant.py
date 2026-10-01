@@ -33,6 +33,7 @@ from app.schemas.assistant import (
     ConversationCreate,
     ConversationDetailOut,
     ConversationOut,
+    FeedbackRequest,
     MessageOut,
     ResumeRequest,
     StreamRequest,
@@ -78,6 +79,7 @@ def _message_out(message: ConversationMessage) -> MessageOut:
         error=message.error,
         created_at=message.created_at,
         steps=steps,
+        feedback=message.feedback,
     )
 
 
@@ -303,6 +305,27 @@ async def delete_conversation(
     if not deleted:
         raise HTTPException(status_code=404, detail="Conversation not found.")
     return Message(message="Conversation deleted.")
+
+
+@router.post("/messages/{message_id}/feedback", response_model=MessageOut)
+async def set_message_feedback(
+    message_id: str,
+    data: FeedbackRequest,
+    ctx: TenantContext = Depends(require_capability(Capability.USE_ASSISTANT)),
+    session: AsyncSession = Depends(get_session),
+):
+    """Record (or clear) a thumbs rating on a message.
+
+    Feedback is for product improvement only: it is stored on the message and
+    never re-enters the conversation. An id from another tenant answers 404.
+    """
+
+    message = await assistant.set_message_feedback(
+        session, org_id=ctx.org_id, message_id=message_id, feedback=data.feedback
+    )
+    if message is None:
+        raise HTTPException(status_code=404, detail="Message not found.")
+    return _message_out(message)
 
 
 @router.post("/briefing", response_model=BriefingOut)

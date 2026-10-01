@@ -659,6 +659,8 @@ export interface AssistantMessageOut {
   created_at: string;
   /** Reasoning + tool steps that produced this turn, or null. */
   steps?: AssistantStep[] | null;
+  /** Thumbs rating the user left on this turn ("up" | "down"), or null. */
+  feedback?: "up" | "down" | null;
 }
 
 export interface AssistantConversationOut {
