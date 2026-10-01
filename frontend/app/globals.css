@@ -571,39 +571,63 @@ body {
 
 .page-content { padding: 2rem 0; }
 
-@media (prefers-reduced-motion: no-preference) {
-  .animate-fade-in { animation: fade-in 150ms ease-out both; }
-  .animate-fade-out { animation: fade-out 130ms ease-in both; }
-  .animate-slide-up { animation: slide-up 250ms ease-out both; }
-  .animate-slide-down { animation: slide-down 150ms ease-out both; }
-  .animate-scale-in { animation: scale-in 150ms ease-out both; }
-  /* Menus / dropdowns / popovers: a short settle from just above. */
-  .animate-pop-in { animation: pop-in 140ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .animate-pop-out { animation: pop-out 110ms ease-in both; }
-  /* Centered dialogs: rise + scale, with a matching exit. */
-  .animate-dialog-in { animation: dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .animate-dialog-out { animation: dialog-out 130ms ease-in both; }
-  /* Edge-anchored sheets: the panel travels in from its own edge, so the
-     direction of travel matches where the content came from. */
-  .animate-sheet-in-right { animation: sheet-in-right 220ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .animate-sheet-out-right { animation: sheet-out-right 160ms ease-in both; }
-  .animate-sheet-in-left { animation: sheet-in-left 220ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .animate-sheet-out-left { animation: sheet-out-left 160ms ease-in both; }
-}
+/* ─────────────────────────────────────────────────────────────────────────
+   Motion.
 
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes slide-down { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes scale-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
-@keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes pop-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-3px) scale(0.98); } }
-@keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes dialog-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(6px) scale(0.99); } }
-@keyframes sheet-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes sheet-out-right { from { transform: translateX(0); } to { transform: translateX(100%); } }
-@keyframes sheet-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-@keyframes sheet-out-left { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+   These live in `@theme`, not in a plain `@media` block, and that placement is
+   load-bearing. Tailwind only generates a utility it knows about, so a
+   hand-written `.animate-sheet-in-right { … }` rule is invisible to it — the
+   variant form `data-[state=open]:animate-sheet-in-right` in `sheet.tsx` then
+   emits nothing at all, and the panel snapped open with no motion and had no
+   exit either. Declaring `--animate-*` (with the `@keyframes` inside the same
+   `@theme`) makes Tailwind emit a real `animate-*` utility, which variants
+   like `data-[state=open]:` / `data-[state=closed]:` can then target. Radix
+   keys its open/close lifecycle off those two attributes, so both the entry
+   and the exit animation light up from the same declaration.
+
+   Reduced motion is handled once, globally, by the
+   `prefers-reduced-motion: reduce` block above — no need to gate each one. */
+@theme {
+  --animate-fade-in: fade-in 150ms ease-out both;
+  --animate-fade-out: fade-out 130ms ease-in both;
+  --animate-slide-up: slide-up 250ms ease-out both;
+  --animate-slide-down: slide-down 150ms ease-out both;
+  --animate-scale-in: scale-in 150ms ease-out both;
+  /* Menus / dropdowns / popovers: a short settle from just above. */
+  --animate-pop-in: pop-in 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pop-out: pop-out 110ms ease-in both;
+  /* Centered dialogs: rise + scale, with a matching exit. */
+  --animate-dialog-in: dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-dialog-out: dialog-out 130ms ease-in both;
+
+  /* Edge-anchored sheets. The panel travels in from its own edge, so the
+     direction of travel matches where the content came from. Entry uses an
+     ease-out (fast off the line, slow into place) and a hair of scale so the
+     panel feels like it settles rather than snaps; the exit is shorter and
+     purely translational, because once you have dismissed something it should
+     be gone, not linger. `both` matters on the exit: without the fill mode
+     the panel holds its open transform for the length of the animation and
+     appears to freeze before it leaves. */
+  --animate-sheet-in-right: sheet-in-right 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-sheet-out-right: sheet-out-right 180ms cubic-bezier(0.4, 0, 1, 1) both;
+  --animate-sheet-in-left: sheet-in-left 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-sheet-out-left: sheet-out-left 180ms cubic-bezier(0.4, 0, 1, 1) both;
+
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes slide-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes slide-down { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes scale-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes pop-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-3px) scale(0.98); } }
+  @keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes dialog-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(6px) scale(0.99); } }
+
+  @keyframes sheet-in-right { from { opacity: 0.4; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes sheet-out-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+  @keyframes sheet-in-left { from { opacity: 0.4; transform: translateX(-100%); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes sheet-out-left { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-100%); } }
+}
 
 .skeleton {
   background: linear-gradient(90deg, var(--border) 25%, var(--border-strong) 50%, var(--border) 75%);
