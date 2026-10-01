@@ -148,7 +148,7 @@ export function AssistantPage() {
   }, [activeId, setActiveId, refresh]);
 
   return (
-    <div className={`flex h-[calc(100dvh-4rem)] flex-col lg:h-[calc(100dvh-5rem)]${record ? " md:pr-80 lg:pr-96" : ""}`}>
+    <div className={`flex h-[calc(100dvh-4rem)] flex-col lg:h-[calc(100dvh-5rem)] ${record ? "md:pr-80 lg:pr-96" : ""}`}>
       {/* Slim toolbar — the page's only chrome. Pulled up out of the shell's
           top padding so it sits tight to the top-left corner. */}
       <div className="relative -mt-3 mb-4 flex shrink-0 items-center justify-between gap-3 lg:-mt-5">
