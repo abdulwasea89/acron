@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { AssistantChatsProvider } from "@/components/assistant/AssistantChats";
 import { AssistantShell } from "@/components/assistant/AssistantShell";
-import { OfflineBanner, RealtimeProvider } from "@/components/Realtime";
+import { RealtimeProvider } from "@/components/Realtime";
 import { SettingsProvider } from "@/components/settings/SettingsProvider";
 import { backend } from "@/lib/backend";
 import { isAuthenticated } from "@/lib/session";
@@ -38,7 +38,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 tier={org.saas_tier}
               />
               <div className="relative flex min-w-0 flex-1 flex-col">
-                <OfflineBanner />
                 {/* Content column: centered, capped at 1240 (DESIGN §10.2). */}
                 <main className="w-full flex-1 self-center px-5 py-8 sm:px-8 lg:max-w-[1240px] lg:py-10">
                   {/* The assistant dock wraps every page here, so the prompt bar

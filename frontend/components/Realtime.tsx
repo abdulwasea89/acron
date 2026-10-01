@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from "react";
 import { useRealtime, type RtEvent, type RtStatus } from "@/hooks/useRealtime";
 
 type Handler = (e: RtEvent) => void;
@@ -70,23 +70,3 @@ export function LiveIndicator({ className = "" }: { className?: string }) {
   );
 }
 
-/** Thin top banner shown only while the connection is degraded. */
-export function OfflineBanner() {
-  const status = useRealtimeStatus();
-  const [show, setShow] = useState(false);
-
-  // Both transitions go through a timer so the effect body never sets state
-  // synchronously: a brief blip is debounced away, and a recovery hides the
-  // banner on the next tick.
-  useEffect(() => {
-    const timer = setTimeout(() => setShow(status !== "live"), status === "live" ? 0 : 2500);
-    return () => clearTimeout(timer);
-  }, [status]);
-
-  if (!show) return null;
-  return (
-    <div className="sticky top-0 z-30 border-b border-[var(--warning-border)] bg-[var(--warning-bg)]/90 px-4 py-1.5 text-center font-mono text-[10px] uppercase tracking-widest text-[var(--warning)] backdrop-blur">
-      Reconnecting — showing last known data.
-    </div>
-  );
-}
