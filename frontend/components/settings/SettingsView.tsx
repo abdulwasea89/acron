@@ -54,6 +54,10 @@ const NAV_ICON: Record<string, string> = {
   person: "M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z",
 };
 
+/** Remembers the last settings tab the user opened, so reopening the dialog
+ *  returns them there instead of always resetting to Organization. */
+const SETTINGS_TAB_KEY = "acron.settings.tab";
+
 export function SettingsView() {
   const [org, setOrg] = useState<OrganizationOut | null>(null);
   const [metrics, setMetrics] = useState<HeadlineMetrics | null>(null);
@@ -62,7 +66,20 @@ export function SettingsView() {
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState("organization");
+  const [active, setActive] = useState<string>(() => {
+    // The dialog only mounts client-side, but guard anyway so SSR is stable.
+    if (typeof window === "undefined") return "organization";
+    return window.localStorage.getItem(SETTINGS_TAB_KEY) ?? "organization";
+  });
+
+  const selectTab = useCallback((id: string) => {
+    setActive(id);
+    try {
+      window.localStorage.setItem(SETTINGS_TAB_KEY, id);
+    } catch {
+      // Private mode / storage disabled: remembering the tab is best-effort.
+    }
+  }, []);
 
   // Editable state.
   const [name, setName] = useState("");
@@ -120,6 +137,18 @@ export function SettingsView() {
   useEffect(() => {
     queueMicrotask(() => void load());
   }, []);
+
+  // The remembered tab may not exist for this org (e.g. Invoice details is
+  // office-only). Fall back to Organization rather than showing a blank pane.
+  useEffect(() => {
+    if (!org) return;
+    const valid = [
+      "account", "organization", "preferences", "billing", "sessions", "security", "audit",
+      ...(invoice ? ["invoice"] : []),
+      ...(org.industry !== "office" ? ["payments"] : []),
+    ];
+    if (!valid.includes(active)) queueMicrotask(() => selectTab("organization"));
+  }, [org, invoice, active, selectTab]);
 
   const dirty = useMemo(() => {
     if (!baseline) return false;
@@ -308,7 +337,7 @@ export function SettingsView() {
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setActive(item.id)}
+                        onClick={() => selectTab(item.id)}
                         className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors ${
                           isActive
                             ? "bg-foreground/[0.06] font-medium text-foreground"
