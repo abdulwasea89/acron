@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Card, CardHeader, Button, Alert, Input, Spinner } from "@/components/ui";
+import { Badge, Button, Alert, Input } from "@/components/ui";
+import { Row } from "@/components/settings/primitives";
 import { api, ApiError } from "@/lib/api";
 import type { MfaStatus, MfaEnrollResponse } from "@/lib/types";
 
 type Phase = "loading" | "disabled" | "enrolling" | "enabled";
 
+/* Rendered as rows rather than its own card, so it drops into the Security
+   tab of the settings dialog and the standalone account page alike. */
 export function MfaCard({ mfaRequired }: { mfaRequired: boolean }) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [enrollData, setEnrollData] = useState<MfaEnrollResponse | null>(null);
@@ -96,140 +99,131 @@ export function MfaCard({ mfaRequired }: { mfaRequired: boolean }) {
     } catch {}
   }
 
-  if (phase === "loading") {
-    return (
-      <Card>
-        <CardHeader title="Security (MFA)" subtitle="Multi-factor authentication" />
-        <div className="p-6">
-          <Spinner />
-        </div>
-      </Card>
-    );
-  }
-
   return (
-    <Card>
-      <CardHeader title="Security (MFA)" subtitle="Multi-factor authentication" />
-      <div className="space-y-4 p-6">
-        {error && <Alert tone="danger">{error}</Alert>}
-        {success && (
-          <Alert tone="success" onDismiss={() => setSuccess("")}>
-            {success}
-          </Alert>
-        )}
+    <>
+      <Row
+        label="Two-factor authentication"
+        description={
+          phase === "enabled"
+            ? "Enabled — you'll be asked for a code when you sign in"
+            : "Add a second step to your sign-in"
+        }
+      >
+        <div className="flex items-center justify-end gap-2">
+          {phase === "loading" ? (
+            <span className="text-sm text-muted-foreground">Loading…</span>
+          ) : (
+            <>
+              <Badge tone={phase === "enabled" ? "success" : "neutral"}>
+                {phase === "enabled" ? "Enabled" : "Off"}
+              </Badge>
+              {phase === "disabled" && (
+                <Button onClick={startEnroll} loading={submitting}>Enable</Button>
+              )}
+              {phase === "enabled" && !confirmingDisable && (
+                <Button variant="danger" onClick={() => setConfirmingDisable(true)}>Disable</Button>
+              )}
+            </>
+          )}
+        </div>
+      </Row>
 
-        {mfaRequired && phase !== "enabled" && (
+      {error && <div className="py-4"><Alert tone="danger">{error}</Alert></div>}
+      {success && (
+        <div className="py-4">
+          <Alert tone="success" onDismiss={() => setSuccess("")}>{success}</Alert>
+        </div>
+      )}
+      {mfaRequired && phase !== "enabled" && (
+        <div className="py-4">
           <Alert tone="warning">
             Your organization requires multi-factor authentication. Please set it up below.
           </Alert>
-        )}
+        </div>
+      )}
 
-        {phase === "disabled" && (
+      {phase === "disabled" && (
+        <div className="py-4">
+          <p className="text-[12px] leading-5 text-muted-foreground">
+            Once enabled, you’ll need both your password and a 6-digit code from your authenticator
+            app to sign in.
+          </p>
+        </div>
+      )}
+
+      {phase === "enrolling" && enrollData && (
+        <div className="space-y-5 py-4">
           <div>
-            <p className="mb-4 text-sm text-[var(--foreground-muted)]">
-              Add an extra layer of security to your account. Once enabled, you’ll need both your
-              password and a 6-digit code from your authenticator app to sign in.
+            <p className="mb-3 text-sm text-foreground">
+              Scan this QR code with Google Authenticator or any TOTP app:
             </p>
-            <Button onClick={startEnroll} loading={submitting}>
-              Enable MFA
+            <div className="inline-block rounded-md border border-[var(--border)] bg-white p-3">
+              <QRCodeSVG value={enrollData.otpauth_uri} size={180} />
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm text-foreground">Or enter this key manually:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-sm tracking-wider text-foreground">
+                {enrollData.secret}
+              </code>
+              <Button variant="secondary" onClick={copySecret}>
+                {copied ? "Copied!" : "Copy"}
+              </Button>
+            </div>
+            <p className="mt-1.5 text-[12px] text-muted-foreground">
+              You can also{" "}
+              <a href={enrollData.otpauth_uri} className="underline hover:text-foreground">
+                open this link in your authenticator app
+              </a>
+              .
+            </p>
+          </div>
+
+          <form onSubmit={confirmEnroll} className="space-y-3">
+            <Input
+              label="Enter the 6-digit code from your app"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="000000"
+              maxLength={6}
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              pattern="[0-9]*"
+            />
+            <div className="flex gap-2">
+              <Button type="submit" loading={submitting} disabled={code.length !== 6}>
+                Verify & Enable
+              </Button>
+              <Button variant="secondary" onClick={cancelEnroll} disabled={submitting}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {phase === "enabled" && confirmingDisable && (
+        <form onSubmit={disableMfa} className="space-y-3 py-4">
+          <Input
+            label="Enter your password to confirm"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Current password"
+            autoComplete="current-password"
+          />
+          <div className="flex gap-2">
+            <Button variant="danger" type="submit" loading={submitting} disabled={!password}>
+              Confirm Disable
+            </Button>
+            <Button variant="secondary" onClick={cancelDisable} disabled={submitting}>
+              Cancel
             </Button>
           </div>
-        )}
-
-        {phase === "enrolling" && enrollData && (
-          <div className="space-y-5">
-            <div>
-              <p className="mb-3 text-sm font-medium text-[var(--foreground)]">
-                Scan this QR code with Google Authenticator or any TOTP app:
-              </p>
-              <div className="inline-block rounded-xl border border-[var(--border)] bg-white p-3">
-                <QRCodeSVG value={enrollData.otpauth_uri} size={180} />
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-sm font-medium text-[var(--foreground)]">
-                Or enter this key manually:
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-sm tracking-wider text-[var(--foreground)]">
-                  {enrollData.secret}
-                </code>
-                <Button variant="secondary" onClick={copySecret}>
-                  {copied ? "Copied!" : "Copy"}
-                </Button>
-              </div>
-              <p className="mt-1.5 text-xs text-[var(--muted)]">
-                You can also{" "}
-                <a
-                  href={enrollData.otpauth_uri}
-                  className="underline hover:text-[var(--foreground)]"
-                >
-                  open this link in your authenticator app
-                </a>
-                .
-              </p>
-            </div>
-
-            <form onSubmit={confirmEnroll} className="space-y-3">
-              <Input
-                label="Enter the 6-digit code from your app"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="000000"
-                maxLength={6}
-                autoComplete="one-time-code"
-                inputMode="numeric"
-                pattern="[0-9]*"
-              />
-              <div className="flex gap-2">
-                <Button type="submit" loading={submitting} disabled={code.length !== 6}>
-                  Verify & Enable
-                </Button>
-                <Button variant="secondary" onClick={cancelEnroll} disabled={submitting}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {phase === "enabled" && (
-          <div>
-            <div className="mb-4 flex items-center gap-2">
-              <span className="flex h-2.5 w-2.5 rounded-full bg-success" />
-              <span className="text-sm font-medium text-[var(--foreground)]">
-                Multi-factor authentication is enabled.
-              </span>
-            </div>
-
-            {!confirmingDisable ? (
-              <Button variant="danger" onClick={() => setConfirmingDisable(true)}>
-                Disable MFA
-              </Button>
-            ) : (
-              <form onSubmit={disableMfa} className="space-y-3">
-                <Input
-                  label="Enter your password to confirm"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Current password"
-                  autoComplete="current-password"
-                />
-                <div className="flex gap-2">
-                  <Button variant="danger" type="submit" loading={submitting} disabled={!password}>
-                    Confirm Disable
-                  </Button>
-                  <Button variant="secondary" onClick={cancelDisable} disabled={submitting}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        )}
-      </div>
-    </Card>
+        </form>
+      )}
+    </>
   );
 }

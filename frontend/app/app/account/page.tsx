@@ -2,25 +2,92 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Button, Card, CardHeader, Input, Spinner } from "@/components/ui";
+import { Alert, Button, Input, Spinner } from "@/components/ui";
+import { Row, ReadValue, Section } from "@/components/settings/primitives";
 import { api, ApiError } from "@/lib/api";
 import type { OrganizationOut, ProfileOut } from "@/lib/types";
 import { MfaCard } from "./MfaCard";
 
-export default function AccountPage({ embedded = false }: { embedded?: boolean }) {
+/* The profile fields are shared: the standalone /app/account page owns and
+   saves them itself, while the settings dialog stages them under its single
+   global Save bar. Keeping one field implementation is what stops the two
+   surfaces from drifting. */
+export interface AccountFieldsValue {
+  full_name: string;
+  phone: string;
+  address: string;
+  city: string;
+  occupation: string;
+  education: string;
+  emergency_contact: string;
+}
+
+export const emptyAccountFields: AccountFieldsValue = {
+  full_name: "",
+  phone: "",
+  address: "",
+  city: "",
+  occupation: "",
+  education: "",
+  emergency_contact: "",
+};
+
+export function AccountFields({
+  value,
+  onChange,
+  profile,
+}: {
+  value: AccountFieldsValue;
+  onChange: (patch: Partial<AccountFieldsValue>) => void;
+  profile: ProfileOut | null;
+}) {
+  return (
+    <>
+      <Row label="Email" description="Email cannot be changed here">
+        <ReadValue>{profile?.email ?? "—"}</ReadValue>
+      </Row>
+      <Row label="Full name" description="Your display name across the platform">
+        <Input size="sm" value={value.full_name} onChange={(e) => onChange({ full_name: e.target.value })} placeholder="Your name" />
+      </Row>
+      <Row label="Phone" description="Used for account recovery and alerts">
+        <Input size="sm" value={value.phone} onChange={(e) => onChange({ phone: e.target.value })} placeholder="+1 555-0123" />
+      </Row>
+      <Row label="Address" description="Your street address">
+        <Input size="sm" value={value.address} onChange={(e) => onChange({ address: e.target.value })} placeholder="Street address" />
+      </Row>
+      <Row label="City" description="Your city">
+        <Input size="sm" value={value.city} onChange={(e) => onChange({ city: e.target.value })} placeholder="City" />
+      </Row>
+      <Row label="Occupation" description="What you do">
+        <Input size="sm" value={value.occupation} onChange={(e) => onChange({ occupation: e.target.value })} placeholder="e.g. Personal trainer" />
+      </Row>
+      <Row label="Education" description="Your highest qualification">
+        <Input size="sm" value={value.education} onChange={(e) => onChange({ education: e.target.value })} placeholder="e.g. Bachelor's degree" />
+      </Row>
+      <Row label="Emergency contact" description="Who to reach in an emergency">
+        <Input size="sm" value={value.emergency_contact} onChange={(e) => onChange({ emergency_contact: e.target.value })} placeholder="Name & phone" />
+      </Row>
+      {profile?.gender && (
+        <Row label="Gender" description="Set during onboarding">
+          <ReadValue>{profile.gender}</ReadValue>
+        </Row>
+      )}
+      {profile?.date_of_birth && (
+        <Row label="Date of birth" description="Set during onboarding">
+          <ReadValue>{profile.date_of_birth}</ReadValue>
+        </Row>
+      )}
+    </>
+  );
+}
+
+export default function AccountPage() {
   const [profile, setProfile] = useState<ProfileOut | null>(null);
   const [org, setOrg] = useState<OrganizationOut | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [occupation, setOccupation] = useState("");
-  const [education, setEducation] = useState("");
-  const [emergencyContact, setEmergencyContact] = useState("");
+  const [fields, setFields] = useState<AccountFieldsValue>(emptyAccountFields);
 
   async function load() {
     setError("");
@@ -31,13 +98,15 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
       ]);
       setProfile(p);
       setOrg(o);
-      setFullName(p.full_name ?? "");
-      setPhone(p.phone ?? "");
-      setAddress(p.address ?? "");
-      setCity(p.city ?? "");
-      setOccupation(p.occupation ?? "");
-      setEducation(p.education ?? "");
-      setEmergencyContact(p.emergency_contact ?? "");
+      setFields({
+        full_name: p.full_name ?? "",
+        phone: p.phone ?? "",
+        address: p.address ?? "",
+        city: p.city ?? "",
+        occupation: p.occupation ?? "",
+        education: p.education ?? "",
+        emergency_contact: p.emergency_contact ?? "",
+      });
     } catch (e) {
       setError((e as ApiError).message);
     }
@@ -47,20 +116,19 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
     queueMicrotask(() => void load());
   }, []);
 
-  async function saveProfile(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveProfile() {
     setError("");
     setNotice("");
     setLoading(true);
     try {
       await api.patch("/auth/me/profile", {
-        full_name: fullName || null,
-        phone: phone || null,
-        address: address || null,
-        city: city || null,
-        occupation: occupation || null,
-        education: education || null,
-        emergency_contact: emergencyContact || null,
+        full_name: fields.full_name || null,
+        phone: fields.phone || null,
+        address: fields.address || null,
+        city: fields.city || null,
+        occupation: fields.occupation || null,
+        education: fields.education || null,
+        emergency_contact: fields.emergency_contact || null,
       });
       setNotice("Profile updated.");
       load();
@@ -75,66 +143,35 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
 
   return (
     <>
-      {!embedded && <PageHeader title="Account" subtitle="Manage your personal information" />}
+      <PageHeader title="Account" subtitle="Manage your personal information" />
 
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
       {notice && <div className="mb-4 animate-slide-down"><Alert tone="success">{notice}</Alert></div>}
 
-      <div className="space-y-6">
-        <Card>
-          <CardHeader title="Profile" subtitle="Your personal details" />
-          <form onSubmit={saveProfile} className="space-y-4 p-6">
-            <Input label="Email" value={profile?.email ?? ""} disabled hint="Email cannot be changed here" />
+      <Section id="profile" title="Profile" description="Your personal details">
+        <AccountFields
+          value={fields}
+          onChange={(patch) => setFields((v) => ({ ...v, ...patch }))}
+          profile={profile}
+        />
+        <Row label="Password" description="We'll email you a link to choose a new one">
+          <a
+            href="/forgot-password"
+            className="block text-sm font-medium text-brand hover:underline sm:text-right"
+          >
+            Reset password
+          </a>
+        </Row>
+      </Section>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
-              <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555-0123" />
-            </div>
+      <div className="mt-8">
+        <Section id="security" title="Security" description="Protect your account">
+          <MfaCard mfaRequired={org?.mfa_required ?? false} />
+        </Section>
+      </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" />
-              <Input label="City" value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Occupation" value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="e.g. Personal trainer" />
-              <Input label="Education" value={education} onChange={(e) => setEducation(e.target.value)} placeholder="e.g. Bachelor's degree" />
-            </div>
-
-            <Input label="Emergency contact" value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} placeholder="Name & phone of emergency contact" />
-
-            {profile?.gender || profile?.date_of_birth ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {profile.gender && <Input label="Gender" value={profile.gender} disabled />}
-                {profile.date_of_birth && <Input label="Date of birth" value={profile.date_of_birth} disabled />}
-              </div>
-            ) : null}
-
-            <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4">
-              <Button type="submit" loading={loading} className="w-full sm:w-auto">Save changes</Button>
-            </div>
-          </form>
-        </Card>
-
-        <Card>
-          <CardHeader title="Password" subtitle="Reset your password via email" />
-          <div className="p-6">
-            <p className="mb-4 text-sm text-[var(--foreground-muted)]">
-              To change your password, we’ll send a reset link to your email address.
-            </p>
-            <a
-              href="/forgot-password"
-              className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] shadow-xs transition duration-150 hover:bg-[var(--background)] hover:border-[var(--border-strong)]"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-              </svg>
-              Reset password
-            </a>
-          </div>
-        </Card>
-
-        {org && <MfaCard mfaRequired={org.mfa_required} />}
+      <div className="mt-6 flex justify-end">
+        <Button onClick={saveProfile} loading={loading}>Save changes</Button>
       </div>
     </>
   );

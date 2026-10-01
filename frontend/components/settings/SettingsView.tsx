@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
-import AccountPage from "@/app/app/account/page";
+import { AccountFields, emptyAccountFields, type AccountFieldsValue } from "@/app/app/account/page";
 import AuditPage from "@/app/app/audit/page";
 import BillingPage from "@/app/app/billing/page";
+import { MfaCard } from "@/app/app/account/MfaCard";
 import { LiveIndicator } from "@/components/Realtime";
 import { Alert, Badge, Button, Input, Select, Spinner } from "@/components/ui";
+import { Row, ReadValue, Section } from "@/components/settings/primitives";
 import { getIndustry } from "@/lib/industries";
 import { api, ApiError } from "@/lib/api";
 import { fmtDate, gymStatusLabel, statusTone, titleCase } from "@/lib/format";
-import type { AdminSessionInfo, HeadlineMetrics, InvoiceSettings, OrganizationOut } from "@/lib/types";
+import type { AdminSessionInfo, HeadlineMetrics, InvoiceSettings, OrganizationOut, ProfileOut } from "@/lib/types";
 
 /* Notion-style settings: a left section rail and a right pane of rows, each a
    label + description on the left and a control on the right, separated by
@@ -22,6 +24,7 @@ interface Baseline {
   enrollment: string;
   gymStatus: string;
   invoice: InvoiceSettings | null;
+  account: AccountFieldsValue;
 }
 
 /** Row labels per section, so the rail search can match the things inside. */
@@ -54,6 +57,7 @@ const NAV_ICON: Record<string, string> = {
 export function SettingsView() {
   const [org, setOrg] = useState<OrganizationOut | null>(null);
   const [metrics, setMetrics] = useState<HeadlineMetrics | null>(null);
+  const [profile, setProfile] = useState<ProfileOut | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -65,6 +69,7 @@ export function SettingsView() {
   const [enrollment, setEnrollment] = useState("open");
   const [gymStatus, setGymStatus] = useState("open");
   const [invoice, setInvoice] = useState<InvoiceSettings | null>(null);
+  const [account, setAccount] = useState<AccountFieldsValue>(emptyAccountFields);
   // The values as last loaded, to detect unsaved changes and to discard.
   const [baseline, setBaseline] = useState<Baseline | null>(null);
 
@@ -73,23 +78,39 @@ export function SettingsView() {
     try {
       const o = await api.get<OrganizationOut>("/organizations/me");
       setOrg(o);
-      // Headline metrics are secondary: a failure must not block settings.
+      // Headline metrics and profile are secondary: a failure must not block
+      // the organization settings that this dialog exists for.
       const m = await api
         .get<HeadlineMetrics>("/analytics/headline")
         .catch(() => null);
       setMetrics(m);
+      const p = await api.get<ProfileOut>("/auth/me/profile").catch(() => null);
+      setProfile(p);
       const inv = o.industry === "office"
         ? await api.get<InvoiceSettings>("/organizations/me/invoice-settings")
         : null;
+      const acc: AccountFieldsValue = p
+        ? {
+            full_name: p.full_name ?? "",
+            phone: p.phone ?? "",
+            address: p.address ?? "",
+            city: p.city ?? "",
+            occupation: p.occupation ?? "",
+            education: p.education ?? "",
+            emergency_contact: p.emergency_contact ?? "",
+          }
+        : emptyAccountFields;
       setName(o.name);
       setEnrollment(o.enrollment_mode);
       setGymStatus(o.gym_status);
       setInvoice(inv);
+      setAccount(acc);
       setBaseline({
         name: o.name,
         enrollment: o.enrollment_mode,
         gymStatus: o.gym_status,
         invoice: inv,
+        account: acc,
       });
     } catch (e) {
       setError((e as ApiError).message);
@@ -106,9 +127,10 @@ export function SettingsView() {
       name.trim() !== baseline.name ||
       enrollment !== baseline.enrollment ||
       gymStatus !== baseline.gymStatus ||
-      JSON.stringify(invoice) !== JSON.stringify(baseline.invoice)
+      JSON.stringify(invoice) !== JSON.stringify(baseline.invoice) ||
+      JSON.stringify(account) !== JSON.stringify(baseline.account)
     );
-  }, [baseline, name, enrollment, gymStatus, invoice]);
+  }, [baseline, name, enrollment, gymStatus, invoice, account]);
 
   async function saveAll() {
     if (!org || !baseline) return;
@@ -150,6 +172,19 @@ export function SettingsView() {
         }),
       );
     }
+    if (JSON.stringify(account) !== JSON.stringify(baseline.account)) {
+      await attempt("Profile", () =>
+        api.patch("/auth/me/profile", {
+          full_name: account.full_name || null,
+          phone: account.phone || null,
+          address: account.address || null,
+          city: account.city || null,
+          occupation: account.occupation || null,
+          education: account.education || null,
+          emergency_contact: account.emergency_contact || null,
+        }),
+      );
+    }
 
     await load();
     setSaving(false);
@@ -163,6 +198,7 @@ export function SettingsView() {
     setEnrollment(baseline.enrollment);
     setGymStatus(baseline.gymStatus);
     setInvoice(baseline.invoice);
+    setAccount(baseline.account);
     setError("");
     setNotice("");
   }
@@ -337,6 +373,22 @@ export function SettingsView() {
               </Row>
             </Section>
 
+            <Section id="account" title="My account" description="Your personal profile and sign-in details" hidden={active !== "account"}>
+              <AccountFields
+                value={account}
+                onChange={(patch) => setAccount((v) => ({ ...v, ...patch }))}
+                profile={profile}
+              />
+              <Row label="Password" description="We'll email you a link to choose a new one">
+                <a
+                  href="/forgot-password"
+                  className="block text-sm font-medium text-brand hover:underline sm:text-right"
+                >
+                  Reset password
+                </a>
+              </Row>
+            </Section>
+
             <Section id="preferences" title="Preferences" description="Choose how Acron looks and behaves on this device" hidden={active !== "preferences"}>
               <Row label="Theme" description="How Acron looks on this device">
                 <ThemePicker />
@@ -406,6 +458,7 @@ export function SettingsView() {
             </Section>
 
             <Section id="security" title="Security" hidden={active !== "security"}>
+              <MfaCard mfaRequired={org.mfa_required} />
               <Row
                 label="Rotate organization code"
                 description="Invalidates the current code everywhere and revokes member sessions authenticated with it."
@@ -418,31 +471,10 @@ export function SettingsView() {
               </Row>
             </Section>
 
-            {/* Moved here from the sidebar. The full page views are embedded, so
-                there is one implementation of each rather than a lookalike. */}
-            {active === "account" && (
-              <section>
-                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">My account</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Your personal profile, password, and two-factor settings</p>
-                <div className="mt-5"><AccountPage embedded /></div>
-              </section>
-            )}
-
-            {active === "billing" && (
-              <section>
-                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">Subscription</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Your platform plan and invoices</p>
-                <div className="mt-5"><BillingPage embedded /></div>
-              </section>
-            )}
-
-            {active === "audit" && (
-              <section>
-                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">Audit log</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Full searchable trail of every state change</p>
-                <div className="mt-5"><AuditPage embedded /></div>
-              </section>
-            )}
+            {/* The full page views are embedded, so there is one implementation
+                of each rather than a lookalike. Each renders its own Section. */}
+            {active === "billing" && <BillingPage embedded />}
+            {active === "audit" && <AuditPage embedded />}
             </div>
 
             {/* One global Save for every staged edit. */}
@@ -464,59 +496,6 @@ export function SettingsView() {
       )}
     </div>
   );
-}
-
-/** A settings page: a heading and hairline-separated rows. Only the active
- *  page is shown (the dialog is paged, like Notion). */
-function Section({
-  id,
-  title,
-  description,
-  hidden = false,
-  children,
-}: {
-  id: string;
-  title: string;
-  description?: string;
-  hidden?: boolean;
-  children: React.ReactNode;
-}) {
-  if (hidden) return null;
-  return (
-    <section id={`settings-${id}`} className="scroll-mt-8">
-      <h2 className="text-[18px] font-semibold tracking-tight text-foreground">{title}</h2>
-      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
-      <div className="mt-5 divide-y divide-[var(--border)] border-t border-[var(--border)]">{children}</div>
-    </section>
-  );
-}
-
-/** One Notion-style preference row: label + description left, control pinned
- *  to the far right edge so every row's control lines up in one column, flush
- *  with the Save bar below. */
-function Row({
-  label,
-  description,
-  children,
-}: {
-  label: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-      <div className="min-w-0">
-        <p className="text-sm text-foreground">{label}</p>
-        {description && <p className="mt-0.5 text-[12px] leading-5 text-muted-foreground">{description}</p>}
-      </div>
-      <div className="w-full shrink-0 sm:w-72">{children}</div>
-    </div>
-  );
-}
-
-/** Read-only value in a row. */
-function ReadValue({ children }: { children: React.ReactNode }) {
-  return <span className="block truncate text-sm text-muted-foreground sm:text-right">{children}</span>;
 }
 
 /* Theme picker: buttons that call setTheme directly, mirroring the header

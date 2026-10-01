@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, EmptyState, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, Spinner } from "@/components/ui";
 import { ListToolbar } from "@/components/ListToolbar";
+import { ReadValue, Row, Section, SectionBody, SubHeading } from "@/components/settings/primitives";
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import type { InvoiceOut, SaasStatusOut } from "@/lib/types";
@@ -70,225 +71,181 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
 
   const currentIdx = status ? TIERS.indexOf(status.saas_tier) : -1;
 
+  const body = status && (
+    <>
+      <Row label="Current tier" description="Your SaaS plan">
+        <div className="flex items-center justify-end gap-2">
+          <span className="text-sm font-medium text-foreground">{titleCase(status.saas_tier)}</span>
+          <Badge tone={statusTone(status.saas_status)}>{titleCase(status.saas_status)}</Badge>
+        </div>
+      </Row>
+      <Row label="Members" description="Active members against your seat cap">
+        <ReadValue>
+          {status.current_member_count}
+          {status.member_cap !== null ? ` / ${status.member_cap}` : " / Unlimited"}
+        </ReadValue>
+      </Row>
+      <Row label="Renews" description="Next billing date">
+        <ReadValue>
+          {status.current_period_end ? new Date(status.current_period_end).toLocaleDateString() : "—"}
+        </ReadValue>
+      </Row>
+
+      {status.saas_status === "past_due" && (
+        <Row
+          label="Payment failed"
+          description={
+            status.retry_count > 0
+              ? `Stripe has retried ${status.retry_count} time${status.retry_count === 1 ? "" : "s"}. Grace ends ${status.grace_until ? new Date(status.grace_until).toLocaleDateString() : "soon"}.`
+              : "Update your card to resume normal service."
+          }
+        >
+          <div className="flex justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => alert("Configure your payment method (Stripe customer portal integration pending).")}
+            >
+              Update card
+            </Button>
+          </div>
+        </Row>
+      )}
+      {status.saas_status === "read_only" && (
+        <Row label="Read-only mode" description="Write access is blocked until the subscription is renewed.">
+          <div className="flex justify-end"><Badge tone="warning">Limited</Badge></div>
+        </Row>
+      )}
+      {status.saas_status === "suspended" && (
+        <Row label="Account suspended" description="Contact support to restore access.">
+          <div className="flex justify-end"><Badge tone="danger">Suspended</Badge></div>
+        </Row>
+      )}
+      {status.saas_status === "cancelled" && (
+        <Row label="Subscription cancelled" description="Your data is archived at the end of the retention period.">
+          <div className="flex justify-end"><Badge tone="neutral">Cancelled</Badge></div>
+        </Row>
+      )}
+
+      <div className="pt-4">
+        <SubHeading>Change plan</SubHeading>
+        <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+          Upgrade is immediate; downgrade is blocked if usage exceeds the lower cap.
+        </p>
+      </div>
+      {TIERS.map((tier, idx) => {
+        const isCurrent = idx === currentIdx;
+        const isUpgrade = idx > currentIdx;
+        return (
+          <Row
+            key={tier}
+            label={titleCase(tier)}
+            description={isCurrent ? "Your current plan" : isUpgrade ? "Move up to unlock more" : "Move down to a smaller cap"}
+          >
+            <div className="flex justify-end">
+              {isCurrent ? (
+                <Badge tone="info">Current</Badge>
+              ) : (
+                <Button
+                  variant={isUpgrade ? "primary" : "secondary"}
+                  loading={busy}
+                  onClick={() => changeTier(tier, isUpgrade ? "upgrade" : "downgrade")}
+                >
+                  {isUpgrade ? "Upgrade" : "Downgrade"}
+                </Button>
+              )}
+            </div>
+          </Row>
+        );
+      })}
+
+      <div className="py-4">
+        <SubHeading>Invoices</SubHeading>
+        <ListToolbar
+          tabs={invoiceTabs}
+          value={invoiceStatus}
+          onChange={setInvoiceStatus}
+          search={invoiceSearch}
+          onSearch={setInvoiceSearch}
+          searchPlaceholder="Search invoices…"
+        />
+        {/* Table surface: hairline border, square corners, flat background. */}
+        <div className="mt-3 border border-foreground/10 bg-card">
+          {invoices === null ? (
+            <Spinner label="Loading invoices..." />
+          ) : filteredInvoices.length === 0 ? (
+            <EmptyState
+              title="No invoices yet"
+              hint={
+                invoices.length === 0
+                  ? "Your invoices will appear here."
+                  : "No invoices match the current filter."
+              }
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
+                  <tr className="border-b border-foreground/10">
+                    <th className="px-5 py-3">Date</th>
+                    <th className="px-5 py-3">Amount</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-foreground/[0.06]">
+                  {filteredInvoices.map((inv) => (
+                    <tr key={inv.id} className="transition-colors hover:bg-[var(--background)]">
+                      <td className="px-5 py-3.5">{new Date(inv.created_at).toLocaleDateString()}</td>
+                      <td className="px-5 py-3.5 tabular-nums font-medium">{money(inv.amount, inv.currency)}</td>
+                      <td className="px-5 py-3.5">
+                        <Badge tone={statusTone(inv.status)}>{titleCase(inv.status)}</Badge>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <a
+                          href={`/api/download/saas-billing/invoices/${inv.id}/pdf`}
+                          download
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--primary)] hover:underline"
+                        >
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                          </svg>
+                          PDF
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {error && <div className="mb-4"><Alert>{error}</Alert></div>}
+        {status === null ? (
+          <Spinner label="Loading billing info..." />
+        ) : (
+          <Section id="billing" title="Subscription" description="Your platform plan and invoices">
+            {body}
+          </Section>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
-      {!embedded && <PageHeader title="Billing" subtitle="Your platform subscription & invoices" />}
-
+      <PageHeader title="Billing" subtitle="Your platform subscription & invoices" />
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
-
       {status === null ? (
         <Spinner label="Loading billing info..." />
       ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card hover className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-[var(--muted)]">Current tier</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xl font-bold text-[var(--foreground)]">{titleCase(status.saas_tier)}</span>
-                    <Badge tone={statusTone(status.saas_status)}>{titleCase(status.saas_status)}</Badge>
-                  </div>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-light)]">
-                  <svg className="h-5 w-5 text-[var(--primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
-                </div>
-              </div>
-            </Card>
-            <Card hover className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-[var(--muted)]">Members</p>
-                  <p className="mt-2 text-xl font-bold tabular-nums text-[var(--foreground)]">
-                    {status.current_member_count}
-                    {status.member_cap !== null && <span className="text-sm font-normal text-[var(--muted)]"> / {status.member_cap}</span>}
-                  </p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-[var(--success-bg)]">
-                  <svg className="h-5 w-5 text-[var(--success)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
-                </div>
-              </div>
-            </Card>
-            <Card hover className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-[var(--muted)]">Renews</p>
-                  <p className="mt-2 text-xl font-bold text-[var(--foreground)]">
-                    {status.current_period_end
-                      ? new Date(status.current_period_end).toLocaleDateString()
-                      : "—"}
-                  </p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-light)]">
-                  <svg className="h-5 w-5 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {status.saas_status === "past_due" && (
-            <div className="mt-6">
-              <Card>
-                <CardHeader
-                  title="Payment retry status"
-                  subtitle={
-                    status.retry_count > 0
-                      ? `Stripe has retried ${status.retry_count} time${status.retry_count === 1 ? "" : "s"} without success. You have until ${status.grace_until ? new Date(status.grace_until).toLocaleDateString() : "soon"} before read-only mode.`
-                      : "Your subscription payment failed. Update your card to resume normal service."
-                  }
-                />
-                <div className="px-6 pb-6">
-                  <div className="flex flex-wrap gap-6">
-                    <div>
-                      <span className="text-xs font-medium text-[var(--muted)]">Retry attempts</span>
-                      <p className="mt-1 text-lg font-bold tabular-nums text-[var(--foreground)]">{status.retry_count} / 3</p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-medium text-[var(--muted)]">Grace period ends</span>
-                      <p className="mt-1 text-lg font-bold tabular-nums text-[var(--foreground)]">
-                        {status.grace_until ? new Date(status.grace_until).toLocaleDateString() : "—"}
-                      </p>
-                    </div>
-                    <div className="flex items-center">
-                      <a
-                        href="#"
-                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--primary)] hover:underline"
-                        onClick={(e) => { e.preventDefault(); alert("Configure your payment method (Stripe customer portal integration pending)."); }}
-                      >
-                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
-                        Update card
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
-
-          {status.saas_status === "read_only" && (
-            <div className="mt-6">
-              <Card>
-                <CardHeader title="Read-only mode" subtitle="Write access is blocked until the subscription is renewed." />
-              </Card>
-            </div>
-          )}
-
-          {status.saas_status === "suspended" && (
-            <div className="mt-6">
-              <Card>
-                <CardHeader title="Account suspended" subtitle="Contact support to restore access." />
-              </Card>
-            </div>
-          )}
-
-          {status.saas_status === "cancelled" && (
-            <div className="mt-6">
-              <Card>
-                <CardHeader title="Subscription cancelled" subtitle="Your data will be archived at the end of the retention period." />
-              </Card>
-            </div>
-          )}
-
-          <div className="mt-6">
-            <Card>
-              <CardHeader title="Change plan" subtitle="Upgrade is immediate; downgrade blocked if usage exceeds the lower cap" />
-              <div className="grid gap-4 p-6 sm:grid-cols-3">
-                {TIERS.map((tier, idx) => {
-                  const isCurrent = idx === currentIdx;
-                  const isUpgrade = idx > currentIdx;
-                  return (
-                    <div
-                      key={tier}
-                      className={`rounded-[var(--radius-lg)] border-2 p-5 transition-all duration-150 ${
-                        isCurrent
-                          ? "border-[var(--primary)] bg-[var(--primary-light)]"
-                          : "border-[var(--border)] hover:border-[var(--border-strong)] hover:shadow-xs"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm font-semibold text-[var(--foreground)]">{titleCase(tier)}</div>
-                        {isCurrent && (
-                          <Badge tone="info">Current</Badge>
-                        )}
-                      </div>
-                      <div className="mt-4">
-                        {!isCurrent && (
-                          <Button
-                            variant={isUpgrade ? "primary" : "secondary"}
-                            loading={busy}
-                            onClick={() => changeTier(tier, isUpgrade ? "upgrade" : "downgrade")}
-                          >
-                            {isUpgrade ? "Upgrade" : "Downgrade"}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-
-          <ListToolbar
-            tabs={invoiceTabs}
-            value={invoiceStatus}
-            onChange={setInvoiceStatus}
-            search={invoiceSearch}
-            onSearch={setInvoiceSearch}
-            searchPlaceholder="Search invoices…"
-          />
-          {/* Table surface: hairline border, square corners, flat background. */}
-          <div className="mt-3 border border-foreground/10 bg-card">
-            {invoices === null ? (
-              <Spinner label="Loading invoices..." />
-            ) : filteredInvoices.length === 0 ? (
-              <EmptyState
-                title="No invoices yet"
-                hint={
-                  invoices.length === 0
-                    ? "Your invoices will appear here."
-                    : "No invoices match the current filter."
-                }
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left font-mono text-[10px] font-medium uppercase tracking-widest text-[var(--muted-foreground)]">
-                    <tr className="border-b border-foreground/10">
-                      <th className="px-5 py-3">Date</th>
-                      <th className="px-5 py-3">Amount</th>
-                      <th className="px-5 py-3">Status</th>
-                      <th className="px-5 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-foreground/[0.06]">
-                    {filteredInvoices.map((inv) => (
-                      <tr key={inv.id} className="transition-colors hover:bg-[var(--background)]">
-                        <td className="px-5 py-3.5">{new Date(inv.created_at).toLocaleDateString()}</td>
-                        <td className="px-5 py-3.5 tabular-nums font-medium">{money(inv.amount, inv.currency)}</td>
-                        <td className="px-5 py-3.5">
-                          <Badge tone={statusTone(inv.status)}>{titleCase(inv.status)}</Badge>
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          <a
-                            href={`/api/download/saas-billing/invoices/${inv.id}/pdf`}
-                            download
-                            className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--primary)] hover:underline"
-                          >
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                            </svg>
-                            PDF
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </>
+        <SectionBody>{body}</SectionBody>
       )}
     </>
   );
