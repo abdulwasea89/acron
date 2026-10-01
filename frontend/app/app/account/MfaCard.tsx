@@ -155,7 +155,7 @@ export function MfaCard({ mfaRequired }: { mfaRequired: boolean }) {
                 <code className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 font-mono text-sm tracking-wider text-[var(--foreground)]">
                   {enrollData.secret}
                 </code>
-                <Button variant="secondary" onClick={copySecret} size="sm">
+                <Button variant="secondary" onClick={copySecret}>
                   {copied ? "Copied!" : "Copy"}
                 </Button>
               </div>

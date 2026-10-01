@@ -140,13 +140,12 @@ export default function CreateGymPage() {
         </div>
 
         <div className="flex items-center gap-3 pt-2">
-          <Button type="submit" loading={loading} size="lg">
+          <Button type="submit" loading={loading}>
             Create Gym
           </Button>
           <Button
             type="button"
             variant="secondary"
-            size="lg"
             onClick={() => router.back()}
           >
             Cancel

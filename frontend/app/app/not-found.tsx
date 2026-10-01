@@ -24,7 +24,7 @@ export default function AppNotFoundPage() {
         <p className="mx-auto mb-8 max-w-[260px] text-sm leading-relaxed text-[var(--foreground-muted)]">
           This page doesn&apos;t exist or you don&apos;t have access to it.
         </p>
-        <Button size="md" onClick={() => router.push("/app")}>
+        <Button onClick={() => router.push("/app")}>
           Back to dashboard
         </Button>
       </div>

@@ -634,7 +634,6 @@ function SessionsSection() {
             </p>
           </div>
           <Button
-            size="sm"
             variant={s.revoked ? "secondary" : "danger"}
             disabled={s.revoked || revoking === s.id}
             onClick={() => revoke(s.id)}

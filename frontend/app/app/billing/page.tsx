@@ -216,7 +216,6 @@ export default function BillingPage({ embedded = false }: { embedded?: boolean }
                           <Button
                             variant={isUpgrade ? "primary" : "secondary"}
                             loading={busy}
-                            size="sm"
                             onClick={() => changeTier(tier, isUpgrade ? "upgrade" : "downgrade")}
                           >
                             {isUpgrade ? "Upgrade" : "Downgrade"}

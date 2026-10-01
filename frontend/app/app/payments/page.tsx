@@ -172,7 +172,7 @@ export default function PaymentsPage() {
                     </td>
                     <td className={`${TD} ${CELL_LAST} py-2.5 text-right`}>
                       {refundable(p) && (
-                        <Button variant="ghost" size="sm" onClick={() => setRefundFor(p)}>
+                        <Button variant="ghost" onClick={() => setRefundFor(p)}>
                           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
                           Refund
                         </Button>

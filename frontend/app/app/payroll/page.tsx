@@ -144,7 +144,7 @@ export default function PayrollPage() {
             title="No payroll runs yet"
             hint="Create a draft for the current pay period to generate staff entries."
             action={
-              <Button onClick={() => setShowForm(true)} size="lg">
+              <Button onClick={() => setShowForm(true)}>
                 Create first payroll run
               </Button>
             }
@@ -455,7 +455,7 @@ function EntryRow({
         </td>
         {editable && (
           <td className={`${TD} ${CELL_LAST} py-2.5 text-right`}>
-            <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)}>
+            <Button variant="ghost" onClick={() => setOpen((o) => !o)}>
               {open ? "Cancel" : "Adjust"}
             </Button>
           </td>

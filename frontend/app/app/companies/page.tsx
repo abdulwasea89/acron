@@ -193,7 +193,7 @@ export default function CompaniesPage() {
               }
               action={
                 all.length === 0
-                  ? <Button onClick={() => setShowNew(true)} size="lg">+ Add your first company</Button>
+                  ? <Button onClick={() => setShowNew(true)}>+ Add your first company</Button>
                   : undefined
               }
             />

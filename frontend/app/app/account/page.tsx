@@ -111,7 +111,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
             ) : null}
 
             <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-4">
-              <Button type="submit" loading={loading} size="lg" className="w-full sm:w-auto">Save changes</Button>
+              <Button type="submit" loading={loading} className="w-full sm:w-auto">Save changes</Button>
             </div>
           </form>
         </Card>

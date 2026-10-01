@@ -171,7 +171,7 @@ export default function CompanyDetailPage() {
           <CardHeader
             title="Seat contracts"
             subtitle={detail.contracts.length ? `${detail.contracts.length} on record` : "Sign a company onto a space plan"}
-            action={<Button size="sm" variant={spacePlans.length ? "primary" : "secondary"} disabled={!spacePlans.length} onClick={() => setShowContract(true)}>+ New contract</Button>}
+            action={<Button variant={spacePlans.length ? "primary" : "secondary"} disabled={!spacePlans.length} onClick={() => setShowContract(true)}>+ New contract</Button>}
           />
           {!spacePlans.length && (
             <p className="px-5 pb-4 text-xs text-[var(--warning)]">
@@ -202,7 +202,7 @@ export default function CompanyDetailPage() {
                         openInvoice ? (
                           <span className="text-[10px] text-[var(--muted)]">{invoiceLabel(openInvoice.status)} INV-…{openInvoice.invoice_number.slice(-4)}</span>
                         ) : (
-                          <Button size="sm" variant="secondary" disabled={busy} onClick={() => run(async () => {
+                          <Button variant="secondary" disabled={busy} onClick={() => run(async () => {
                             await api.post("/invoices/issue", { contract_id: ct.id });
                           })}>Invoice next term</Button>
                         )
@@ -223,7 +223,7 @@ export default function CompanyDetailPage() {
           <CardHeader
             title="Seat-holders"
             subtitle={detail.seat_holders.length ? `${activeHolders} active of ${detail.seat_holders.length}` : "Invite people under this company"}
-            action={<Button size="sm" variant="primary" disabled={!capacity} onClick={() => { setInviteResult(null); setShowInvite(true); }}>+ Add seat-holder</Button>}
+            action={<Button variant="primary" disabled={!capacity} onClick={() => { setInviteResult(null); setShowInvite(true); }}>+ Add seat-holder</Button>}
           />
           {!capacity && (
             <p className="px-5 pb-4 text-xs text-[var(--muted)]">Add an active contract before inviting seat-holders.</p>

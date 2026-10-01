@@ -24,7 +24,7 @@ export default function NotFoundPage() {
         <p className="mx-auto mb-8 max-w-[260px] text-sm leading-relaxed text-[var(--foreground-muted)]">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <Button size="md" onClick={() => router.push("/app")}>
+        <Button onClick={() => router.push("/app")}>
           Back to dashboard
         </Button>
       </div>

@@ -286,7 +286,7 @@ export default function MemberDetailPage() {
                     <span className="text-[var(--muted)]">—</span>
                   )}
                   {canManage && (
-                    <Button variant="secondary" size="sm" onClick={openAssign}>
+                    <Button variant="secondary" onClick={openAssign}>
                       <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5v15m7.5-7.5h-15" /></svg>
                       Assign trainer
                     </Button>

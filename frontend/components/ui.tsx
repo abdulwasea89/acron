@@ -28,11 +28,14 @@ const FOCUS =
 
 /* ── Button ───────────────────────────────────────────────────────────────
    Dashboard flavor (DESIGN §10.8): only CTAs/filters are pills; square marks
-   data and destructive/neutral actions. Primary = the brand pill CTA. */
+   data and destructive/neutral actions. Primary = the brand pill CTA.
+   One height everywhere (h-8), taken from the create-slot sheet button. The
+   old sm/md/lg ladder let a stray `size="lg"` make a page's primary action
+   taller than the same action in a sheet, so the prop is gone — pass a
+   className only when you mean a genuinely different shape, not a size. */
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "danger" | "ghost" | "accent";
   loading?: boolean;
-  size?: "sm" | "md" | "lg";
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -41,7 +44,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     loading,
     disabled,
     className,
-    size = "sm",
     children,
     ...rest
   },
@@ -59,20 +61,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     accent:
       "rounded-md bg-accent text-accent-foreground hover:bg-accent-hover",
   };
-  const sizes: Record<string, string> = {
-    sm: "h-8 px-3 text-sm gap-1.5",
-    md: "h-9 px-4 text-sm gap-2",
-    lg: "h-10 px-5 text-sm gap-2",
-  };
   return (
     <button
       ref={ref}
       className={cx(
-        "inline-flex cursor-pointer items-center justify-center font-medium",
+        "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3",
+        "text-sm font-medium",
         "transition-colors duration-150",
         FOCUS,
         "disabled:opacity-40 disabled:cursor-not-allowed select-none",
-        sizes[size],
         variants[variant],
         className,
       )}

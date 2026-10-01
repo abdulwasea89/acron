@@ -406,14 +406,14 @@ export default function PlansPage() {
                 title="No plans yet"
                 hint={"Create your first plan — members can’t sign up until one is published."}
                 icon={<span className="flex h-10 w-10 items-center justify-center rounded-md bg-brand/10 text-brand"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg></span>}
-                action={<Button onClick={newPlan} size="lg">+ Create your first plan</Button>}
+                action={<Button onClick={newPlan}>+ Create your first plan</Button>}
               />
             ) : isOffice ? (
               <EmptyState
                 title="No space plans yet"
                 hint="Publish a space plan so companies can sign seat contracts and get billed."
                 icon={<span className="flex h-10 w-10 items-center justify-center rounded-md bg-brand/10 text-brand"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18" /><path d="M9 7h6M9 11h6M9 15h4" /></svg></span>}
-                action={<Button onClick={newPlan} size="lg">+ Create your first space plan</Button>}
+                action={<Button onClick={newPlan}>+ Create your first space plan</Button>}
               />
             ) : (
               <div className="flex flex-col items-center justify-center px-6 py-16 text-center">

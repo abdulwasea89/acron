@@ -176,7 +176,6 @@ export default function ApprovalsPage() {
                     <td className={`${TD} ${CELL_LAST} py-2.5`}>
                       <div className="flex justify-end gap-2">
                         <Button
-                          size="sm"
                           variant="primary"
                           disabled={actingId === m.member_id}
                           onClick={() => handleApprove(m)}
@@ -187,7 +186,6 @@ export default function ApprovalsPage() {
                           Approve
                         </Button>
                         <Button
-                          size="sm"
                           variant="danger"
                           disabled={actingId === m.member_id}
                           onClick={() => setRejectTarget(m)}

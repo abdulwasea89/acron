@@ -402,10 +402,10 @@ function ApprovalCard({
           {value?.summary ?? "Approve this action?"}
         </p>
         <div className="mt-3 flex gap-2">
-          <Button size="sm" onClick={() => onDecide(true)}>
+          <Button onClick={() => onDecide(true)}>
             Approve
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => onDecide(false)}>
+          <Button variant="secondary" onClick={() => onDecide(false)}>
             Reject
           </Button>
         </div>

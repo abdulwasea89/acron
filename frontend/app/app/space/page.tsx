@@ -173,7 +173,7 @@ export default function SpacePage() {
           }
           action={
             all.length === 0
-              ? <Button onClick={() => setShowForm(true)} size="lg">+ Create your first slot</Button>
+              ? <Button onClick={() => setShowForm(true)}>+ Create your first slot</Button>
               : undefined
           }
         />
