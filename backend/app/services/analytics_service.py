@@ -7,7 +7,7 @@ status breakdown, churn). All queries are org-scoped (Security Rule #1).
 
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,13 +16,14 @@ from sqlmodel import select
 from app.core.constants import MemberStatus, PaymentStatus, ReceiptStatus
 from app.core.industry import MoneyMode, get_industry
 from app.core.security import now_utc
+from app.models.attendance import Attendance
 from app.models.company_contract import CompanyContract
 from app.models.invoice import Invoice
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
 from app.models.payment import Payment
 from app.models.receipt import ReceiptUpload
-from app.models.staff import Shift
+from app.services.attendance_service import day_bounds
 
 # Monthly-equivalent factor per contract term (for space MRR aggregation).
 _TERM_MONTHS = {"monthly": 1, "quarterly": 3, "annual": 12}
@@ -125,12 +126,33 @@ async def headline_metrics(session: AsyncSession, *, org_id: str) -> dict:
     start = datetime.combine(today, time.min)
     end = datetime.combine(today, time.max)
 
+    # Today's check-ins are *member* visits (the behaviour signal), measured over
+    # the org's local day — not staff shift check-ins. Falls back to the UTC day
+    # when the org is missing.
+    a_start, a_end = day_bounds(org.timezone if org else "UTC")
     check_ins = (
         await session.execute(
-            select(func.count()).select_from(Shift).where(
-                Shift.organization_id == org_id,
-                Shift.checked_in_at >= start,
-                Shift.checked_in_at <= end,
+            select(func.count(func.distinct(Attendance.member_id))).where(
+                Attendance.organization_id == org_id,
+                Attendance.checked_in_at >= a_start,
+                Attendance.checked_in_at < a_end,
+            )
+        )
+    ).scalar_one()
+
+    slipping = (
+        await session.execute(
+            select(func.count()).select_from(OrganizationMember).where(
+                OrganizationMember.organization_id == org_id,
+                OrganizationMember.role == "member",
+                OrganizationMember.member_status == MemberStatus.ACTIVE,
+                ~select(Attendance.id)
+                .where(
+                    Attendance.organization_id == org_id,
+                    Attendance.member_id == OrganizationMember.id,
+                    Attendance.checked_in_at >= now_utc() - timedelta(days=14),
+                )
+                .exists(),
             )
         )
     ).scalar_one()
@@ -176,6 +198,7 @@ async def headline_metrics(session: AsyncSession, *, org_id: str) -> dict:
 
     return {
         "today_check_ins": int(check_ins or 0),
+        "members_slipping": int(slipping or 0),
         "today_revenue": float(revenue or 0.0),
         "pending_receipts": int(pending_receipts or 0),
         "pending_approvals": int(pending_approvals or 0),

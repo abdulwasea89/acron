@@ -15,6 +15,7 @@ import { api, ApiError } from "@/lib/api";
 import type { AssistantConversationOut } from "@/lib/types";
 import { useAssistantChats } from "./AssistantChats";
 import { useAssistantDock } from "./AssistantDock";
+import { AssistantBot } from "./AssistantBot";
 import { AssistantRecordPanel } from "./AssistantRecordPanel";
 import { ChatPanel } from "./ChatPanel";
 import { SessionList } from "./SessionList";
@@ -164,6 +165,9 @@ export function AssistantPage() {
           >
             <ChatIcon />
           </button>
+
+          {/* Who you are talking to, beside the session it is in. */}
+          <AssistantBot size={22} />
 
           {/* Current session name — a plain label, not a control. */}
           <span className="max-w-[16rem] truncate text-[14px] font-medium text-foreground">

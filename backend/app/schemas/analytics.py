@@ -22,6 +22,7 @@ class HeadlineMetrics(BaseModel):
 
     # ---- gym / consumer verticals ----
     today_check_ins: int | None = None
+    members_slipping: int | None = None
     today_revenue: float | None = None
     pending_receipts: int | None = None
     pending_approvals: int | None = None

@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Avatar, Badge, Button, Card, CardHeader, EmptyState, Spinner, TableToolbar } from "@/components/ui";
+import { Dialog } from "@/components/Dialog";
 import { FieldSelect, NONE } from "@/components/FieldSelect";
 import { SelectItem } from "@/components/ui/select";
 import {
@@ -21,7 +23,7 @@ import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/com
 import { api, ApiError } from "@/lib/api";
 import { money, statusTone, titleCase } from "@/lib/format";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import type { MemberDetailOut, MemberDirectoryItem, PendingPaymentItem } from "@/lib/types";
+import type { AttendanceOut, MemberDetailOut, MemberDirectoryItem, PendingPaymentItem } from "@/lib/types";
 
 function roleBadge(role: string) {
   switch (role) {
@@ -91,6 +93,8 @@ export default function MemberDetailPage() {
   const memberId = params.memberId;
   const [data, setData] = useState<MemberDetailOut | null>(null);
   const [error, setError] = useState("");
+  const [visits, setVisits] = useState<AttendanceOut[] | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
 
   // Assign trainer dialog
   const [assignOpen, setAssignOpen] = useState(false);
@@ -115,6 +119,15 @@ export default function MemberDetailPage() {
   useEffect(() => {
     queueMicrotask(() => void load());
   }, [load]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      api
+        .get<AttendanceOut[]>(`/attendance/members/${memberId}/visits`)
+        .then(setVisits)
+        .catch(() => setVisits([]));
+    });
+  }, [memberId]);
 
   async function openAssign() {
     setAssignOpen(true);
@@ -360,6 +373,62 @@ export default function MemberDetailPage() {
         </Card>
       </div>
 
+      {/* Visits (#18) — the behaviour signal: every front-desk / QR / class
+          check-in for this member. */}
+      <Card className="mt-5">
+        <CardHeader
+          title="Visits"
+          subtitle={visits ? `${visits.length} recent check-in${visits.length === 1 ? "" : "s"}` : "Loading…"}
+          action={
+            m.role === "member" ? (
+              <Button variant="secondary" onClick={() => setQrOpen(true)}>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10" />
+                </svg>
+                Show QR
+              </Button>
+            ) : undefined
+          }
+        />
+        {visits === null ? (
+          <div className="p-5">
+            <Spinner label="Loading visits..." />
+          </div>
+        ) : visits.length === 0 ? (
+          <EmptyState
+            title="No visits yet"
+            hint="Check this member in from the Check-in page; visits will appear here."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className={TABLE}>
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th className={`${TH} ${CELL_FIRST}`}>Date</th>
+                  <th className={`${TH} ${CELL}`}>Time</th>
+                  <th className={`${TH} ${CELL_LAST}`}>Method</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visits.map((v) => (
+                  <tr key={v.id} className={`${TR} transition-colors hover:bg-foreground/[0.02]`}>
+                    <td className={`${TD} ${CELL_FIRST} py-2.5 whitespace-nowrap tabular-nums`}>
+                      {new Date(v.checked_in_at + "Z").toLocaleDateString()}
+                    </td>
+                    <td className={`${TD} ${CELL} py-2.5 whitespace-nowrap tabular-nums text-[var(--foreground-muted)]`}>
+                      {new Date(v.checked_in_at + "Z").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                    </td>
+                    <td className={`${TD} ${CELL_LAST} py-2.5`}>
+                      <Badge tone="neutral" size="sm">{titleCase(v.method)}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
       {/* Pending payments */}
       <Card className="mt-5">
         <CardHeader title="Pending payments" subtitle="Amounts owed and unsettled attempts" />
@@ -413,6 +482,23 @@ export default function MemberDetailPage() {
           </div>
         )}
       </div>
+
+      <Dialog
+        open={qrOpen}
+        onClose={() => setQrOpen(false)}
+        title="Member QR"
+        subtitle={name}
+      >
+        <div className="flex flex-col items-center gap-3 px-6 pb-6">
+          <div className="rounded-xl bg-white p-3">
+            <QRCodeSVG value={`acron:member:${m.member_id}`} size={180} />
+          </div>
+          <p className="text-center text-xs text-[var(--muted)]">
+            Scan this at the front desk to check in.
+          </p>
+          <p className="font-mono text-[10px] text-[var(--muted)]">{m.member_id}</p>
+        </div>
+      </Dialog>
     </>
   );
 }

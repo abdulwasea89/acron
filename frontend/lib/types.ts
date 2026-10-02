@@ -712,3 +712,40 @@ export type AssistantFrame =
   | { interrupt: { id: string | null; value: unknown }; awaiting_approval?: true }
   | { done: true; message_id: string | null; title: string | null }
   | { error: string };
+
+// ---- Attendance / check-in (#18) ------------------------------------------
+
+export interface AttendanceOut {
+  id: string;
+  member_id: string;
+  member_name: string | null;
+  checked_in_at: string;
+  method: string;
+  source: string;
+  class_session_id: string | null;
+  note: string | null;
+}
+
+export interface CheckInOut extends AttendanceOut {
+  membership_status: string;
+  payment_due: boolean;
+  birthday_today: boolean;
+  days_since_last_visit: number | null;
+  at_risk: boolean;
+  visits_today: number;
+}
+
+export interface AttendanceSummary {
+  today_count: number;
+  unique_today: number;
+  avg_last_7_days: number;
+  dormant_members: number;
+}
+
+export interface AttendanceMember {
+  member_id: string;
+  member_name: string | null;
+  member_email: string;
+  member_status: string;
+  phone: string | null;
+}

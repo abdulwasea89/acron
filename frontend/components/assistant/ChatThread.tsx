@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui";
 import { AgentTree } from "./AgentTree";
+import { AssistantBot } from "./AssistantBot";
+import { ThinkingOrb } from "./ThinkingOrb";
 import { Markdown } from "./Markdown";
 import { randomThinkingWord } from "@/lib/thinkingWords";
 import type {
@@ -132,7 +134,15 @@ export function ChatThread({
           {approval && onDecide && <ApprovalCard approval={approval} onDecide={onDecide} />}
 
           {showTyping && (
-            <div className="px-1 text-sm leading-6 text-[var(--foreground)]">{waitWord}…</div>
+            // What the assistant is doing right now, not who it is: a thought-orb
+            // in the gap before the first token. It lives only in the live row —
+            // which is gone by the time the answer starts — so a thread never
+            // runs more than one animated canvas, and nothing shifts when the
+            // turn turns into text.
+            <div className="flex items-center gap-2 px-1 text-sm leading-6 text-[var(--foreground)]">
+              <ThinkingOrb state="connecting" aria-hidden />
+              <span>{waitWord}…</span>
+            </div>
           )}
         </div>
       )}
@@ -260,7 +270,13 @@ function ActivityPanel({
         >
           <Chevron open={open} />
           {live ? (
-            <span className="text-sm leading-6 text-[var(--foreground)]">{liveWord}…</span>
+            // The same mark as the typing row, on the other live row: while the
+            // turn runs the assistant shows one or the other, never both — and
+            // the orb folds away with the panel the moment the answer starts.
+            <span className="flex items-center gap-2 text-sm leading-6 text-[var(--foreground)]">
+              <ThinkingOrb state="searching" aria-hidden />
+              {liveWord}…
+            </span>
           ) : (
             // One line: what ran, and how long it took. The agent count tells you
             // whether expanding is worth it; the seconds are the number that
@@ -530,10 +546,11 @@ function CopyButton({ text }: { text: string }) {
 function EmptyThread() {
   return (
     <div className="mx-auto flex h-full max-w-md flex-col items-center justify-center px-6 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand/10 text-brand">
-        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
-        </svg>
+      {/* The bot's face, the one place it is big enough to be the subject. The
+          plate is the sparkle's circle from before it, so the empty state keeps
+          its weight on the page. */}
+      <div className="flex h-24 w-24 items-center justify-center rounded-full bg-brand/10">
+        <AssistantBot size={72} />
       </div>
       <h2 className="mt-4 font-heading text-lg text-[var(--foreground)]">Ask about your gym</h2>
       <p className="mt-1.5 text-sm text-[var(--muted)]">

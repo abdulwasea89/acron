@@ -44,7 +44,6 @@ from app.agent.swarm.types import (
     Specialist,
 )
 from app.core.constants import (
-    BookingStatus,
     IdempotencyStatus,
     MemberStatus,
     PaymentStatus,
@@ -54,8 +53,9 @@ from app.core.constants import (
 from app.core.industry import MoneyMode, get_industry
 from app.core.security import now_utc
 from app.models.audit_log import AuditLog
+from app.models.attendance import Attendance
 from app.models.cash import CashReconciliation
-from app.models.class_session import ClassBooking, ClassSession
+from app.models.class_session import ClassSession
 from app.models.company_contract import CompanyContract
 from app.models.idempotency_key import IdempotencyKey
 from app.models.invoice import Invoice
@@ -239,10 +239,9 @@ async def _member_activity(ctx: AgentContext) -> Finding:
     now, session, org = now_utc(), ctx.session, ctx.org_id
     active_attendees = (
         await session.execute(
-            select(func.count(func.distinct(ClassBooking.member_id))).where(
-                ClassBooking.organization_id == org,
-                ClassBooking.created_at >= now - timedelta(days=30),
-                ClassBooking.status != BookingStatus.CANCELLED,
+            select(func.count(func.distinct(Attendance.member_id))).where(
+                Attendance.organization_id == org,
+                Attendance.checked_in_at >= now - timedelta(days=30),
             )
         )
     ).scalar() or 0
@@ -257,7 +256,7 @@ async def _member_activity(ctx: AgentContext) -> Finding:
     pct = round(int(active_attendees) / active * 100, 1)
     return _done(
         "member_activity",
-        f"{int(active_attendees)} of {active} active members ({pct}%) booked something in the last "
+        f"{int(active_attendees)} of {active} active members ({pct}%) checked in within the last "
         f"30 days; {active - int(active_attendees)} have gone dormant.",
     )
 

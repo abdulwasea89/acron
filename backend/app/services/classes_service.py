@@ -12,14 +12,14 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.core.constants import BookingStatus, MemberStatus, Role
+from app.core.constants import AttendanceMethod, AttendanceSource, BookingStatus, MemberStatus, Role
 from app.core.security import now_utc
 from app.models.class_session import ClassBooking, ClassSession
 from app.models.membership import OrganizationMember
 from app.models.user import User
 from app.realtime import events
 from app.schemas.classes import ClassSessionCreate
-from app.services import idempotency_service
+from app.services import attendance_service, idempotency_service
 from app.services.audit_service import record_audit
 
 
@@ -207,6 +207,45 @@ async def trainer_check_in(
                        actor_user_id=user_id, entity_type="class_session", entity_id=cs.id,
                        metadata={"at": now_utc().isoformat()})
     return cs
+
+
+async def mark_attended(
+    session: AsyncSession, *, org_id: str, class_id: str, booking_id: str, actor_id: str
+) -> ClassBooking:
+    """Mark a booked member as attended and record the visit (Section 1.8).
+
+    A class booking that turns into a real visit is also a gym visit, so it
+    writes one ``Attendance`` row (``source=class``) — the retention model reads
+    one behaviour stream, not two.
+    """
+
+    cs = await _get_owned_session(session, org_id, class_id)
+    booking = await session.get(ClassBooking, booking_id)
+    if (
+        booking is None
+        or booking.organization_id != org_id
+        or booking.class_session_id != cs.id
+    ):
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    if booking.status == BookingStatus.CANCELLED:
+        raise HTTPException(status_code=409, detail="Booking is cancelled.")
+
+    if booking.status != BookingStatus.ATTENDED:
+        booking.status = BookingStatus.ATTENDED
+        session.add(booking)
+
+    await attendance_service.record_checkin(
+        session,
+        org_id=org_id,
+        member_id=booking.member_id,
+        method=AttendanceMethod.MANUAL,
+        source=AttendanceSource.CLASS,
+        actor_user_id=actor_id,
+        class_session_id=cs.id,
+    )
+    await record_audit(session, action="class.attended", organization_id=org_id,
+                       actor_user_id=actor_id, entity_type="class_booking", entity_id=booking.id)
+    return booking
 
 
 async def list_bookings(

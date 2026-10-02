@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Liquid } from "liquid-gooey";
 
 /* ── ChatComposer ─────────────────────────────────────────────────────────
    The prompt field itself — auto-growing textarea plus send button. Shared by
@@ -142,17 +143,21 @@ export function ChatComposer({
           a fixed position while the text grows above it. */}
       <div className="flex items-end gap-1">
         {onReference && (
-          <button
-            type="button"
-            onClick={onReference}
-            aria-label="Reference a record"
-            title="Reference a record"
-            className={`flex ${BUTTON} shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60`}
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
+          <Liquid className="inline-flex" fill="var(--popover)">
+            <Liquid.Item observe>
+              <button
+                type="button"
+                onClick={onReference}
+                aria-label="Reference a record"
+                title="Reference a record"
+                className={`flex ${BUTTON} shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand/60`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+            </Liquid.Item>
+          </Liquid>
         )}
         <textarea
           ref={areaRef}

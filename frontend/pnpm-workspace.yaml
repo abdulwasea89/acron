@@ -1,3 +1,5 @@
 allowBuilds:
   sharp: set this to true or false
   unrs-resolver: set this to true or false
+minimumReleaseAgeExclude:
+  - bot-avatars@0.2.2

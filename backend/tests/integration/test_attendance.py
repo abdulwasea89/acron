@@ -1,0 +1,256 @@
+"""Integration tests for member check-in / attendance (#18).
+
+Covers: front-desk manual check-in, status-on-check-in flags, today list and
+summary, per-member history, idempotent replay, tenant isolation, capability
+enforcement, the headline KPI reading attendance (not staff shifts), and the
+unification of class attendance into the same behaviour stream.
+"""
+
+from __future__ import annotations
+
+import uuid
+
+import pytest
+
+from tests.helpers import OWNER_PROFILE, latest_code_for
+
+PASSWORD = "Sup3rStr0ng!Pass"
+MEMBER_PWD = "M3mberStr0ng!Pwd"
+
+
+async def _provision_gym(client, *, owner_email="owner@att.com"):
+    await client.post("/api/v1/auth/register", json={
+        "full_name": "Alex", "email": owner_email,
+        "password": PASSWORD, "confirm_password": PASSWORD, **OWNER_PROFILE})
+    code = latest_code_for(owner_email)
+    await client.post("/api/v1/auth/verify-email", json={"email": owner_email, "code": code})
+    r = await client.post("/api/v1/organizations/register", json={
+        "owner_email": owner_email,
+        "details": {"name": "Iron Pulse Boxing", "default_currency": "USD"},
+        "tier": "pro"})
+    body = r.json()
+    org_id = body["organization"]["id"]
+    org_code = body["organization"]["org_code"]
+    headers = {"Authorization": f"Bearer {body['access_token']}", "X-Organization-Id": org_id}
+    await client.post("/api/v1/organizations/me/connect", headers=headers)
+    await client.post("/api/v1/organizations/me/connect/complete", headers=headers)
+    r = await client.post("/api/v1/plans", headers=headers, json={
+        "name": "Monthly", "price": 149.0, "billing_type": "recurring",
+        "cycle_unit": "month", "cycle_length": 1})
+    plan_id = r.json()["id"]
+    await client.post(f"/api/v1/plans/{plan_id}/publish", headers=headers)
+    return headers, org_id, org_code, plan_id
+
+
+async def _signup_member(client, org_code, plan_id, email) -> dict:
+    await client.post("/api/v1/memberships/signup/request-email",
+                      json={"org_code": org_code, "email": email})
+    code = latest_code_for(email)
+    await client.post("/api/v1/memberships/signup/verify-email",
+                      json={"org_code": org_code, "email": email, "code": code})
+    r = await client.post("/api/v1/memberships/signup/set-password",
+                          json={"org_code": org_code, "email": email, "password": MEMBER_PWD})
+    member_id = r.json()["member_id"]
+    r = await client.post("/api/v1/memberships/signup/pay",
+                          headers={"Idempotency-Key": str(uuid.uuid4())},
+                          json={"org_code": org_code, "email": email, "plan_id": plan_id})
+    body = r.json()
+    return {"member_id": member_id, "org_id": body["organization_id"], "email": email}
+
+
+async def _member_headers(client, org_code, email):
+    r = await client.post("/api/v1/auth/member-login",
+                          json={"org_code": org_code, "email": email, "password": MEMBER_PWD})
+    body = r.json()
+    return {"Authorization": f"Bearer {body['access_token']}",
+            "X-Organization-Id": body["organization_id"]}
+
+
+async def _provision_front_desk(client, headers, org_code, email="desk@att.com"):
+    """Invite + redeem a front-desk user; returns their headers."""
+
+    r = await client.post("/api/v1/staff/invites", headers=headers,
+                          json={"role": "front_desk", "email": email})
+    invite_code = r.json()["code"]
+    r = await client.post("/api/v1/staff/invites/redeem",
+                          json={"code": invite_code, "full_name": "Dana Desk", "password": PASSWORD})
+    body = r.json()
+    return {"Authorization": f"Bearer {body['access_token']}",
+            "X-Organization-Id": body["organization_id"]}
+
+
+# --------------------------------------------------------------- member search
+@pytest.mark.asyncio
+async def test_front_desk_can_search_members(client):
+    """The check-in box must work for front desk, who cannot read /members."""
+
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    await _signup_member(client, org_code, plan_id, "findme@att.com")
+    desk = await _provision_front_desk(client, headers, org_code)
+
+    # Front desk is blocked from the admin directory...
+    assert (await client.get("/api/v1/members", headers=desk)).status_code == 403
+
+    # ...but the attendance search works and finds the member.
+    r = await client.get("/api/v1/attendance/members", headers=desk, params={"q": "find"})
+    assert r.status_code == 200, r.text
+    hits = r.json()
+    assert len(hits) == 1
+    assert hits[0]["member_email"] == "findme@att.com"
+
+    # Staff are searchable too: the owner ("Alex") can be checked in.
+    r = await client.get("/api/v1/attendance/members", headers=desk, params={"q": "alex"})
+    assert r.status_code == 200, r.text
+    assert any(h["member_email"] == "owner@att.com" for h in r.json())
+
+    # And front desk can check them in.
+    r = await client.post("/api/v1/attendance/check-in", headers=desk,
+                          json={"member_id": hits[0]["member_id"], "method": "manual"})
+    assert r.status_code == 201, r.text
+
+
+@pytest.mark.asyncio
+async def test_member_search_requires_attendance_capability(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "nosearch@att.com")
+    mh = await _member_headers(client, org_code, member["email"])
+
+    r = await client.get("/api/v1/attendance/members", headers=mh, params={"q": "no"})
+    assert r.status_code == 403, r.text
+
+
+# ------------------------------------------------------------------ check-in
+@pytest.mark.asyncio
+async def test_check_in_records_visit_and_status(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "m@att.com")
+
+    r = await client.post("/api/v1/attendance/check-in", headers=headers,
+                          json={"member_id": member["member_id"], "method": "manual"})
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["membership_status"] == "active"
+    assert body["payment_due"] is False
+    assert body["days_since_last_visit"] is None   # first ever visit
+    assert body["visits_today"] == 1
+    assert body["member_name"]
+
+    r = await client.get("/api/v1/attendance/today", headers=headers)
+    assert r.status_code == 200, r.text
+    assert [a["member_id"] for a in r.json()] == [member["member_id"]]
+
+    r = await client.get("/api/v1/attendance/summary", headers=headers)
+    assert r.json()["today_count"] == 1
+    assert r.json()["unique_today"] == 1
+
+    r = await client.get(f"/api/v1/attendance/members/{member['member_id']}/visits",
+                         headers=headers)
+    assert r.status_code == 200, r.text
+    assert len(r.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_second_visit_reports_days_since(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "m2@att.com")
+
+    await client.post("/api/v1/attendance/check-in", headers=headers,
+                      json={"member_id": member["member_id"], "method": "manual"})
+    # A different method ("qr" vs "manual") is not the same double-tap, so a
+    # genuine second visit is recorded.
+    r = await client.post("/api/v1/attendance/check-in", headers=headers,
+                          json={"member_id": member["member_id"], "method": "qr"},
+                          )
+    assert r.status_code == 201, r.text
+    assert r.json()["days_since_last_visit"] == 0
+    assert r.json()["visits_today"] == 2
+    assert r.json()["method"] == "qr"
+
+
+@pytest.mark.asyncio
+async def test_check_in_is_idempotent(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "m3@att.com")
+
+    key = str(uuid.uuid4())
+    h = {**headers, "Idempotency-Key": key}
+    r1 = await client.post("/api/v1/attendance/check-in", headers=h,
+                           json={"member_id": member["member_id"], "method": "manual"})
+    r2 = await client.post("/api/v1/attendance/check-in", headers=h,
+                           json={"member_id": member["member_id"], "method": "manual"})
+    assert r1.status_code == 201 and r2.status_code == 201, (r1.text, r2.text)
+    assert r1.json()["id"] == r2.json()["id"]
+
+    r = await client.get("/api/v1/attendance/today", headers=headers)
+    assert len(r.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_check_in_is_tenant_isolated(client):
+    headers_a, _org_a, code_a, plan_a = await _provision_gym(client, owner_email="a@att.com")
+    member = await _signup_member(client, code_a, plan_a, "iso@att.com")
+
+    headers_b, *_ = await _provision_gym(client, owner_email="b@att.com")
+    r = await client.post("/api/v1/attendance/check-in", headers=headers_b,
+                          json={"member_id": member["member_id"], "method": "manual"})
+    assert r.status_code == 404, r.text
+
+
+@pytest.mark.asyncio
+async def test_member_cannot_check_in(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "noperm@att.com")
+    mh = await _member_headers(client, org_code, member["email"])
+
+    r = await client.post("/api/v1/attendance/check-in", headers=mh,
+                          json={"member_id": member["member_id"], "method": "manual"})
+    assert r.status_code == 403, r.text
+
+
+# ------------------------------------------------------------------- headline
+@pytest.mark.asyncio
+async def test_headline_check_ins_are_member_visits(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "head@att.com")
+
+    r = await client.get("/api/v1/analytics/headline", headers=headers)
+    assert r.json()["today_check_ins"] == 0
+
+    await client.post("/api/v1/attendance/check-in", headers=headers,
+                      json={"member_id": member["member_id"], "method": "manual"})
+
+    r = await client.get("/api/v1/analytics/headline", headers=headers)
+    assert r.json()["today_check_ins"] == 1
+    assert r.json()["members_slipping"] == 0
+
+
+# ------------------------------------------------------------- class unify
+@pytest.mark.asyncio
+async def test_class_attendance_unifies_into_visit(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "class@att.com")
+    mh = await _member_headers(client, org_code, member["email"])
+
+    r = await client.post("/api/v1/classes", headers=headers,
+                          json={"title": "Boxing 101", "starts_at": "2026-10-05T10:00:00"})
+    assert r.status_code == 201, r.text
+    class_id = r.json()["id"]
+
+    r = await client.post("/api/v1/classes/book", headers={**mh, "Idempotency-Key": str(uuid.uuid4())},
+                          json={"class_session_id": class_id})
+    assert r.status_code == 200, r.text
+
+    r = await client.get(f"/api/v1/classes/{class_id}/bookings", headers=headers)
+    booking_id = r.json()[0]["booking_id"]
+
+    r = await client.post(f"/api/v1/classes/{class_id}/bookings/{booking_id}/attend",
+                          headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "attended"
+
+    # The class visit shows up in the member's attendance history, source=class.
+    r = await client.get(f"/api/v1/attendance/members/{member['member_id']}/visits",
+                         headers=headers)
+    assert len(r.json()) == 1
+    assert r.json()[0]["source"] == "class"
+    assert r.json()[0]["class_session_id"] == class_id

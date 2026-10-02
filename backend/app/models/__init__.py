@@ -4,6 +4,7 @@ Importing this package imports every table module so that
 ``SQLModel.metadata`` is fully populated (used by ``init_db`` and Alembic).
 """
 
+from app.models.attendance import Attendance
 from app.models.audit_log import AuditLog
 from app.models.cash import CashReconciliation
 from app.models.class_session import ClassBooking, ClassSession
@@ -30,6 +31,7 @@ from app.models.verification import VerificationToken
 
 __all__ = [
     "AuditLog",
+    "Attendance",
     "AuthSession",
     "CashReconciliation",
     "ClassBooking",

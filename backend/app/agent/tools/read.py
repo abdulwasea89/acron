@@ -27,6 +27,7 @@ from app.agent.tools._serialize import (
     session_row,
 )
 from app.services import analytics_service
+from app.services import attendance_service as attendance
 from app.services import cash_service as cash
 from app.services import classes_service as classes
 from app.services import members_service as members
@@ -78,10 +79,12 @@ async def get_member(member_id: str) -> str:
     member = detail["member"]
     user = detail["user"]
     plan = detail["plan"]
+    last_visit = await attendance.last_visit_at(ctx.session, org_id=ctx.org_id, member_id=member_id)
     return as_tool_result(
         {
             **member_row(member, user),
             "plan": plan_row(plan) if plan else None,
+            "last_visit_at": last_visit.isoformat() if last_visit else None,
             "recent_payments": [payment_row(p) for p in detail["payments"][:10]],
             "pending_payments": [
                 {"kind": p.kind, "label": p.label, "amount": p.amount}
@@ -162,9 +165,22 @@ async def get_cash_status(business_date: str = "") -> str:
     return as_tool_result({"business_date": day.isoformat(), "cash_total": total})
 
 
+@tool
+async def get_attendance_summary() -> str:
+    """Today's gym check-ins: total visits, unique members, 7-day average and
+    how many active members have gone dormant (no visit in 14 days). Use for
+    attendance and at-risk-member questions."""
+
+    ctx = current_context()
+    return as_tool_result(
+        await attendance.summary_for_org(ctx.session, org_id=ctx.org_id)
+    )
+
+
 READ_TOOLS = [
     get_headline_metrics,
     get_revenue_summary,
+    get_attendance_summary,
     search_members,
     get_member,
     list_payments,

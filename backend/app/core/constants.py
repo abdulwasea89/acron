@@ -204,6 +204,25 @@ class BookingStatus(str, Enum):
     NO_SHOW = "no_show"
 
 
+class AttendanceMethod(str, Enum):
+    """How a member's gym visit was captured (Section 1.3)."""
+
+    MANUAL = "manual"        # staff searched the member and logged it
+    QR = "qr"                # scanned the member's QR code
+    APP = "app"              # member self-check-in from the app
+    CARD = "card"            # card / RFID
+    BIOMETRIC = "biometric"
+
+
+class AttendanceSource(str, Enum):
+    """Who or what created the visit row."""
+
+    FRONT_DESK = "front_desk"  # staff logged it
+    SELF = "self"              # member checked themselves in
+    CLASS = "class"            # attendance recorded from a class booking
+    SYSTEM = "system"          # automated / integration
+
+
 class VerificationPurpose(str, Enum):
     EMAIL_VERIFY = "email_verify"
     PASSWORD_RESET = "password_reset"

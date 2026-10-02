@@ -40,7 +40,7 @@ class Capability(str, Enum):
     ISSUE_INVOICES = "issue_invoices"        # office: draft/send/settle invoices
     MANAGE_COURSES = "manage_courses"        # academy: courses & batches
     ENROLL_STUDENTS = "enroll_students"      # academy: register students into batches
-    TAKE_ATTENDANCE = "take_attendance"      # academy: mark per-lesson attendance
+    TAKE_ATTENDANCE = "take_attendance"      # gym: log member visits; academy: per-lesson attendance
     BOOK_SPACE = "book_space"                # office: book desks/meeting rooms
 
 
@@ -56,6 +56,7 @@ _MATRIX: dict[Capability, set[Role]] = {
     Capability.TOGGLE_GYM_STATUS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
     Capability.ASSIGN_TASKS: {Role.OWNER, Role.MANAGER, Role.TRAINER},  # trainer=self
     Capability.LOG_CASH_PAYMENT: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+    Capability.TAKE_ATTENDANCE: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
     Capability.UPLOAD_RECEIPT: {Role.MEMBER},
     Capability.BOOK_CLASSES: {Role.MEMBER},
     Capability.CHECK_IN_SHIFT: {Role.TRAINER, Role.FRONT_DESK, Role.MANAGER},

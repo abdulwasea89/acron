@@ -99,6 +99,22 @@ async def list_bookings(
     return await classes.list_bookings(session, org_id=ctx.org_id, class_id=class_id)
 
 
+@router.post("/{class_id}/bookings/{booking_id}/attend", response_model=BookingOut)
+async def mark_attended(
+    class_id: str,
+    booking_id: str,
+    ctx: TenantContext = Depends(require_capability(Capability.TAKE_ATTENDANCE)),
+    session: AsyncSession = Depends(get_session),
+):
+    """Mark a booked member present; records the visit as gym attendance."""
+
+    booking = await classes.mark_attended(
+        session, org_id=ctx.org_id, class_id=class_id, booking_id=booking_id, actor_id=ctx.user_id
+    )
+    return BookingOut(id=booking.id, class_session_id=booking.class_session_id,
+                      member_id=booking.member_id, status=booking.status.value)
+
+
 @router.post("/book", response_model=BookingOut)
 async def book_class(
     data: BookingCreate,

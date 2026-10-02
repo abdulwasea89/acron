@@ -39,6 +39,10 @@ async def check_in(org_id: str, *, member_id: str) -> None:
     await publish(org_id, "shift.check_in", {"member_id": member_id})
 
 
+async def attendance_checked_in(org_id: str, *, member_id: str, attendance_id: str) -> None:
+    await publish(org_id, "attendance.checked_in", {"member_id": member_id, "attendance_id": attendance_id})
+
+
 async def sessions_changed(org_id: str) -> None:
     await publish(org_id, "sessions.changed")
 
