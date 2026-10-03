@@ -270,8 +270,13 @@ async def record_checkin(
     class_session_id: str | None = None,
     note: str | None = None,
     idempotency_key: str | None = None,
+    checked_in_at: datetime | None = None,
 ) -> dict:
-    """Record a member visit and return it with status-on-check-in flags."""
+    """Record a member visit and return it with status-on-check-in flags.
+
+    ``checked_in_at`` lets an offline client replay a visit with its real time
+    (the sync path); it defaults to now for a live check-in.
+    """
 
     member = await _get_member(session, org_id, member_id)
     user = await session.get(User, member.user_id)
@@ -324,7 +329,7 @@ async def record_checkin(
             )
             return _out(recent, member=member, user=user, status=status)
 
-    at = now_utc()
+    at = checked_in_at or now_utc()
     row = Attendance(
         organization_id=org_id,
         member_id=member.id,
@@ -529,6 +534,36 @@ async def summary_for_org(session: AsyncSession, *, org_id: str) -> dict:
 
     org = await session.get(Organization, org_id)
     return await summary(session, org_id=org_id, tz_name=org.timezone if org else "UTC")
+
+
+async def list_roster(
+    session: AsyncSession, *, org_id: str, limit: int = 2000
+) -> list[dict]:
+    """Everyone in the org, for offline check-in search (#23).
+
+    The front desk caches this so it can still find a member when the network is
+    down. Gated by ``TAKE_ATTENDANCE`` — no admin directory needed.
+    """
+
+    rows = (
+        await session.execute(
+            select(OrganizationMember, User)
+            .join(User, User.id == OrganizationMember.user_id)
+            .where(OrganizationMember.organization_id == org_id)
+            .order_by(User.full_name, User.email)
+            .limit(max(1, min(limit, 5000)))
+        )
+    ).all()
+    return [
+        {
+            "member_id": m.id,
+            "member_name": _name(m, u),
+            "member_email": u.email,
+            "member_status": _status_value(m),
+            "phone": m.phone,
+        }
+        for m, u in rows
+    ]
 
 
 async def search_members(

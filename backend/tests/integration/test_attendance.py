@@ -365,3 +365,51 @@ async def test_class_attendance_unifies_into_visit(client):
     assert len(r.json()) == 1
     assert r.json()[0]["source"] == "class"
     assert r.json()[0]["class_session_id"] == class_id
+
+
+# ------------------------------------------------------------- offline (#23)
+@pytest.mark.asyncio
+async def test_roster_lists_everyone(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    await _signup_member(client, org_code, plan_id, "roster@att.com")
+    r = await client.get("/api/v1/attendance/roster", headers=headers)
+    assert r.status_code == 200, r.text
+    assert any(x["member_email"] == "roster@att.com" for x in r.json())
+
+
+@pytest.mark.asyncio
+async def test_sync_batch_idempotent_and_honors_time(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "sync@att.com")
+    key = str(uuid.uuid4())
+    items = [{
+        "id": "c1", "member_id": member["member_id"], "method": "manual",
+        "checked_in_at": "2026-10-01T09:30:00", "idempotency_key": key,
+    }]
+
+    r = await client.post("/api/v1/attendance/sync", headers=headers, json={"items": items})
+    assert r.status_code == 200, r.text
+    assert r.json()["results"][0]["status"] == "synced"
+
+    # Replaying the same key does not create a second visit.
+    r2 = await client.post("/api/v1/attendance/sync", headers=headers, json={"items": items})
+    assert r2.json()["results"][0]["status"] == "synced"
+
+    r = await client.get(f"/api/v1/attendance/members/{member['member_id']}/visits", headers=headers)
+    assert len(r.json()) == 1
+    assert r.json()[0]["checked_in_at"].startswith("2026-10-01T09:30")
+
+
+@pytest.mark.asyncio
+async def test_sync_reports_bad_item_without_failing_batch(client):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "ok@att.com")
+    items = [
+        {"id": "good", "member_id": member["member_id"], "idempotency_key": str(uuid.uuid4())},
+        {"id": "bad", "member_id": "does-not-exist", "idempotency_key": str(uuid.uuid4())},
+    ]
+    r = await client.post("/api/v1/attendance/sync", headers=headers, json={"items": items})
+    assert r.status_code == 200, r.text
+    by_id = {x["id"]: x for x in r.json()["results"]}
+    assert by_id["good"]["status"] == "synced"
+    assert by_id["bad"]["status"] == "error"

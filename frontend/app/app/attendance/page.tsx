@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import {
   Alert,
   Avatar,
   Badge,
+  Button,
   Card,
   CardHeader,
   EmptyState,
@@ -29,7 +30,31 @@ import type {
    The front desk's check-in surface. Search (or scan) → check in → the visit is
    logged and its status-on-check-in flags (dues, expired, birthday, slipping)
    surface immediately so the desk can act. Today's feed is live over the
-   WebSocket, so a second desk / a member's app shows up here without refresh. */
+   WebSocket, so a second desk / a member's app shows up here without refresh.
+
+   Offline (#23): the roster is cached, so search works with no network, and
+   check-ins are queued locally and flushed to /attendance/sync on reconnect. */
+
+const ROSTER_KEY = "acron.attendance.roster";
+const QUEUE_KEY = "acron.attendance.queue";
+
+type QueuedCheckin = {
+  id: string;
+  member_id: string;
+  name: string;
+  method: "manual" | "qr";
+  checked_in_at: string;   // naive UTC, "YYYY-MM-DDTHH:MM:SS"
+  idempotency_key: string;
+};
+
+function loadJSON<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function statusTone(status: string): "success" | "warning" | "danger" | "neutral" {
   if (status === "active") return "success";
@@ -119,6 +144,12 @@ export default function AttendancePage() {
   const [now, setNow] = useState(() => Date.now());
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // Offline (#23): cached roster, a local queue, and the current connectivity.
+  const [online, setOnline] = useState(true);
+  const [roster, setRoster] = useState<AttendanceMember[]>([]);
+  const [queue, setQueue] = useState<QueuedCheckin[]>([]);
+  const [syncing, setSyncing] = useState(false);
+
   const loadToday = useCallback(async () => {
     try {
       setToday(await api.get<AttendanceOut[]>("/attendance/today"));
@@ -143,13 +174,94 @@ export default function AttendancePage() {
     });
   }, [loadToday, loadSummary]);
 
+  // Cache the roster so offline search still works; load any queued check-ins.
+  useEffect(() => {
+    queueMicrotask(() => {
+      setRoster(loadJSON<AttendanceMember[]>(ROSTER_KEY, []));
+      setQueue(loadJSON<QueuedCheckin[]>(QUEUE_KEY, []));
+      setOnline(navigator.onLine);
+    });
+  }, []);
+
+  const refreshRoster = useCallback(async () => {
+    try {
+      const rows = await api.get<AttendanceMember[]>("/attendance/roster");
+      setRoster(rows);
+      localStorage.setItem(ROSTER_KEY, JSON.stringify(rows));
+    } catch {
+      /* keep the cached roster */
+    }
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => void refreshRoster());
+  }, [refreshRoster]);
+
+  const flush = useCallback(
+    async (items: QueuedCheckin[]) => {
+      if (items.length === 0) return;
+      setSyncing(true);
+      try {
+        const res = await api.post<{ results: { id: string; status: string }[] }>(
+          "/attendance/sync",
+          {
+            items: items.map((q) => ({
+              id: q.id,
+              member_id: q.member_id,
+              method: q.method,
+              checked_in_at: q.checked_in_at,
+              idempotency_key: q.idempotency_key,
+            })),
+          },
+        );
+        const okIds = new Set(res.results.filter((r) => r.status === "synced").map((r) => r.id));
+        setQueue((prev) => {
+          const remaining = prev.filter((q) => !okIds.has(q.id));
+          localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+          return remaining;
+        });
+        void loadToday();
+        void loadSummary();
+      } catch {
+        setOnline(false); // still offline; retry on the next 'online'
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [loadToday, loadSummary],
+  );
+
+  // Flush leftovers on mount, and whenever connectivity returns.
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (navigator.onLine) {
+        const pending = loadJSON<QueuedCheckin[]>(QUEUE_KEY, []);
+        if (pending.length) void flush(pending);
+      }
+    });
+  }, [flush]);
+
+  useEffect(() => {
+    const up = () => {
+      setOnline(true);
+      void flush(loadJSON<QueuedCheckin[]>(QUEUE_KEY, []));
+    };
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, [flush]);
+
   // Debounced server-side member search (name/email/phone). Gated by
   // TAKE_ATTENDANCE so front desk — the primary user — can read it. The
   // immediate search/clear states are set in the input handler, so the effect
   // only owns the async fetch.
   useEffect(() => {
     const term = query.trim();
-    if (term === "") return;
+    if (term === "" || !online) return;
     let cancelled = false;
     const id = setTimeout(async () => {
       try {
@@ -165,7 +277,7 @@ export default function AttendancePage() {
       cancelled = true;
       clearTimeout(id);
     };
-  }, [query]);
+  }, [query, online]);
 
   function onQueryChange(value: string) {
     setQuery(value);
@@ -173,7 +285,7 @@ export default function AttendancePage() {
       setResults([]);
       setSearching(false);
     } else {
-      setSearching(true);
+      setSearching(online);
     }
   }
 
@@ -207,11 +319,38 @@ export default function AttendancePage() {
     async (memberId: string, name: string, method: "manual" | "qr") => {
       setBusyId(memberId);
       setError("");
+      const idem = crypto.randomUUID();
+
+      const enqueue = () => {
+        const item: QueuedCheckin = {
+          id: crypto.randomUUID(),
+          member_id: memberId,
+          name,
+          method,
+          checked_in_at: new Date().toISOString().slice(0, 19),
+          idempotency_key: idem,
+        };
+        setQueue((prev) => {
+          const next = [...prev, item];
+          localStorage.setItem(QUEUE_KEY, JSON.stringify(next));
+          return next;
+        });
+        setQuery("");
+        setResults([]);
+        setSearching(false);
+        searchRef.current?.focus();
+      };
+
+      if (!online) {
+        enqueue();
+        setBusyId(null);
+        return;
+      }
       try {
         const res = await api.post<CheckInOut>(
           "/attendance/check-in",
           { member_id: memberId, method },
-          { "Idempotency-Key": crypto.randomUUID() },
+          { "Idempotency-Key": idem },
         );
         setLastCheckIn({ name: res.member_name || name, res });
         setQuery("");
@@ -221,12 +360,18 @@ export default function AttendancePage() {
         void loadToday();
         void loadSummary();
       } catch (e) {
-        setError((e as ApiError).message);
+        if (e instanceof ApiError) {
+          setError(e.message);
+        } else {
+          // Network failure — drop offline and queue the visit.
+          setOnline(false);
+          enqueue();
+        }
       } finally {
         setBusyId(null);
       }
     },
-    [loadToday, loadSummary],
+    [online, loadToday, loadSummary],
   );
 
   const onScan = useCallback(
@@ -242,10 +387,25 @@ export default function AttendancePage() {
     [checkIn],
   );
 
+  // Offline search runs over the cached roster; online uses the server results.
+  const offlineResults = useMemo(() => {
+    const t = query.trim().toLowerCase();
+    if (!t) return [];
+    return roster
+      .filter(
+        (m) =>
+          (m.member_name ?? "").toLowerCase().includes(t) ||
+          m.member_email.toLowerCase().includes(t) ||
+          (m.phone ?? "").includes(query.trim()),
+      )
+      .slice(0, 8);
+  }, [query, roster]);
+  const shown = online ? results : offlineResults;
+
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && results.length > 0) {
+    if (e.key === "Enter" && shown.length > 0) {
       e.preventDefault();
-      const top = results[0];
+      const top = shown[0];
       void checkIn(top.member_id, top.member_name || top.member_email, "manual");
     } else if (e.key === "Escape") {
       onQueryChange("");
@@ -267,6 +427,29 @@ export default function AttendancePage() {
       {error && (
         <div className="mb-4">
           <Alert onDismiss={() => setError("")}>{error}</Alert>
+        </div>
+      )}
+
+      {(!online || queue.length > 0) && (
+        <div className="mb-4">
+          <Alert tone={online ? "warning" : "info"}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                {online
+                  ? `${queue.length} check-in${queue.length === 1 ? "" : "s"} waiting to sync.`
+                  : `Offline — ${queue.length} check-in${queue.length === 1 ? "" : "s"} queued. Search still works; visits sync when you reconnect.`}
+              </span>
+              {online && queue.length > 0 && (
+                <Button
+                  variant="secondary"
+                  loading={syncing}
+                  onClick={() => flush(loadJSON<QueuedCheckin[]>(QUEUE_KEY, []))}
+                >
+                  Sync now
+                </Button>
+              )}
+            </div>
+          </Alert>
         </div>
       )}
 
@@ -351,18 +534,18 @@ export default function AttendancePage() {
                   <SearchIcon className="h-3.5 w-3.5 shrink-0" />
                   Start typing to find a member — or scan their QR code.
                 </div>
-              ) : searching && results.length === 0 ? (
+              ) : searching && shown.length === 0 ? (
                 <div className="flex items-center gap-2.5 px-3 py-3 text-[12px] text-muted-foreground">
                   <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground/60" />
                   Searching…
                 </div>
-              ) : results.length === 0 ? (
+              ) : shown.length === 0 ? (
                 <div className="px-3 py-3 text-[12px] text-muted-foreground">
                   No one matches “{query}”. Try an email or phone number.
                 </div>
               ) : (
                 <ul className="space-y-0.5">
-                  {results.map((m, i) => (
+                  {shown.map((m, i) => (
                     <li key={m.member_id}>
                       <button
                         type="button"

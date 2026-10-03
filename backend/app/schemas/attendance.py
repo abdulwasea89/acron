@@ -98,3 +98,28 @@ class AttendanceMember(BaseModel):
     days_since_last_visit: int | None = None
     hint: str | None = None
 
+
+class SyncCheckIn(BaseModel):
+    """One offline-queued check-in being flushed to the server (#23)."""
+
+    id: str                      # client-side id, echoed back
+    member_id: str
+    method: str = "manual"
+    checked_in_at: datetime | None = None
+    idempotency_key: str
+
+
+class SyncIn(BaseModel):
+    items: list[SyncCheckIn]
+
+
+class SyncResult(BaseModel):
+    id: str
+    status: str                  # "synced" | "error"
+    attendance_id: str | None = None
+    detail: str | None = None
+
+
+class SyncOut(BaseModel):
+    results: list[SyncResult]
+

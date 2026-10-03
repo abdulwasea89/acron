@@ -20,6 +20,9 @@ from app.schemas.attendance import (
     AttendanceSummary,
     CheckInCreate,
     CheckInOut,
+    SyncIn,
+    SyncOut,
+    SyncResult,
 )
 from app.services import attendance_service as attendance
 
@@ -43,6 +46,43 @@ async def search_members(
         session, org_id=ctx.org_id, q=q, tz_name=org.timezone
     )
     return [AttendanceMember(**r) for r in rows]
+
+
+@router.get("/roster", response_model=list[AttendanceMember])
+async def roster(
+    ctx: TenantContext = Depends(require_capability(Capability.TAKE_ATTENDANCE)),
+    session: AsyncSession = Depends(get_session),
+):
+    """Everyone in the org (id/name/email/status) for offline check-in search."""
+
+    rows = await attendance.list_roster(session, org_id=ctx.org_id)
+    return [AttendanceMember(**r) for r in rows]
+
+
+@router.post("/sync", response_model=SyncOut)
+async def sync(
+    data: SyncIn,
+    ctx: TenantContext = Depends(require_capability(Capability.TAKE_ATTENDANCE)),
+    session: AsyncSession = Depends(get_session),
+):
+    """Flush offline-queued check-ins (idempotent per item)."""
+
+    results: list[SyncResult] = []
+    for item in data.items:
+        try:
+            res = await attendance.record_checkin(
+                session,
+                org_id=ctx.org_id,
+                member_id=item.member_id,
+                method=item.method,
+                actor_user_id=ctx.user_id,
+                idempotency_key=item.idempotency_key,
+                checked_in_at=item.checked_in_at,
+            )
+            results.append(SyncResult(id=item.id, status="synced", attendance_id=res["id"]))
+        except HTTPException as e:
+            results.append(SyncResult(id=item.id, status="error", detail=str(e.detail)))
+    return SyncOut(results=results)
 
 
 @router.post("/check-in", response_model=CheckInOut, status_code=201)
