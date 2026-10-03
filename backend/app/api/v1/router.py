@@ -17,7 +17,9 @@ from app.api.v1.routes import (
     cash,
     classes,
     companies,
+    front_desk,
     industries,
+    inbox,
     invoices,
     initial,
     members,
@@ -50,6 +52,8 @@ api_router.include_router(cash.router, prefix="/cash", tags=["cash"])
 api_router.include_router(receipts.router, prefix="/receipts", tags=["receipts"])
 api_router.include_router(classes.router, prefix="/classes", tags=["classes"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
+api_router.include_router(inbox.router, prefix="/inbox", tags=["inbox"])
+api_router.include_router(front_desk.router, prefix="/front-desk", tags=["front-desk"])
 api_router.include_router(staff.router, prefix="/staff", tags=["staff"])
 api_router.include_router(payroll.router, prefix="/payroll", tags=["payroll"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])

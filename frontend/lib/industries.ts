@@ -78,8 +78,8 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     checklist: ["stripe", "offer", "enroll", "staff", "done"],
     modules: [
       "dashboard", "assistant", "analytics", "offers", "members", "payments",
-      "cash", "receipts", "tasks", "classes", "attendance", "staff", "audit",
-      "approvals", "payroll", "billing", "account", "settings",
+      "cash", "receipts", "tasks", "classes", "attendance", "inbox",
+      "visitors", "staff", "audit", "approvals", "payroll", "billing", "account", "settings",
     ],
     rolesLabels: ROLE_LABELS,
     memberNoun: "member",
@@ -106,8 +106,8 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     checklist: ["companies", "offer", "invoices", "staff", "done"],
     modules: [
       "dashboard", "assistant", "analytics", "offers", "companies", "invoices",
-      "space", "members", "payments", "cash", "tasks", "staff", "audit",
-      "approvals", "payroll", "billing", "account", "settings",
+      "space", "members", "payments", "cash", "tasks", "inbox", "visitors",
+      "staff", "audit", "approvals", "payroll", "billing", "account", "settings",
     ],
     rolesLabels: {
       owner: "Owner",
@@ -140,8 +140,8 @@ export const INDUSTRIES: Record<IndustryKey, IndustryMeta> = {
     checklist: ["courses", "offer", "enroll", "staff", "done"],
     modules: [
       "dashboard", "assistant", "analytics", "offers", "courses", "attendance",
-      "members", "payments", "cash", "receipts", "tasks", "staff", "audit",
-      "approvals", "payroll", "billing", "account", "settings",
+      "members", "payments", "cash", "receipts", "tasks", "inbox",
+      "visitors", "staff", "audit", "approvals", "payroll", "billing", "account", "settings",
     ],
     rolesLabels: {
       owner: "Owner",
@@ -230,6 +230,8 @@ export const NAV_MODULE_BY_HREF: Record<string, string> = {
   "/app/tasks": "tasks",
   "/app/classes": "classes",
   "/app/attendance": "attendance",
+  "/app/inbox": "inbox",
+  "/app/front-desk": "visitors",
   "/app/staff": "staff",
   "/app/audit": "audit",
   "/app/approvals": "approvals",
@@ -260,4 +262,6 @@ export const PAGE_MODULE_BY_HREF: Record<string, string> = {
   "/app/invoices": "invoices",
   "/app/space": "space",
   "/app/attendance": "attendance",
+  "/app/inbox": "inbox",
+  "/app/front-desk": "visitors",
 };

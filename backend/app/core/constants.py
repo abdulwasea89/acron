@@ -146,6 +146,7 @@ class PaymentKind(str, Enum):
     TRAINER_PAYOUT = "trainer_payout"         # gym -> trainer
     SPACE = "space"                           # office: company -> space provider
     TUITION = "tuition"                       # academy: guardian -> academy
+    DAY_PASS = "day_pass"                     # walk-in -> gym (front desk, #22)
 
 
 class IdempotencyStatus(str, Enum):
@@ -221,6 +222,61 @@ class AttendanceSource(str, Enum):
     SELF = "self"              # member checked themselves in
     CLASS = "class"            # attendance recorded from a class booking
     SYSTEM = "system"          # automated / integration
+
+
+class Channel(str, Enum):
+    """A messaging channel a member can reach the gym on (Section 1.3, #20)."""
+
+    WHATSAPP = "whatsapp"
+    SMS = "sms"
+    EMAIL = "email"
+    INSTAGRAM = "instagram"
+    MESSENGER = "messenger"
+    LINE = "line"
+    WECHAT = "wechat"
+    TELEGRAM = "telegram"
+    WEB_CHAT = "web_chat"
+    PHONE = "phone"
+    WALK_IN = "walk_in"
+    OTHER = "other"
+
+
+class ConversationStatus(str, Enum):
+    """Shared-inbox thread state."""
+
+    OPEN = "open"
+    PENDING = "pending"      # waiting on the customer
+    SNOOZED = "snoozed"
+    RESOLVED = "resolved"
+
+
+class MessageDirection(str, Enum):
+    INBOUND = "inbound"      # customer -> gym
+    OUTBOUND = "outbound"    # gym -> customer
+
+
+class SenderKind(str, Enum):
+    """Who authored an inbox message."""
+
+    CONTACT = "contact"      # the customer
+    STAFF = "staff"          # a team member
+    AI = "ai"                # an AI-drafted reply
+    SYSTEM = "system"        # automation / delivery notices
+
+
+class VisitorKind(str, Enum):
+    """Why a non-member is at the desk (Section 1.3, #22)."""
+
+    DAY_PASS = "day_pass"
+    GUEST = "guest"          # guest of a member
+    TRIAL = "trial"
+    WALK_IN = "walk_in"
+    OTHER = "other"
+
+
+class LockerStatus(str, Enum):
+    FREE = "free"
+    OCCUPIED = "occupied"
 
 
 class VerificationPurpose(str, Enum):

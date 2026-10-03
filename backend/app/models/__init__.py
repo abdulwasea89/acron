@@ -13,6 +13,7 @@ from app.models.company_contract import CompanyContract
 from app.models.conversation import Conversation
 from app.models.conversation_message import ConversationMessage
 from app.models.idempotency_key import IdempotencyKey
+from app.models.inbox import InboxConversation, InboxMessage
 from app.models.invoice import Invoice
 from app.models.member_trainer import MemberTrainer
 from app.models.membership import OrganizationMember
@@ -28,6 +29,7 @@ from app.models.staff import Shift, StaffInvite, Task
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.verification import VerificationToken
+from app.models.visitor import Locker, Visitor
 
 __all__ = [
     "AuditLog",
@@ -41,6 +43,8 @@ __all__ = [
     "Conversation",
     "ConversationMessage",
     "IdempotencyKey",
+    "InboxConversation",
+    "InboxMessage",
     "Invoice",
     "MemberTrainer",
     "MembershipPlan",
@@ -59,4 +63,6 @@ __all__ = [
     "Task",
     "User",
     "VerificationToken",
+    "Visitor",
+    "Locker",
 ]

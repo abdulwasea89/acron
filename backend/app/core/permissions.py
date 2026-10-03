@@ -43,6 +43,11 @@ class Capability(str, Enum):
     TAKE_ATTENDANCE = "take_attendance"      # gym: log member visits; academy: per-lesson attendance
     BOOK_SPACE = "book_space"                # office: book desks/meeting rooms
 
+    # ---- Shared team inbox (Section 1.3, #20) ----
+    VIEW_INBOX = "view_inbox"                # read the shared conversation inbox
+    MANAGE_INBOX = "manage_inbox"            # reply, assign, change status
+    MANAGE_VISITORS = "manage_visitors"      # walk-ins, day passes, guest log, lockers
+
 
 # Capability -> set of roles allowed. Mirrors the Section 2 table.
 _MATRIX: dict[Capability, set[Role]] = {
@@ -70,6 +75,9 @@ _MATRIX: dict[Capability, set[Role]] = {
     # The assistant sees revenue, payroll-adjacent metrics and member counts, so
     # it stays with the roles that can already read analytics.
     Capability.USE_ASSISTANT: {Role.OWNER, Role.MANAGER},
+    Capability.VIEW_INBOX: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+    Capability.MANAGE_INBOX: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+    Capability.MANAGE_VISITORS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
 }
 
 # Per-industry deltas over the base matrix (multi-industry Phase 0). The gym

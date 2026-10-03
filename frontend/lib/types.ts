@@ -767,3 +767,78 @@ export interface AttendanceMember {
   days_since_last_visit: number | null;
   hint: string | null;
 }
+
+// ---- Shared team inbox (#20) ----------------------------------------------
+
+export interface InboxMessage {
+  id: string;
+  direction: "inbound" | "outbound";
+  sender_kind: "contact" | "staff" | "ai" | "system";
+  sender_user_id: string | null;
+  body: string;
+  channel: string;
+  delivery_status: string | null;
+  created_at: string;
+}
+
+export interface InboxConversation {
+  id: string;
+  channel: string;
+  contact_handle: string;
+  contact_name: string | null;
+  member_id: string | null;
+  member_name: string | null;
+  subject: string | null;
+  status: "open" | "pending" | "snoozed" | "resolved";
+  assigned_to: string | null;
+  assigned_name: string | null;
+  last_message_at: string;
+  unread_count: number;
+  preview: string | null;
+  preview_direction: "inbound" | "outbound" | null;
+}
+
+export interface InboxThread extends InboxConversation {
+  messages: InboxMessage[];
+}
+
+export interface InboxStats {
+  unassigned: number;
+  unread: number;
+}
+
+// ---- Front desk: walk-ins & lockers (#22) ---------------------------------
+
+export interface VisitorOut {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  kind: "day_pass" | "guest" | "trial" | "walk_in" | "other";
+  host_member_id: string | null;
+  host_name: string | null;
+  amount: number;
+  method: string | null;
+  paid: boolean;
+  locker_number: string | null;
+  note: string | null;
+  checked_in_at: string;
+  checked_out_at: string | null;
+}
+
+export interface LockerOut {
+  id: string;
+  number: string;
+  status: "free" | "occupied";
+  holder_label: string | null;
+  assigned_at: string | null;
+  note: string | null;
+}
+
+export interface FrontDeskSummary {
+  visitors_today: number;
+  inside_now: number;
+  day_pass_revenue: number;
+  lockers_occupied: number;
+  lockers_total: number;
+}

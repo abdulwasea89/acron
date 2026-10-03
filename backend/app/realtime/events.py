@@ -43,6 +43,14 @@ async def attendance_checked_in(org_id: str, *, member_id: str, attendance_id: s
     await publish(org_id, "attendance.checked_in", {"member_id": member_id, "attendance_id": attendance_id})
 
 
+async def inbox_changed(org_id: str, *, conversation_id: str, action: str) -> None:
+    await publish(org_id, "inbox.changed", {"conversation_id": conversation_id, "action": action})
+
+
+async def visitor_changed(org_id: str, *, visitor_id: str, action: str) -> None:
+    await publish(org_id, "visitor.changed", {"visitor_id": visitor_id, "action": action})
+
+
 async def sessions_changed(org_id: str) -> None:
     await publish(org_id, "sessions.changed")
 
