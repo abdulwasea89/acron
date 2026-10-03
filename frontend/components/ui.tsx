@@ -551,7 +551,7 @@ export function Card({ children, className, hover = false }: { children: ReactNo
   return (
     <div
       className={cx(
-        "rounded-lg border border-foreground/10 bg-card",
+        "rounded-md border border-foreground/10 bg-card",
         hover && "transition-colors duration-150 hover:border-foreground/25",
         className,
       )}

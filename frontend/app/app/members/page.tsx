@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, Avatar, Badge, Button, EmptyState, Input, Spinner } from "@/components/ui";
 import { FieldSelect, NONE } from "@/components/FieldSelect";
@@ -28,6 +27,7 @@ import {
 import { ListToolbar } from "@/components/ListToolbar";
 import { TABLE, THEAD_ROW, TH, TR, TD, CELL, CELL_FIRST, CELL_LAST } from "@/components/Table";
 import { RowMenu, type RowAction } from "@/components/RowMenu";
+import { MemberDetailSheet } from "@/components/members/MemberDetailSheet";
 import { api, ApiError } from "@/lib/api";
 import { statusTone, titleCase } from "@/lib/format";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -68,6 +68,19 @@ export default function MembersPage() {
   const [showInvite, setShowInvite] = useState(false);
   const [tab, setTab] = useState<"all" | "approvals">("all");
 
+  // Member profile opens as a sheet over the directory. The id lives in the URL
+  // (`?member=`) so the old /app/members/{id} deep links still resolve.
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+
+  function openMember(id: string) {
+    setOpenMemberId(id);
+    window.history.replaceState(null, "", `/app/members?member=${id}`);
+  }
+  function closeMember() {
+    setOpenMemberId(null);
+    window.history.replaceState(null, "", "/app/members");
+  }
+
   // Delete member
   const [deletingMember, setDeletingMember] = useState<MemberDirectoryItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -104,6 +117,10 @@ export default function MembersPage() {
 
   useEffect(() => {
     queueMicrotask(() => void load());
+    queueMicrotask(() => {
+      const id = new URLSearchParams(window.location.search).get("member");
+      if (id) setOpenMemberId(id);
+    });
   }, []);
 
   function handleInviteResult(res: InviteResult, email: string, sentVerb: string) {
@@ -432,12 +449,13 @@ export default function MembersPage() {
                           <Avatar name={m.display_name || m.full_name || m.email} size="sm" />
                           <div>
                             <div className="font-medium text-[var(--foreground)]">
-                              <Link
-                                href={`/app/members/${m.member_id}`}
-                                className="transition-colors hover:text-[var(--primary)]"
+                              <button
+                                type="button"
+                                onClick={() => openMember(m.member_id)}
+                                className="cursor-pointer text-left transition-colors hover:text-[var(--primary)]"
                               >
                                 {m.display_name || m.full_name || "—"}
-                              </Link>
+                              </button>
                               {isRowSelf && <span className="ml-1.5 text-xs text-[var(--muted)]">(you)</span>}
                             </div>
                           </div>
@@ -518,6 +536,8 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      <MemberDetailSheet memberId={openMemberId} onClose={closeMember} />
     </>
   );
 }
