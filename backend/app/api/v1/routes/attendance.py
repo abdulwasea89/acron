@@ -30,15 +30,18 @@ router = APIRouter()
 async def search_members(
     q: str = "",
     ctx: TenantContext = Depends(require_capability(Capability.TAKE_ATTENDANCE)),
+    org: Organization = Depends(get_org),
     session: AsyncSession = Depends(get_session),
 ):
     """Search members by name/email/phone for the check-in box.
 
     Uses ``TAKE_ATTENDANCE`` (front desk included) rather than the admin member
-    directory, which front desk cannot read.
+    directory, which front desk cannot read. Each hit carries its status card.
     """
 
-    rows = await attendance.search_members(session, org_id=ctx.org_id, q=q)
+    rows = await attendance.search_members(
+        session, org_id=ctx.org_id, q=q, tz_name=org.timezone
+    )
     return [AttendanceMember(**r) for r in rows]
 
 

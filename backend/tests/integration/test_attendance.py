@@ -9,9 +9,17 @@ unification of class attendance into the same behaviour stream.
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 import pytest
+from sqlmodel import select
 
+from app.core.constants import AttendanceMethod, AttendanceSource, MemberStatus, SubscriptionStatus
+from app.core.security import now_utc
+from app.models.attendance import Attendance
+from app.models.membership import OrganizationMember
+from app.models.subscription import Subscription
+from app.models.user import User
 from tests.helpers import OWNER_PROFILE, latest_code_for
 
 PASSWORD = "Sup3rStr0ng!Pass"
@@ -117,6 +125,109 @@ async def test_member_search_requires_attendance_capability(client):
 
     r = await client.get("/api/v1/attendance/members", headers=mh, params={"q": "no"})
     assert r.status_code == 403, r.text
+
+
+# ------------------------------------------------------------- status card (#19)
+async def _force_dues(db, member_id: str, *, price: float = 149.0):
+    """Put a member into grace with a renewal owed."""
+
+    m = await db.get(OrganizationMember, member_id)
+    m.member_status = MemberStatus.GRACE
+    db.add(m)
+    sub = (
+        await db.execute(select(Subscription).where(Subscription.member_id == member_id))
+    ).scalars().first()
+    sub.status = SubscriptionStatus.GRACE
+    sub.price_snapshot = price
+    sub.currency = "USD"
+    db.add(sub)
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_search_hit_carries_dues_status_card(client, db):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "card@att.com")
+    await _force_dues(db, member["member_id"])
+
+    r = await client.get("/api/v1/attendance/members", headers=headers, params={"q": "card"})
+    assert r.status_code == 200, r.text
+    hit = r.json()[0]
+    assert hit["member_status"] == "grace"
+    assert hit["payment_due"] is True
+    assert hit["amount_due"] == 149.0
+    assert hit["currency"] == "USD"
+    assert hit["hint"] and "Renewal due" in hit["hint"]
+
+
+@pytest.mark.asyncio
+async def test_search_hit_at_risk_hint(client, db):
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "slipping@att.com")
+
+    # An old visit 20 days ago -> at risk, "back after 20 days".
+    db.add(Attendance(
+        organization_id=org_id,
+        member_id=member["member_id"],
+        checked_in_at=now_utc() - timedelta(days=20),
+        method=AttendanceMethod.MANUAL,
+        source=AttendanceSource.FRONT_DESK,
+    ))
+    await db.commit()
+
+    r = await client.get("/api/v1/attendance/members", headers=headers, params={"q": "slipping"})
+    hit = r.json()[0]
+    assert hit["at_risk"] is True
+    assert hit["days_since_last_visit"] == 20
+    assert hit["hint"] == "Back after 20 days — welcome them"
+
+
+@pytest.mark.asyncio
+async def test_search_hit_birthday_hint(client, db):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "bday@att.com")
+
+    m = await db.get(OrganizationMember, member["member_id"])
+    u = await db.get(User, m.user_id)
+    today = now_utc().date()
+    u.date_of_birth = today.replace(year=1990)
+    db.add(u)
+    await db.commit()
+
+    r = await client.get("/api/v1/attendance/members", headers=headers, params={"q": "bday"})
+    hit = r.json()[0]
+    assert hit["birthday_today"] is True
+    assert hit["hint"] == "Birthday today — wish them"
+
+
+@pytest.mark.asyncio
+async def test_expired_member_hint(client, db):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "exp@att.com")
+    m = await db.get(OrganizationMember, member["member_id"])
+    m.member_status = MemberStatus.EXPIRED
+    db.add(m)
+    await db.commit()
+
+    r = await client.get("/api/v1/attendance/members", headers=headers, params={"q": "exp"})
+    hit = r.json()[0]
+    assert hit["hint"] == "Membership expired — collect payment"
+
+
+@pytest.mark.asyncio
+async def test_today_feed_carries_status(client, db):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    member = await _signup_member(client, org_code, plan_id, "todaycard@att.com")
+    await _force_dues(db, member["member_id"])
+
+    await client.post("/api/v1/attendance/check-in", headers=headers,
+                      json={"member_id": member["member_id"], "method": "manual"})
+
+    r = await client.get("/api/v1/attendance/today", headers=headers)
+    row = r.json()[0]
+    assert row["payment_due"] is True
+    assert row["amount_due"] == 149.0
+    assert row["hint"] and "Renewal due" in row["hint"]
 
 
 # ------------------------------------------------------------------ check-in

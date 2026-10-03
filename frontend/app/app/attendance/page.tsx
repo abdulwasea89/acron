@@ -6,8 +6,8 @@ import {
   Alert,
   Avatar,
   Badge,
-  Button,
   Card,
+  CardHeader,
   EmptyState,
   Input,
   Spinner,
@@ -17,7 +17,7 @@ import { LiveIndicator, useRealtimeEvent } from "@/components/Realtime";
 import { QrScanner } from "@/components/attendance/QrScanner";
 import { useModuleGate } from "@/hooks/useModuleGate";
 import { api, ApiError } from "@/lib/api";
-import { titleCase } from "@/lib/format";
+import { money, titleCase } from "@/lib/format";
 import type {
   AttendanceMember,
   AttendanceOut,
@@ -39,13 +39,30 @@ function statusTone(status: string): "success" | "warning" | "danger" | "neutral
 }
 
 /** Flags shown after a check-in: what the desk should notice about this member. */
-function flagsFor(res: CheckInOut): { label: string; tone: "success" | "warning" | "danger" | "info" }[] {
-  const out: { label: string; tone: "success" | "warning" | "danger" | "info" }[] = [];
-  if (res.payment_due) out.push({ label: "Payment due", tone: "danger" });
-  else if (res.membership_status !== "active") out.push({ label: titleCase(res.membership_status), tone: "warning" });
-  if (res.birthday_today) out.push({ label: "Birthday today", tone: "info" });
-  if (res.at_risk) out.push({ label: "Slipping — no visit in 14d", tone: "warning" });
-  return out;
+type StatusLike = {
+  payment_due?: boolean;
+  amount_due?: number | null;
+  currency?: string | null;
+  birthday_today?: boolean;
+  at_risk?: boolean;
+  days_since_last_visit?: number | null;
+};
+
+/** The status-on-check-in badges (#19): dues (with amount), birthday, slipping. */
+function StatusBadges({ item }: { item: StatusLike }) {
+  return (
+    <>
+      {item.payment_due && (
+        <Badge tone="danger" size="sm">
+          {item.amount_due != null
+            ? `Due ${money(item.amount_due, item.currency ?? "USD")}`
+            : "Dues owed"}
+        </Badge>
+      )}
+      {item.birthday_today && <Badge tone="info" size="sm">Birthday</Badge>}
+      {item.at_risk && <Badge tone="warning" size="sm">Slipping</Badge>}
+    </>
+  );
 }
 
 /** Accept `acron:member:<id>` or a bare member id from a scanned code. */
@@ -75,6 +92,16 @@ const METHOD_ICON: Record<string, string> = {
   app: "M7 3h10a1 1 0 011 1v16a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1zm5 14h.01",
   card: "M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z",
   biometric: "M12 11c0 3.517-1.009 6.799-2.753 9.571M12 3a9 9 0 019 9M3 12a9 9 0 019-9M15.9 5.5c.7.6 1.3 1.3 1.7 2.1M12 15a3 3 0 100-6 3 3 0 000 6z",
+};
+
+/* Icons for the KPI strip, matching the dashboard's stat-tile language. */
+const METRIC_ICON = {
+  checkin: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  members:
+    "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
+  average:
+    "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z",
+  slipping: "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z",
 };
 
 export default function AttendancePage() {
@@ -117,31 +144,58 @@ export default function AttendancePage() {
   }, [loadToday, loadSummary]);
 
   // Debounced server-side member search (name/email/phone). Gated by
-  // TAKE_ATTENDANCE so front desk — the primary user — can read it.
+  // TAKE_ATTENDANCE so front desk — the primary user — can read it. The
+  // immediate search/clear states are set in the input handler, so the effect
+  // only owns the async fetch.
   useEffect(() => {
     const term = query.trim();
-    if (term === "") {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
+    if (term === "") return;
+    let cancelled = false;
     const id = setTimeout(async () => {
       try {
-        setResults(await api.get<AttendanceMember[]>(`/attendance/members?q=${encodeURIComponent(term)}`));
+        const rows = await api.get<AttendanceMember[]>(`/attendance/members?q=${encodeURIComponent(term)}`);
+        if (!cancelled) setResults(rows);
       } catch {
-        setResults([]);
+        if (!cancelled) setResults([]);
       } finally {
-        setSearching(false);
+        if (!cancelled) setSearching(false);
       }
     }, 220);
-    return () => clearTimeout(id);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
   }, [query]);
+
+  function onQueryChange(value: string) {
+    setQuery(value);
+    if (value.trim() === "") {
+      setResults([]);
+      setSearching(false);
+    } else {
+      setSearching(true);
+    }
+  }
 
   // Keep relative timestamps honest.
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
+  }, []);
+
+  // `/` anywhere jumps the cursor into the check-in bar — the front desk lives
+  // on the keyboard, so the primary action is always one keystroke away.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey) return;
+      const el = document.activeElement;
+      const typing = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el as HTMLElement | null)?.isContentEditable;
+      if (typing) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   useRealtimeEvent(["attendance.checked_in"], () => {
@@ -161,6 +215,8 @@ export default function AttendancePage() {
         );
         setLastCheckIn({ name: res.member_name || name, res });
         setQuery("");
+        setResults([]);
+        setSearching(false);
         searchRef.current?.focus();
         void loadToday();
         void loadSummary();
@@ -192,17 +248,19 @@ export default function AttendancePage() {
       const top = results[0];
       void checkIn(top.member_id, top.member_name || top.member_email, "manual");
     } else if (e.key === "Escape") {
-      setQuery("");
+      onQueryChange("");
     }
   }
 
   if (!ready) return <Spinner label="Loading check-in…" />;
 
+  const hasQuery = query.trim() !== "";
+
   return (
     <>
       <PageHeader
         title="Check-in"
-        subtitle="Log member visits and see who needs attention today"
+        subtitle="The front desk's live console — log arrivals and act on who needs attention."
         action={<LiveIndicator />}
       />
 
@@ -212,66 +270,98 @@ export default function AttendancePage() {
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Check-ins today" value={String(summary?.today_count ?? "—")} accent />
-        <StatCard label="Unique members" value={String(summary?.unique_today ?? "—")} />
-        <StatCard label="7-day daily avg" value={summary ? summary.avg_last_7_days.toFixed(1) : "—"} />
+      {/* KPI strip — one surface, hairline-separated cells (matches the dashboard). */}
+      <div className="mb-5 grid grid-cols-1 gap-px overflow-hidden border border-foreground/10 bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
+          joined
+          accent
+          label="Check-ins today"
+          value={String(summary?.today_count ?? "—")}
+          icon={<MetricIcon d={METRIC_ICON.checkin} />}
+        />
+        <StatCard
+          joined
+          label="Unique members"
+          value={String(summary?.unique_today ?? "—")}
+          icon={<MetricIcon d={METRIC_ICON.members} />}
+        />
+        <StatCard
+          joined
+          label="7-day daily avg"
+          value={summary ? summary.avg_last_7_days.toFixed(1) : "—"}
+          icon={<MetricIcon d={METRIC_ICON.average} />}
+        />
+        <StatCard
+          joined
           label="Slipping · 14d"
           value={String(summary?.dormant_members ?? "—")}
           hint="Active members with no visit in 14 days"
+          icon={<MetricIcon d={METRIC_ICON.slipping} />}
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-        {/* ── Check-in ───────────────────────────────────────────────── */}
-        <div className="space-y-5">
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* ── Check-in command bar ───────────────────────────────────── */}
+        <div className="space-y-5 lg:col-span-2">
           <Card className="overflow-hidden">
-            <div className="relative border-b border-foreground/10 bg-gradient-to-b from-brand/[0.06] to-transparent px-5 py-4">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                Front desk
-              </p>
-              <h2 className="mt-0.5 text-[15px] font-semibold text-foreground">Who&apos;s arriving?</h2>
-            </div>
+            {/* Stage: the desk's whole job, given the top of the page. */}
+            <div className="relative border-b border-foreground/10 px-5 py-4">
+              <div
+                className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-brand/[0.06] to-transparent"
+                aria-hidden="true"
+              />
+              <h2 className="relative text-lg font-semibold leading-tight tracking-tight text-foreground sm:text-xl">
+                Who&rsquo;s arriving?
+              </h2>
 
-            <div className="space-y-3 p-5">
-              <div className="flex items-center gap-2">
+              <div className="relative mt-3">
                 <Input
                   ref={searchRef}
                   autoFocus
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => onQueryChange(e.target.value)}
                   onKeyDown={onSearchKey}
-                  placeholder="Name, email or phone…"
+                  placeholder="Search name, email or phone…"
                   aria-label="Search members to check in"
                   prefix={<SearchIcon className="h-4 w-4" />}
-                  className="!h-11 !text-[15px]"
+                  trailing={
+                    <button
+                      type="button"
+                      onClick={() => setScanning(true)}
+                      aria-label="Scan member QR code"
+                      title="Scan QR code"
+                      className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+                    >
+                      <ScanIcon className="h-4 w-4" />
+                    </button>
+                  }
                 />
-                <Button
-                  variant="secondary"
-                  onClick={() => setScanning(true)}
-                  className="!h-11 shrink-0 px-4"
-                >
-                  <ScanIcon className="h-4 w-4" />
-                  Scan
-                </Button>
               </div>
 
-              {query.trim() === "" ? (
-                <p className="px-0.5 text-[12px] text-muted-foreground">
-                  Start typing a name, email or phone. Press{" "}
-                  <kbd className="rounded border border-foreground/15 bg-secondary px-1 font-mono text-[10px]">Enter</kbd>{" "}
-                  to check in the top match.
-                </p>
+              <div className="relative mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                <Hint k="Enter">check in top match</Hint>
+                <Hint k="/">focus search</Hint>
+              </div>
+            </div>
+
+            {/* Results / idle */}
+            <div className="p-2">
+              {!hasQuery ? (
+                <div className="flex items-center gap-2.5 px-3 py-3 text-[12px] text-muted-foreground">
+                  <SearchIcon className="h-3.5 w-3.5 shrink-0" />
+                  Start typing to find a member — or scan their QR code.
+                </div>
               ) : searching && results.length === 0 ? (
-                <p className="flex items-center gap-2 px-0.5 text-[12px] text-muted-foreground">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground/60" />
+                <div className="flex items-center gap-2.5 px-3 py-3 text-[12px] text-muted-foreground">
+                  <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground/60" />
                   Searching…
-                </p>
+                </div>
               ) : results.length === 0 ? (
-                <p className="px-0.5 text-[12px] text-muted-foreground">No one matches “{query}”.</p>
+                <div className="px-3 py-3 text-[12px] text-muted-foreground">
+                  No one matches “{query}”. Try an email or phone number.
+                </div>
               ) : (
-                <ul className="-mx-2 space-y-0.5">
+                <ul className="space-y-0.5">
                   {results.map((m, i) => (
                     <li key={m.member_id}>
                       <button
@@ -280,24 +370,29 @@ export default function AttendancePage() {
                         onClick={() =>
                           checkIn(m.member_id, m.member_name || m.member_email, "manual")
                         }
-                        className="group flex w-full cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-foreground/[0.04] disabled:opacity-50"
+                        className="group flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-foreground/[0.04] focus-visible:bg-foreground/[0.04] focus-visible:outline-none disabled:opacity-50"
                       >
                         <Avatar name={m.member_name || m.member_email} size="sm" />
                         <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-2">
+                          <span className="flex flex-wrap items-center gap-1.5">
                             <span className="truncate text-[13px] font-medium text-foreground">
                               {m.member_name || "—"}
                             </span>
                             <Badge tone={statusTone(m.member_status)} size="sm">
                               {titleCase(m.member_status)}
                             </Badge>
+                            <StatusBadges item={m} />
                           </span>
-                          <span className="truncate text-[11px] text-muted-foreground">
+                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                             {m.member_email}
                           </span>
                         </span>
-                        <span className="flex items-center gap-1.5 text-[11px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100">
-                          {i === 0 && <kbd className="font-mono text-[10px] text-muted-foreground">↵</kbd>}
+                        <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                          {i === 0 && (
+                            <kbd className="rounded border border-foreground/15 bg-secondary px-1 font-mono text-[10px] text-muted-foreground">
+                              ↵
+                            </kbd>
+                          )}
                           <CheckIcon className="h-4 w-4" />
                         </span>
                       </button>
@@ -318,22 +413,22 @@ export default function AttendancePage() {
         </div>
 
         {/* ── Today ──────────────────────────────────────────────────── */}
-        <Card className="flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between border-b border-foreground/10 px-5 py-4">
-            <div>
-              <h2 className="text-[15px] font-semibold text-foreground">Today</h2>
-              <p className="mt-0.5 text-[12px] text-muted-foreground">
-                {today ? `${today.length} visit${today.length === 1 ? "" : "s"} logged` : "Loading…"}
-              </p>
-            </div>
-            <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-foreground/10 bg-surface px-3">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+        <Card className="flex flex-col overflow-hidden lg:col-span-1">
+          <CardHeader
+            title="Today"
+            subtitle={
+              today ? `${today.length} visit${today.length === 1 ? "" : "s"} logged` : "Loading…"
+            }
+            action={
+              <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-foreground/10 bg-surface px-3">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Live</span>
               </span>
-              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Live</span>
-            </span>
-          </div>
+            }
+          />
 
           {today === null ? (
             <div className="p-5">
@@ -345,23 +440,28 @@ export default function AttendancePage() {
               hint="Visits logged here or scanned from the app will appear in real time."
             />
           ) : (
-            <ul className="max-h-[calc(100vh-22rem)] divide-y divide-foreground/10 overflow-y-auto">
+            <ul className="max-h-[calc(100vh-22rem)] divide-y divide-[var(--border)] overflow-y-auto">
               {today.map((a) => (
-                <li key={a.id} className="flex animate-slide-up items-center gap-3 px-5 py-3">
+                <li
+                  key={a.id}
+                  className="flex animate-slide-up items-center gap-3 px-5 py-2.5 transition-colors hover:bg-foreground/[0.03]"
+                >
                   <Avatar name={a.member_name || "?"} size="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-foreground">{a.member_name || "—"}</p>
-                    <p className="text-[11px] text-muted-foreground">{clock(a.checked_in_at)}</p>
+                    <p className="truncate text-[13px] font-medium text-foreground">
+                      {a.member_name || "—"}
+                    </p>
+                    <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d={METHOD_ICON[a.method] ?? METHOD_ICON.manual} />
+                        </svg>
+                        {titleCase(a.method)} · {clock(a.checked_in_at)}
+                      </span>
+                      <StatusBadges item={a} />
+                    </p>
                   </div>
-                  <Badge tone="neutral" size="sm">
-                    <span className="inline-flex items-center gap-1">
-                      <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d={METHOD_ICON[a.method] ?? METHOD_ICON.manual} />
-                      </svg>
-                      {titleCase(a.method)}
-                    </span>
-                  </Badge>
-                  <span className="w-16 text-right text-[11px] tabular-nums text-muted-foreground">
+                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                     {relTime(a.checked_in_at, now)}
                   </span>
                 </li>
@@ -386,26 +486,29 @@ function CheckInReceipt({
   res: CheckInOut;
   onDismiss: () => void;
 }) {
-  const flags = flagsFor(res);
+  const who = name || res.member_name || "member";
+  const showBadges = res.payment_due || res.birthday_today || res.at_risk;
   return (
     <Card className="animate-slide-up overflow-hidden border-success-border">
-      <div className="flex items-start gap-3 bg-success-bg px-5 py-4">
-        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-success text-white">
-          <CheckIcon className="h-4 w-4" />
+      <div className="flex items-start gap-3.5 bg-success-bg px-5 py-4">
+        <span className="relative shrink-0">
+          <Avatar name={who} size="md" />
+          <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[var(--success-bg)] bg-success text-white">
+            <CheckIcon className="h-3 w-3" />
+          </span>
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-foreground">
-            Checked in {name || res.member_name || "member"}
-          </p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <p className="text-[14px] font-semibold text-foreground">Checked in {who}</p>
+          {res.hint && (
+            <p className="mt-1 text-[12.5px] font-medium text-foreground/90">{res.hint}</p>
+          )}
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
             {clock(res.checked_in_at)} · {titleCase(res.method)} ·{" "}
             {res.visits_today === 1 ? "first visit today" : `visit #${res.visits_today} today`}
           </p>
-          {flags.length > 0 && (
+          {showBadges && (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {flags.map((f) => (
-                <Badge key={f.label} tone={f.tone} size="sm">{f.label}</Badge>
-              ))}
+              <StatusBadges item={res} />
             </div>
           )}
         </div>
@@ -413,14 +516,34 @@ function CheckInReceipt({
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+          className="shrink-0 cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
         >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
     </Card>
+  );
+}
+
+/** A keyboard-shortcut legend chip: keycap + its action. */
+function Hint({ k, children }: { k: string; children: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <kbd className="rounded border border-foreground/15 bg-secondary px-1.5 py-0.5 font-mono text-[10px] leading-none text-muted-foreground">
+        {k}
+      </kbd>
+      {children}
+    </span>
+  );
+}
+
+function MetricIcon({ d }: { d: string }) {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
   );
 }
 

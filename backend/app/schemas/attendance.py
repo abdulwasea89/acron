@@ -35,14 +35,21 @@ class CheckInOut(BaseModel):
     # ---- status on check-in ----
     membership_status: str
     payment_due: bool
+    amount_due: float | None = None
+    currency: str | None = None
     birthday_today: bool
     days_since_last_visit: int | None
     at_risk: bool
     visits_today: int
+    hint: str | None = None
 
 
 class AttendanceOut(BaseModel):
-    """A single visit as shown in lists and member history."""
+    """A single visit as shown in lists and member history.
+
+    Today's feed carries the durable status flags (dues, birthday) and the
+    front-desk hint; the per-member history leaves them unset.
+    """
 
     id: str
     member_id: str
@@ -52,6 +59,15 @@ class AttendanceOut(BaseModel):
     source: str
     class_session_id: str | None = None
     note: str | None = None
+
+    membership_status: str | None = None
+    payment_due: bool = False
+    amount_due: float | None = None
+    currency: str | None = None
+    birthday_today: bool = False
+    at_risk: bool = False
+    days_since_last_visit: int | None = None
+    hint: str | None = None
 
 
 class AttendanceSummary(BaseModel):
@@ -66,11 +82,19 @@ class AttendanceSummary(BaseModel):
 
 
 class AttendanceMember(BaseModel):
-    """A member search hit for the check-in box (name/email/phone)."""
+    """A member search hit for the check-in box, with its status card."""
 
     member_id: str
     member_name: str | None
     member_email: str
     member_status: str
     phone: str | None = None
+
+    payment_due: bool = False
+    amount_due: float | None = None
+    currency: str | None = None
+    birthday_today: bool = False
+    at_risk: bool = False
+    days_since_last_visit: int | None = None
+    hint: str | None = None
 

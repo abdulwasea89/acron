@@ -724,15 +724,26 @@ export interface AttendanceOut {
   source: string;
   class_session_id: string | null;
   note: string | null;
+  membership_status?: string | null;
+  payment_due?: boolean;
+  amount_due?: number | null;
+  currency?: string | null;
+  birthday_today?: boolean;
+  at_risk?: boolean;
+  days_since_last_visit?: number | null;
+  hint?: string | null;
 }
 
 export interface CheckInOut extends AttendanceOut {
   membership_status: string;
   payment_due: boolean;
+  amount_due: number | null;
+  currency: string | null;
   birthday_today: boolean;
   days_since_last_visit: number | null;
   at_risk: boolean;
   visits_today: number;
+  hint: string | null;
 }
 
 export interface AttendanceSummary {
@@ -748,4 +759,11 @@ export interface AttendanceMember {
   member_email: string;
   member_status: string;
   phone: string | null;
+  payment_due: boolean;
+  amount_due: number | null;
+  currency: string | null;
+  birthday_today: boolean;
+  at_risk: boolean;
+  days_since_last_visit: number | null;
+  hint: string | null;
 }

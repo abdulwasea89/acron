@@ -11,7 +11,7 @@ still a signal — so the caller records and lets the flags speak (plan decision
 
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
@@ -23,11 +23,13 @@ from app.core.constants import (
     AttendanceMethod,
     AttendanceSource,
     MemberStatus,
+    SubscriptionStatus,
 )
 from app.core.security import now_utc
 from app.models.attendance import Attendance
 from app.models.membership import OrganizationMember
 from app.models.organization import Organization
+from app.models.subscription import Subscription
 from app.models.user import User
 from app.realtime import events
 from app.services.audit_service import record_audit
@@ -101,6 +103,143 @@ async def _visits_today(
     )
 
 
+def _local_today(tz_name: str | None) -> date:
+    tz = _tz(tz_name)
+    return now_utc().replace(tzinfo=timezone.utc).astimezone(tz).date()
+
+
+def _birthday_today(user: User | None, tz_name: str | None) -> bool:
+    if not user or not user.date_of_birth:
+        return False
+    today = _local_today(tz_name)
+    try:
+        return user.date_of_birth.replace(year=today.year) == today
+    except ValueError:
+        # Feb 29 in a non-leap year: "not today" is the simplest correct answer.
+        return False
+
+
+def _status_value(member: OrganizationMember) -> str:
+    return member.member_status.value if hasattr(member.member_status, "value") else str(member.member_status)
+
+
+def _hint(
+    *,
+    membership_status: str,
+    payment_due: bool,
+    amount_due: float | None,
+    currency: str | None,
+    birthday_today: bool,
+    at_risk: bool,
+    days_since: int | None,
+) -> str | None:
+    """One front-desk line: what to say or do for this arrival (Section 1.3)."""
+
+    if membership_status == MemberStatus.EXPIRED.value:
+        return "Membership expired — collect payment"
+    if payment_due:
+        if amount_due is not None:
+            return f"Renewal due — {currency or ''}{amount_due:g}"
+        return "Dues owed — collect payment"
+    if birthday_today:
+        return "Birthday today — wish them"
+    if at_risk and days_since is not None:
+        return f"Back after {days_since} days — welcome them"
+    if at_risk and days_since is None:
+        return "First visit — welcome them"
+    return None
+
+
+def _build_status(
+    *,
+    member: OrganizationMember,
+    user: User | None,
+    tz_name: str | None,
+    last_visit: datetime | None,
+    renewal: tuple[float | None, str | None] | None,
+) -> dict:
+    """The status card for one arrival, from already-loaded rows.
+
+    Pure over its inputs so it can be reused per-row in a batch (search, today)
+    without extra queries.
+    """
+
+    membership_status = _status_value(member)
+    payment_due = member.member_status in _DUE_STATES
+    amount_due, currency = renewal if renewal else (None, None)
+    birthday_today = _birthday_today(user, tz_name)
+    days_since = (now_utc() - last_visit).days if last_visit is not None else None
+
+    at_risk = days_since is not None and days_since >= _RISK_DAYS
+    if days_since is None and member.joined_at is not None:
+        at_risk = (now_utc() - member.joined_at).days >= _RISK_DAYS
+
+    return {
+        "membership_status": membership_status,
+        "payment_due": payment_due,
+        "amount_due": amount_due,
+        "currency": currency,
+        "birthday_today": birthday_today,
+        "days_since_last_visit": days_since,
+        "at_risk": at_risk,
+        "hint": _hint(
+            membership_status=membership_status,
+            payment_due=payment_due,
+            amount_due=amount_due,
+            currency=currency,
+            birthday_today=birthday_today,
+            at_risk=at_risk,
+            days_since=days_since,
+        ),
+    }
+
+
+async def _last_visits(
+    session: AsyncSession, *, org_id: str, member_ids: list[str], before: datetime | None = None
+) -> dict[str, datetime]:
+    """Max visit time per member, batched (one query)."""
+
+    if not member_ids:
+        return {}
+    stmt = (
+        select(Attendance.member_id, func.max(Attendance.checked_in_at))
+        .where(
+            Attendance.organization_id == org_id,
+            Attendance.member_id.in_(member_ids),
+        )
+        .group_by(Attendance.member_id)
+    )
+    if before is not None:
+        stmt = stmt.where(Attendance.checked_in_at < before)
+    rows = (await session.execute(stmt)).all()
+    return {member_id: last for member_id, last in rows if last is not None}
+
+
+async def _renewals(
+    session: AsyncSession, *, org_id: str, member_ids: list[str]
+) -> dict[str, tuple[float | None, str | None]]:
+    """Latest grace/expired subscription (amount, currency) per member, batched."""
+
+    if not member_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(Subscription)
+            .where(
+                Subscription.organization_id == org_id,
+                Subscription.member_id.in_(member_ids),
+                Subscription.status.in_([SubscriptionStatus.GRACE, SubscriptionStatus.EXPIRED]),
+            )
+            .order_by(Subscription.created_at.desc())
+        )
+    ).scalars().all()
+    out: dict[str, tuple[float | None, str | None]] = {}
+    for s in rows:
+        if s.member_id not in out:  # newest first -> first hit wins
+            out[s.member_id] = (s.price_snapshot, s.currency)
+    return out
+
+
 async def _status(
     session: AsyncSession,
     *,
@@ -112,45 +251,12 @@ async def _status(
 ) -> dict:
     """Status-on-check-in flags, measured against visits *before* ``before_at``."""
 
-    last = (
-        await session.execute(
-            select(func.max(Attendance.checked_in_at)).where(
-                Attendance.organization_id == org_id,
-                Attendance.member_id == member.id,
-                Attendance.checked_in_at < before_at,
-            )
-        )
-    ).scalar_one_or_none()
-
-    days_since = (now_utc() - last).days if last is not None else None
-
-    tz = _tz(tz_name)
-    today = now_utc().replace(tzinfo=timezone.utc).astimezone(tz).date()
-    birthday_today = False
-    if user and user.date_of_birth:
-        dob = user.date_of_birth
-        try:
-            birthday_today = dob.replace(year=today.year) == today
-        except ValueError:
-            # Feb 29 in a non-leap year: treat as a match on Feb 28/Mar 1 is
-            # arguable; simplest correct answer is "not today" for this year.
-            birthday_today = False
-
-    # First-ever visit for a member who joined long ago is itself a warning.
-    at_risk = days_since is not None and days_since >= _RISK_DAYS
-    if days_since is None and member.joined_at is not None:
-        joined_days = (now_utc() - member.joined_at).days
-        at_risk = joined_days >= _RISK_DAYS
-
-    return {
-        "membership_status": member.member_status.value
-        if hasattr(member.member_status, "value")
-        else str(member.member_status),
-        "payment_due": member.member_status in _DUE_STATES,
-        "birthday_today": birthday_today,
-        "days_since_last_visit": days_since,
-        "at_risk": at_risk,
-    }
+    last = await _last_visits(session, org_id=org_id, member_ids=[member.id], before=before_at)
+    renewal = await _renewals(session, org_id=org_id, member_ids=[member.id])
+    return _build_status(
+        member=member, user=user, tz_name=tz_name,
+        last_visit=last.get(member.id), renewal=renewal.get(member.id),
+    )
 
 
 async def record_checkin(
@@ -276,7 +382,7 @@ def _out(
 async def list_today(
     session: AsyncSession, *, org_id: str, tz_name: str | None, limit: int = 200
 ) -> list[dict]:
-    """Today's check-ins with member names, newest first."""
+    """Today's check-ins with member names and their status card, newest first."""
 
     start, end = day_bounds(tz_name)
     rows = (
@@ -293,7 +399,19 @@ async def list_today(
             .limit(limit)
         )
     ).all()
-    return [_out(r, member=m, user=u, status={}) for r, m, u in rows]
+
+    member_ids = list({m.id for _r, m, _u in rows})
+    prior = await _last_visits(session, org_id=org_id, member_ids=member_ids, before=start)
+    renewals = await _renewals(session, org_id=org_id, member_ids=member_ids)
+
+    out: list[dict] = []
+    for r, m, u in rows:
+        status = _build_status(
+            member=m, user=u, tz_name=tz_name,
+            last_visit=prior.get(m.id), renewal=renewals.get(m.id),
+        )
+        out.append(_out(r, member=m, user=u, status=status))
+    return out
 
 
 async def list_for_member(
@@ -414,7 +532,7 @@ async def summary_for_org(session: AsyncSession, *, org_id: str) -> dict:
 
 
 async def search_members(
-    session: AsyncSession, *, org_id: str, q: str, limit: int = 8
+    session: AsyncSession, *, org_id: str, q: str, tz_name: str | None = None, limit: int = 8
 ) -> list[dict]:
     """Search everyone in the org by name/email/phone for the check-in box.
 
@@ -423,6 +541,9 @@ async def search_members(
     a workout is checkable too (same rule as the cash-logging search). Gated by
     ``TAKE_ATTENDANCE`` at the route layer, which is why this does not reuse the
     admin member directory.
+
+    Each hit carries its status card (dues / birthday / at-risk + hint) so the
+    desk sees it before tapping.
     """
 
     term = q.strip()
@@ -443,15 +564,29 @@ async def search_members(
             .limit(max(1, min(limit, 25)))
         )
     ).all()
-    return [
-        {
+
+    member_ids = [m.id for m, _u in rows]
+    last = await _last_visits(session, org_id=org_id, member_ids=member_ids)
+    renewals = await _renewals(session, org_id=org_id, member_ids=member_ids)
+
+    out: list[dict] = []
+    for m, u in rows:
+        status = _build_status(
+            member=m, user=u, tz_name=tz_name,
+            last_visit=last.get(m.id), renewal=renewals.get(m.id),
+        )
+        out.append({
             "member_id": m.id,
             "member_name": _name(m, u),
             "member_email": u.email,
-            "member_status": m.member_status.value
-            if hasattr(m.member_status, "value")
-            else str(m.member_status),
             "phone": m.phone,
-        }
-        for m, u in rows
-    ]
+            "member_status": status["membership_status"],
+            "payment_due": status["payment_due"],
+            "amount_due": status["amount_due"],
+            "currency": status["currency"],
+            "birthday_today": status["birthday_today"],
+            "at_risk": status["at_risk"],
+            "days_since_last_visit": status["days_since_last_visit"],
+            "hint": status["hint"],
+        })
+    return out
