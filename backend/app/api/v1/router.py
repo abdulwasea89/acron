@@ -15,6 +15,7 @@ from app.api.v1.routes import (
     audit,
     auth,
     cash,
+    celebrations,
     classes,
     companies,
     front_desk,
@@ -37,6 +38,7 @@ from app.api.v1.routes import (
     space,
     staff,
     webhooks,
+    winback,
     ws,
 )
 
@@ -63,6 +65,8 @@ api_router.include_router(payroll.router, prefix="/payroll", tags=["payroll"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(retention.router, prefix="/retention", tags=["retention"])
 api_router.include_router(ladder.router, prefix="/inactivity-ladder", tags=["inactivity-ladder"])
+api_router.include_router(celebrations.router, prefix="/celebrations", tags=["celebrations"])
+api_router.include_router(winback.router, prefix="/win-back", tags=["win-back"])
 api_router.include_router(assistant.router, prefix="/assistant", tags=["assistant"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])

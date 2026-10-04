@@ -7,6 +7,7 @@ Importing this package imports every table module so that
 from app.models.attendance import Attendance
 from app.models.audit_log import AuditLog
 from app.models.cash import CashReconciliation
+from app.models.celebration import MemberCelebration
 from app.models.class_session import ClassBooking, ClassSession
 from app.models.company import Company
 from app.models.company_contract import CompanyContract
@@ -32,6 +33,7 @@ from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.verification import VerificationToken
 from app.models.visitor import Locker, Visitor
+from app.models.winback import WinBackAttempt
 
 __all__ = [
     "AuditLog",
@@ -52,6 +54,7 @@ __all__ = [
     "Invoice",
     "MemberTrainer",
     "MembershipPlan",
+    "MemberCelebration",
     "Notification",
     "OnboardingJourney",
     "OnboardingMilestoneProgress",
@@ -71,4 +74,5 @@ __all__ = [
     "VerificationToken",
     "Visitor",
     "Locker",
+    "WinBackAttempt",
 ]

@@ -393,6 +393,13 @@ async def _activate_membership(
 
     await onboarding_service.start_journey(session, org_id=org.id, member_id=member.id)
 
+    # A lapsed member coming back resolves any open win-back (#36).
+    from app.services import winback_service
+
+    await winback_service.mark_recovered(
+        session, org_id=org.id, member_id=member.id, amount=payment.amount
+    )
+
     payment.subscription_id = sub.id
     session.add(payment)
     return sub

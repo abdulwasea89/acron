@@ -151,6 +151,26 @@ def inactivity_ladder_task() -> dict:
     return _run(_for_each_org(_per_org))
 
 
+@celery_app.task(name="retention.celebrations")
+def celebrations_task() -> dict:
+    from app.workers.celebrations import run_celebrations
+
+    async def _per_org(session, org_id):
+        return await run_celebrations(session, org_id=org_id)
+
+    return _run(_for_each_org(_per_org))
+
+
+@celery_app.task(name="retention.win_back")
+def win_back_task() -> dict:
+    from app.workers.celebrations import run_win_back
+
+    async def _per_org(session, org_id):
+        return await run_win_back(session, org_id=org_id)
+
+    return _run(_for_each_org(_per_org))
+
+
 # ----------------------------------------------------------------- schedule
 celery_app.conf.beat_schedule = {
     "reconcile-stuck-payments": {
@@ -180,5 +200,13 @@ celery_app.conf.beat_schedule = {
     "inactivity-ladder": {
         "task": "retention.inactivity_ladder",
         "schedule": crontab(minute=45, hour=6),  # daily 06:45 UTC
+    },
+    "celebrations": {
+        "task": "retention.celebrations",
+        "schedule": crontab(minute=0, hour=6),  # daily 06:00 UTC
+    },
+    "win-back": {
+        "task": "retention.win_back",
+        "schedule": crontab(minute=0, hour=7, day_of_week=1),  # Mondays 07:00 UTC
     },
 }

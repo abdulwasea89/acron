@@ -110,9 +110,13 @@ async def log_cash_payment(
     session.add(member)
 
     # Start the 90-day onboarding journey (#32). Idempotent per member.
-    from app.services import onboarding_service
+    from app.services import onboarding_service, winback_service
 
     await onboarding_service.start_journey(session, org_id=org_id, member_id=member.id)
+    # A lapsed member paying in the gym resolves any open win-back (#36).
+    await winback_service.mark_recovered(
+        session, org_id=org_id, member_id=member.id, amount=data.amount
+    )
 
     # Receipt PDF (Section 11.1 step "Receipt PDF auto-generated"). The document
     # is rendered on demand from the payment row rather than stored, so the

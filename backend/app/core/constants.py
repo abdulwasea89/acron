@@ -298,6 +298,8 @@ class NotificationKind(str, Enum):
     MEMBERSHIP = "membership"      # membership expiry / grace / activation
     CASH = "cash"                  # reconciliation / discrepancy alerts
     ONBOARDING = "onboarding"      # 90-day new-member journey (#32)
+    CELEBRATION = "celebration"    # birthday / anniversary / milestone (#36)
+    WINBACK = "win_back"           # lapsed-member win-back (#36)
     SYSTEM = "system"              # platform / misc
 
 
@@ -324,6 +326,22 @@ class LadderStatus(str, Enum):
     FIRED = "fired"            # the intervention was dispatched
     COMPLETED = "completed"    # staff closed the follow-up
     SKIPPED = "skipped"        # staff dismissed it
+
+
+class CelebrationKind(str, Enum):
+    """A loyalty moment we acknowledge for a member (#36)."""
+
+    BIRTHDAY = "birthday"
+    ANNIVERSARY = "anniversary"
+    VISITS = "visits"
+
+
+class WinBackStatus(str, Enum):
+    """State of one win-back outreach to a lapsed member (#36)."""
+
+    CONTACTED = "contacted"    # offer sent, awaiting response
+    RECOVERED = "recovered"    # member reactivated
+    LOST = "lost"              # gave up / manually closed
 
 
 # SaaS tier -> member cap (None = unlimited). Mirrors Section 3.1.
