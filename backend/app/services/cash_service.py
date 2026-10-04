@@ -109,6 +109,11 @@ async def log_cash_payment(
         member.joined_at = now_utc()
     session.add(member)
 
+    # Start the 90-day onboarding journey (#32). Idempotent per member.
+    from app.services import onboarding_service
+
+    await onboarding_service.start_journey(session, org_id=org_id, member_id=member.id)
+
     # Receipt PDF (Section 11.1 step "Receipt PDF auto-generated"). The document
     # is rendered on demand from the payment row rather than stored, so the
     # download link stays valid without an object store in the loop.

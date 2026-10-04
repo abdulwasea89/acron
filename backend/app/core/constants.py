@@ -297,7 +297,33 @@ class NotificationKind(str, Enum):
     TASK = "task"                  # task assigned
     MEMBERSHIP = "membership"      # membership expiry / grace / activation
     CASH = "cash"                  # reconciliation / discrepancy alerts
+    ONBOARDING = "onboarding"      # 90-day new-member journey (#32)
     SYSTEM = "system"              # platform / misc
+
+
+class OnboardingStatus(str, Enum):
+    """Lifecycle of a member's 90-day onboarding journey (#32)."""
+
+    ACTIVE = "active"          # journey running
+    PAUSED = "paused"          # member frozen / admin paused
+    COMPLETED = "completed"    # reached day 90
+    OPTED_OUT = "opted_out"    # cancelled membership mid-journey
+
+
+class MilestoneStatus(str, Enum):
+    """Per-member state of one onboarding milestone."""
+
+    PENDING = "pending"        # surfaced to the member/staff, not yet done
+    COMPLETED = "completed"    # member or staff closed it
+    SKIPPED = "skipped"        # member skipped it
+
+
+class LadderStatus(str, Enum):
+    """Per-member state of one inactivity-ladder rung (#35)."""
+
+    FIRED = "fired"            # the intervention was dispatched
+    COMPLETED = "completed"    # staff closed the follow-up
+    SKIPPED = "skipped"        # staff dismissed it
 
 
 # SaaS tier -> member cap (None = unlimited). Mirrors Section 3.1.

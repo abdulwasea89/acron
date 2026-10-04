@@ -121,6 +121,36 @@ def weekly_spot_audit_task() -> dict:
     return _run(_for_each_org(_per_org))
 
 
+@celery_app.task(name="onboarding.daily_progression")
+def onboarding_daily_progression_task() -> dict:
+    from app.workers.onboarding import run_onboarding_progression
+
+    async def _per_org(session, org_id):
+        return await run_onboarding_progression(session, org_id=org_id)
+
+    return _run(_for_each_org(_per_org))
+
+
+@celery_app.task(name="retention.daily_sweep")
+def retention_daily_sweep_task() -> dict:
+    from app.workers.retention import run_retention_sweep
+
+    async def _per_org(session, org_id):
+        return await run_retention_sweep(session, org_id=org_id)
+
+    return _run(_for_each_org(_per_org))
+
+
+@celery_app.task(name="retention.inactivity_ladder")
+def inactivity_ladder_task() -> dict:
+    from app.workers.retention import run_inactivity_ladder
+
+    async def _per_org(session, org_id):
+        return await run_inactivity_ladder(session, org_id=org_id)
+
+    return _run(_for_each_org(_per_org))
+
+
 # ----------------------------------------------------------------- schedule
 celery_app.conf.beat_schedule = {
     "reconcile-stuck-payments": {
@@ -138,5 +168,17 @@ celery_app.conf.beat_schedule = {
     "weekly-spot-audit": {
         "task": "receipts.weekly_spot_audit",
         "schedule": crontab(minute=0, hour=3, day_of_week=1),  # Mondays 03:00 UTC
+    },
+    "onboarding-daily-progression": {
+        "task": "onboarding.daily_progression",
+        "schedule": crontab(minute=15, hour=6),  # daily 06:15 UTC
+    },
+    "retention-daily-sweep": {
+        "task": "retention.daily_sweep",
+        "schedule": crontab(minute=30, hour=6),  # daily 06:30 UTC
+    },
+    "inactivity-ladder": {
+        "task": "retention.inactivity_ladder",
+        "schedule": crontab(minute=45, hour=6),  # daily 06:45 UTC
     },
 }

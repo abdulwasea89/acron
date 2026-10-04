@@ -228,10 +228,24 @@ async def _member_churn_evidence(ctx: AgentContext) -> tuple[str, str] | None:
     if not statuses:
         return None
     evidence = f"Status split: {_rows(statuses)}. Cancelled in the last 90 days: {left}."
+
+    # The scored model (#34): name the members drifting and the top reason, so
+    # the model reasons over a ranked list rather than a raw status count.
+    from app.services.retention_service import risk_roster
+
+    risks = await risk_roster(session, org_id=org, min_score=1, limit=5)
+    if risks:
+        ranked = "; ".join(
+            f"{r.name or r.member_id} — {r.score}/100"
+            + (f" ({r.reasons[0].label})" if r.reasons else "")
+            for r in risks
+        )
+        evidence += f" Top churn-risk members: {ranked}."
+
     return evidence, (
-        "You are a gym retention analyst. Given the org's membership status split, name the "
-        "churn signals actually present and the segments most at risk, and say what the single "
-        "highest-leverage retention action would be."
+        "You are a gym retention analyst. Given the org's membership status split and the "
+        "scored churn-risk list, name the churn signals actually present and the segments most "
+        "at risk, and say what the single highest-leverage retention action would be."
     )
 
 

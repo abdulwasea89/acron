@@ -387,6 +387,12 @@ async def _activate_membership(
         member.joined_at = now_utc()
     session.add(member)
 
+    # Start the 90-day onboarding journey (#32). Idempotent: a renewal returns
+    # the member's existing journey rather than restarting it.
+    from app.services import onboarding_service
+
+    await onboarding_service.start_journey(session, org_id=org.id, member_id=member.id)
+
     payment.subscription_id = sub.id
     session.add(payment)
     return sub

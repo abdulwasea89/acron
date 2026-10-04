@@ -13,11 +13,13 @@ from app.models.company_contract import CompanyContract
 from app.models.conversation import Conversation
 from app.models.conversation_message import ConversationMessage
 from app.models.idempotency_key import IdempotencyKey
+from app.models.inactivity_ladder import InactivityLadderProgress, InactivityLadderRung
 from app.models.inbox import InboxConversation, InboxMessage
 from app.models.invoice import Invoice
 from app.models.member_trainer import MemberTrainer
 from app.models.membership import OrganizationMember
 from app.models.notification import Notification
+from app.models.onboarding import OnboardingJourney, OnboardingMilestoneProgress
 from app.models.organization import Organization
 from app.models.payment import Payment
 from app.models.payroll import PayAdvance, PayrollEntry, PayrollRun
@@ -43,12 +45,16 @@ __all__ = [
     "Conversation",
     "ConversationMessage",
     "IdempotencyKey",
+    "InactivityLadderProgress",
+    "InactivityLadderRung",
     "InboxConversation",
     "InboxMessage",
     "Invoice",
     "MemberTrainer",
     "MembershipPlan",
     "Notification",
+    "OnboardingJourney",
+    "OnboardingMilestoneProgress",
     "Organization",
     "OrganizationMember",
     "PayAdvance",

@@ -48,6 +48,9 @@ class Capability(str, Enum):
     MANAGE_INBOX = "manage_inbox"            # reply, assign, change status
     MANAGE_VISITORS = "manage_visitors"      # walk-ins, day passes, guest log, lockers
 
+    # ---- Retention / churn (#33, #34) ----
+    VIEW_RETENTION = "view_retention"        # attendance-drop + churn-risk roster
+
 
 # Capability -> set of roles allowed. Mirrors the Section 2 table.
 _MATRIX: dict[Capability, set[Role]] = {
@@ -78,6 +81,7 @@ _MATRIX: dict[Capability, set[Role]] = {
     Capability.VIEW_INBOX: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
     Capability.MANAGE_INBOX: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
     Capability.MANAGE_VISITORS: {Role.OWNER, Role.MANAGER, Role.FRONT_DESK},
+    Capability.VIEW_RETENTION: {Role.OWNER, Role.MANAGER},
 }
 
 # Per-industry deltas over the base matrix (multi-industry Phase 0). The gym
