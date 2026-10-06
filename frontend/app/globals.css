@@ -629,6 +629,67 @@ body {
   @keyframes sheet-out-left { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-100%); } }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Sidebar tab switching — content crossfade + sliding pill.
+
+   Fires only for navigations tagged transitionTypes=["tab"] (the Overview
+   tabs: Dashboard / Assistant / Analytics). Two named view-transition groups
+   participate:
+
+   - `app-content` — the page region inside <ViewTransition> (app layout).
+     Old content leaves fast so it doesn't compete for attention; new content
+     arrives a beat later with a small rise, overlapping for a crossfade
+     rather than a cut.
+   - `sidebar-tab` — the selection pill (Sidebar.tsx). It glides between tabs
+     as its own group instead of riding the root snapshot.
+
+   The root group is pinned (animation: none) so the chrome — sidebar,
+   mobile header, assistant dock — stays a fixed reference point instead of
+   crossfading with the content. Only the content column moves.
+
+   Easing is the house Apple curve throughout: critically damped (damping
+   1.0) at a ~0.4s response — fast off the line, no overshoot, long soft
+   settle. Reduced motion is zeroed below; the global `*` rule can't reach
+   ::view-transition-* pseudos, so they need their own override. */
+@keyframes tab-exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes tab-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(app-content) {
+  animation: tab-exit 140ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(app-content) {
+  animation: tab-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
+}
+::view-transition-group(app-content) {
+  animation-duration: 360ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-group(sidebar-tab) {
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+  }
+}
+
 .skeleton {
   background: linear-gradient(90deg, var(--border) 25%, var(--border-strong) 50%, var(--border) 75%);
   background-size: 200% 100%;

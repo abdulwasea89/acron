@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
 
+  experimental: {
+    // Lets <ViewTransition> (app/app/layout.tsx) run navigations through the
+    // browser's View Transitions API. Scoped per-link via transitionTypes, so
+    // only the sidebar Overview tabs crossfade; every other navigation is
+    // untouched (default: "none").
+    viewTransition: true,
+  },
+
   /* config options here */
   // reactCompiler runs via a Babel plugin on this Next version (16.2.10) — no
   // Rust port yet. It was pinning dev-server CPU (~62%) and thrashing disk on

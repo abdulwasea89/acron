@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { OrgSwitcher } from "./OrgSwitcher";
@@ -109,15 +109,75 @@ function useLogout() {
 
 export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProps) {
   const pathname = usePathname();
-  const items = navFor(industry);
+  const items = useMemo(() => navFor(industry), [industry]);
   const logout = useLogout();
   const settings = useSettingsDialog();
   const chats = useAssistantChats();
   const [collapsed, setCollapsed] = useState(false);
 
-  const quickItems = items.filter((item) => NAV_GROUP_BY_HREF[item.href] === QUICK_GROUP);
+  const quickItems = useMemo(
+    () => items.filter((item) => NAV_GROUP_BY_HREF[item.href] === QUICK_GROUP),
+    [items],
+  );
   const isActive = (item: NavItem) =>
     item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
+
+  // ── Sliding selection pill (Overview tabs) ──────────────────────────────
+  // One shared indicator instead of each link painting its own active
+  // background: the highlight *glides* between tabs the way native tab bars
+  // do, rather than popping into place. Geometry is measured right after
+  // commit (the active label mounts synchronously, so the rect is already
+  // final); the pill's CSS transition does the travel on a critically damped
+  // curve — damping 1.0, response ~0.4s — no overshoot, long soft settle.
+  const quickRowRef = useRef<HTMLDivElement | null>(null);
+  const pillRef = useRef<HTMLSpanElement | null>(null);
+  const quickLinkRefs = useRef(new Map<string, HTMLAnchorElement>());
+  const pillPlaced = useRef(false);
+
+  const placePill = useCallback(() => {
+    const row = quickRowRef.current;
+    const pill = pillRef.current;
+    if (!row || !pill) return;
+    const active = quickItems.find((item) =>
+      item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href),
+    );
+    const target = active ? quickLinkRefs.current.get(active.href) : undefined;
+    if (!target) {
+      // Nothing in this group is active (e.g. /app/members) — fade the pill
+      // out in place; its last position is where it should reappear from.
+      pill.style.opacity = "0";
+      return;
+    }
+    const rowBox = row.getBoundingClientRect();
+    const box = target.getBoundingClientRect();
+    // First placement snaps (no slide-in from 0,0); everything after it
+    // animates. Same easing as the view-transition group in globals.css so
+    // the glide is identical whether or not a view transition runs.
+    const ease = "cubic-bezier(0.22, 1, 0.36, 1)";
+    pill.style.transition = pillPlaced.current
+      ? `transform 420ms ${ease}, width 420ms ${ease}, height 420ms ${ease}, opacity 160ms ease-out`
+      : "none";
+    pill.style.opacity = "1";
+    pill.style.transform = `translate3d(${box.left - rowBox.left}px, ${box.top - rowBox.top}px, 0)`;
+    pill.style.width = `${box.width}px`;
+    pill.style.height = `${box.height}px`;
+    pillPlaced.current = true;
+  }, [pathname, quickItems]);
+
+  useLayoutEffect(() => {
+    placePill();
+  }, [placePill]);
+
+  // The row also moves while the sidebar collapses/expands (its width is
+  // transitioned over 150ms), so keep re-measuring as it resizes — the pill
+  // follows continuously instead of jumping to a stale target.
+  useEffect(() => {
+    const row = quickRowRef.current;
+    if (!row) return;
+    const observer = new ResizeObserver(() => placePill());
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [placePill]);
 
   return (
     <>
@@ -178,25 +238,45 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
           </div>
         )}
 
-        {/* Quick-icon row (Overview) */}
-        <div className={cx("flex items-center gap-0.5 px-2 pt-1", collapsed && "flex-col")}>
+        {/* Quick-icon row (Overview). The pill is the shared selection
+            highlight sitting behind the links: links are `relative` so their
+            labels/icons paint above it, and `pointer-events-none` keeps hover
+            hits on the links. `viewTransitionName` lets it glide as its own
+            group during a tab view transition (same curve in globals.css). */}
+        <div
+          ref={quickRowRef}
+          className={cx("relative flex items-center gap-0.5 px-2 pt-1", collapsed && "flex-col")}
+        >
+          <span
+            ref={pillRef}
+            aria-hidden="true"
+            style={{ viewTransitionName: "sidebar-tab" }}
+            className="pointer-events-none absolute left-0 top-0 rounded-md bg-foreground/[0.06] opacity-0"
+          />
           {quickItems.map((item) => {
             const active = isActive(item);
             return (
               <Link
                 key={item.href}
+                ref={(el) => {
+                  if (el) quickLinkRefs.current.set(item.href, el);
+                  else quickLinkRefs.current.delete(item.href);
+                }}
                 href={item.href}
                 title={item.label}
                 aria-current={active ? "page" : undefined}
+                // Tags the navigation so only these tabs trigger the
+                // content crossfade in the app layout.
+                transitionTypes={["tab"]}
                 className={cx(
-                  "flex h-8 items-center rounded-md text-sm transition-colors",
+                  "relative flex h-8 items-center rounded-md text-sm transition-colors",
                   active
-                    ? cx("gap-2 bg-foreground/[0.06] font-medium text-foreground", collapsed ? "w-8 justify-center px-0" : "px-2.5")
+                    ? cx("gap-2 font-medium text-foreground", collapsed ? "w-8 justify-center px-0" : "px-2.5")
                     : "w-8 justify-center text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
                 )}
               >
                 <Icon d={item.icon} className={cx("h-[18px] w-[18px] shrink-0", active && "text-foreground/80")} />
-                {active && !collapsed && <span>{item.label}</span>}
+                {active && !collapsed && <span className="animate-fade-in">{item.label}</span>}
               </Link>
             );
           })}
@@ -413,6 +493,9 @@ function MobileNavigation({
               href={item.href}
               ref={active ? activeRef : undefined}
               aria-current={active ? "page" : undefined}
+              transitionTypes={
+                NAV_GROUP_BY_HREF[item.href] === QUICK_GROUP ? ["tab"] : undefined
+              }
               className={chipClass}
             >
               {item.label}

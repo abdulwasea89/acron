@@ -1,4 +1,6 @@
+/// <reference types="react/canary" />
 import { redirect } from "next/navigation";
+import { ViewTransition } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { AssistantChatsProvider } from "@/components/assistant/AssistantChats";
 import { AssistantShell } from "@/components/assistant/AssistantShell";
@@ -42,8 +44,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <main className="w-full flex-1 self-center px-5 py-8 sm:px-8 lg:max-w-[1240px] lg:py-10">
                   {/* The assistant dock wraps every page here, so the prompt bar
                       is one mount for the whole shell. It stays mounted on
-                      /app/assistant too — that is where it hands a prompt over. */}
-                  <AssistantShell orgId={org.id}>{children}</AssistantShell>
+                      /app/assistant too — that is where it hands a prompt over.
+
+                      The ViewTransition names the page region: only
+                      navigations tagged transitionTypes={["tab"]} (the
+                      sidebar Overview tabs) animate, crossfading the content
+                      while the shell stays pinned. CSS lives in globals.css. */}
+                  <AssistantShell orgId={org.id}>
+                    <ViewTransition
+                      name="app-content"
+                      default="none"
+                      enter={{ default: "none", tab: "auto" }}
+                      exit={{ default: "none", tab: "auto" }}
+                    >
+                      {children}
+                    </ViewTransition>
+                  </AssistantShell>
                 </main>
               </div>
             </div>
