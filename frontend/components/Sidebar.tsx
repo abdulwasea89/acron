@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
+import { SidebarSearch } from "./SidebarSearch";
 import { SidebarChats } from "./assistant/SidebarChats";
 import { useAssistantChats } from "@/components/assistant/AssistantChats";
 import { useSettingsDialog } from "@/components/settings/SettingsProvider";
@@ -114,6 +115,20 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
   const settings = useSettingsDialog();
   const chats = useAssistantChats();
   const [collapsed, setCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // ⌘K / Ctrl+K from anywhere in the shell. The 52px rail has no room for the
+  // morphed field, so opening search there expands the sidebar first.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return;
+      e.preventDefault();
+      setCollapsed(false);
+      setSearchOpen(true);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const quickItems = useMemo(
     () => items.filter((item) => NAV_GROUP_BY_HREF[item.href] === QUICK_GROUP),
@@ -201,12 +216,17 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
             below (which also keeps it centred over the nav icons). */}
         <div
           className={cx(
-            "flex h-11 shrink-0 items-center px-2",
+            "relative flex h-11 shrink-0 items-center px-2",
             collapsed ? "justify-center" : "gap-2",
           )}
         >
           {!collapsed && (
-            <div className="min-w-0 flex-1">
+            <div
+              className={cx(
+                "min-w-0 flex-1 transition-opacity duration-200",
+                searchOpen && "pointer-events-none opacity-0",
+              )}
+            >
               <OrgSwitcher
                 currentOrgName={orgName}
                 currentOrgId={orgId}
@@ -214,9 +234,16 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
               />
             </div>
           )}
+          {/* The search control is an absolute overlay over this spacer, so the
+              row's layout is identical whether it sits as an icon or has grown
+              into the field — the collapse button never shifts. */}
+          {!collapsed && <span className="h-7 w-7 shrink-0" aria-hidden="true" />}
           <button
             type="button"
-            onClick={() => setCollapsed((v) => !v)}
+            onClick={() => {
+              setSearchOpen(false);
+              setCollapsed((v) => !v);
+            }}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
           >
@@ -224,6 +251,14 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
               <path d="M18.75 19.5l-7.5-7.5 7.5-7.5M12.75 19.5l-7.5-7.5 7.5-7.5" />
             </svg>
           </button>
+          {!collapsed && (
+            <SidebarSearch
+              open={searchOpen}
+              onOpen={() => setSearchOpen(true)}
+              onClose={() => setSearchOpen(false)}
+              items={items}
+            />
+          )}
         </div>
 
         {/* Collapsed rail: the workspace tile on its own row. */}
