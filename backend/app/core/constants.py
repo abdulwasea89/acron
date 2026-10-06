@@ -46,9 +46,9 @@ class SaasStatus(str, Enum):
 
     TRIALING = "trialing"
     ACTIVE = "active"
-    PAST_DUE = "past_due"      # failed charge, retries in progress
-    READ_ONLY = "read_only"    # grace ended (day 6)
-    SUSPENDED = "suspended"    # day 30, members locked out
+    PAST_DUE = "past_due"  # failed charge, retries in progress
+    READ_ONLY = "read_only"  # grace ended (day 6)
+    SUSPENDED = "suspended"  # day 30, members locked out
     CANCELLED = "cancelled"
     ARCHIVED = "archived"
 
@@ -141,12 +141,12 @@ class PaymentStatus(str, Enum):
 class PaymentKind(str, Enum):
     """What the payment is for."""
 
-    SAAS_SUBSCRIPTION = "saas_subscription"   # owner -> platform
-    MEMBER_FEE = "member_fee"                 # member -> gym (Connect)
-    TRAINER_PAYOUT = "trainer_payout"         # gym -> trainer
-    SPACE = "space"                           # office: company -> space provider
-    TUITION = "tuition"                       # academy: guardian -> academy
-    DAY_PASS = "day_pass"                     # walk-in -> gym (front desk, #22)
+    SAAS_SUBSCRIPTION = "saas_subscription"  # owner -> platform
+    MEMBER_FEE = "member_fee"  # member -> gym (Connect)
+    TRAINER_PAYOUT = "trainer_payout"  # gym -> trainer
+    SPACE = "space"  # office: company -> space provider
+    TUITION = "tuition"  # academy: guardian -> academy
+    DAY_PASS = "day_pass"  # walk-in -> gym (front desk, #22)
 
 
 class IdempotencyStatus(str, Enum):
@@ -162,9 +162,9 @@ class ReceiptStatus(str, Enum):
     PROCESSING = "processing"
     AUTO_APPROVED = "auto_approved"
     PENDING_REVIEW = "pending_review"
-    APPROVED = "approved"        # admin-approved
+    APPROVED = "approved"  # admin-approved
     REJECTED = "rejected"
-    REVERSED = "reversed"        # auto-approval reversed on audit
+    REVERSED = "reversed"  # auto-approval reversed on audit
 
 
 class PayrollStatus(str, Enum):
@@ -208,10 +208,10 @@ class BookingStatus(str, Enum):
 class AttendanceMethod(str, Enum):
     """How a member's gym visit was captured (Section 1.3)."""
 
-    MANUAL = "manual"        # staff searched the member and logged it
-    QR = "qr"                # scanned the member's QR code
-    APP = "app"              # member self-check-in from the app
-    CARD = "card"            # card / RFID
+    MANUAL = "manual"  # staff searched the member and logged it
+    QR = "qr"  # scanned the member's QR code
+    APP = "app"  # member self-check-in from the app
+    CARD = "card"  # card / RFID
     BIOMETRIC = "biometric"
 
 
@@ -219,9 +219,9 @@ class AttendanceSource(str, Enum):
     """Who or what created the visit row."""
 
     FRONT_DESK = "front_desk"  # staff logged it
-    SELF = "self"              # member checked themselves in
-    CLASS = "class"            # attendance recorded from a class booking
-    SYSTEM = "system"          # automated / integration
+    SELF = "self"  # member checked themselves in
+    CLASS = "class"  # attendance recorded from a class booking
+    SYSTEM = "system"  # automated / integration
 
 
 class Channel(str, Enum):
@@ -245,30 +245,30 @@ class ConversationStatus(str, Enum):
     """Shared-inbox thread state."""
 
     OPEN = "open"
-    PENDING = "pending"      # waiting on the customer
+    PENDING = "pending"  # waiting on the customer
     SNOOZED = "snoozed"
     RESOLVED = "resolved"
 
 
 class MessageDirection(str, Enum):
-    INBOUND = "inbound"      # customer -> gym
-    OUTBOUND = "outbound"    # gym -> customer
+    INBOUND = "inbound"  # customer -> gym
+    OUTBOUND = "outbound"  # gym -> customer
 
 
 class SenderKind(str, Enum):
     """Who authored an inbox message."""
 
-    CONTACT = "contact"      # the customer
-    STAFF = "staff"          # a team member
-    AI = "ai"                # an AI-drafted reply
-    SYSTEM = "system"        # automation / delivery notices
+    CONTACT = "contact"  # the customer
+    STAFF = "staff"  # a team member
+    AI = "ai"  # an AI-drafted reply
+    SYSTEM = "system"  # automation / delivery notices
 
 
 class VisitorKind(str, Enum):
     """Why a non-member is at the desk (Section 1.3, #22)."""
 
     DAY_PASS = "day_pass"
-    GUEST = "guest"          # guest of a member
+    GUEST = "guest"  # guest of a member
     TRIAL = "trial"
     WALK_IN = "walk_in"
     OTHER = "other"
@@ -290,43 +290,46 @@ class VerificationPurpose(str, Enum):
 class NotificationKind(str, Enum):
     """In-app alert category (per-user notifications feed)."""
 
-    APPROVAL = "approval"          # signup/application awaiting decision
-    RECEIPT = "receipt"            # receipt pipeline outcome (member)
+    APPROVAL = "approval"  # signup/application awaiting decision
+    RECEIPT = "receipt"  # receipt pipeline outcome (member)
     RECEIPT_REVIEW = "receipt_review"  # receipt awaiting admin review (owner/staff)
-    PAYMENT = "payment"            # payment recorded / refund
-    TASK = "task"                  # task assigned
-    MEMBERSHIP = "membership"      # membership expiry / grace / activation
-    CASH = "cash"                  # reconciliation / discrepancy alerts
-    ONBOARDING = "onboarding"      # 90-day new-member journey (#32)
-    CELEBRATION = "celebration"    # birthday / anniversary / milestone (#36)
-    WINBACK = "win_back"           # lapsed-member win-back (#36)
-    NPS = "nps"                    # day-7/30/90 Net Promoter surveys (#37)
-    SYSTEM = "system"              # platform / misc
+    PAYMENT = "payment"  # payment recorded / refund
+    TASK = "task"  # task assigned
+    MEMBERSHIP = "membership"  # membership expiry / grace / activation
+    CASH = "cash"  # reconciliation / discrepancy alerts
+    ONBOARDING = "onboarding"  # 90-day new-member journey (#32)
+    CELEBRATION = "celebration"  # birthday / anniversary / milestone (#36)
+    WINBACK = "win_back"  # lapsed-member win-back (#36)
+    NPS = "nps"  # day-7/30/90 Net Promoter surveys (#37)
+    CHALLENGE = "challenge"  # challenge completion (#38)
+    STREAK = "streak"  # visit-streak milestone (#38)
+    CAMPAIGN = "campaign"  # segmented marketing campaign (#39)
+    SYSTEM = "system"  # platform / misc
 
 
 class OnboardingStatus(str, Enum):
     """Lifecycle of a member's 90-day onboarding journey (#32)."""
 
-    ACTIVE = "active"          # journey running
-    PAUSED = "paused"          # member frozen / admin paused
-    COMPLETED = "completed"    # reached day 90
-    OPTED_OUT = "opted_out"    # cancelled membership mid-journey
+    ACTIVE = "active"  # journey running
+    PAUSED = "paused"  # member frozen / admin paused
+    COMPLETED = "completed"  # reached day 90
+    OPTED_OUT = "opted_out"  # cancelled membership mid-journey
 
 
 class MilestoneStatus(str, Enum):
     """Per-member state of one onboarding milestone."""
 
-    PENDING = "pending"        # surfaced to the member/staff, not yet done
-    COMPLETED = "completed"    # member or staff closed it
-    SKIPPED = "skipped"        # member skipped it
+    PENDING = "pending"  # surfaced to the member/staff, not yet done
+    COMPLETED = "completed"  # member or staff closed it
+    SKIPPED = "skipped"  # member skipped it
 
 
 class LadderStatus(str, Enum):
     """Per-member state of one inactivity-ladder rung (#35)."""
 
-    FIRED = "fired"            # the intervention was dispatched
-    COMPLETED = "completed"    # staff closed the follow-up
-    SKIPPED = "skipped"        # staff dismissed it
+    FIRED = "fired"  # the intervention was dispatched
+    COMPLETED = "completed"  # staff closed the follow-up
+    SKIPPED = "skipped"  # staff dismissed it
 
 
 class CelebrationKind(str, Enum):
@@ -340,9 +343,9 @@ class CelebrationKind(str, Enum):
 class WinBackStatus(str, Enum):
     """State of one win-back outreach to a lapsed member (#36)."""
 
-    CONTACTED = "contacted"    # offer sent, awaiting response
-    RECOVERED = "recovered"    # member reactivated
-    LOST = "lost"              # gave up / manually closed
+    CONTACTED = "contacted"  # offer sent, awaiting response
+    RECOVERED = "recovered"  # member reactivated
+    LOST = "lost"  # gave up / manually closed
 
 
 class NpsMilestone(str, Enum):
@@ -356,9 +359,61 @@ class NpsMilestone(str, Enum):
 class NpsStatus(str, Enum):
     """Lifecycle of one NPS survey (#37)."""
 
-    SENT = "sent"              # delivered, awaiting the member's response
-    RESPONDED = "responded"    # member answered (score + optional comment)
-    SKIPPED = "skipped"        # never delivered (backfill/off-window/non-active)
+    SENT = "sent"  # delivered, awaiting the member's response
+    RESPONDED = "responded"  # member answered (score + optional comment)
+    SKIPPED = "skipped"  # never delivered (backfill/off-window/non-active)
+
+
+class ChallengeGoalType(str, Enum):
+    """What a challenge counts toward (#38)."""
+
+    VISITS = "visits"  # any check-in within the challenge window
+    CLASSES = "classes"  # class check-ins only
+    STREAK = "streak"  # consecutive active-day streak >= target
+
+
+class ChallengeStatus(str, Enum):
+    """Lifecycle of an org-defined challenge (#38)."""
+
+    DRAFT = "draft"  # created, not yet visible to members
+    PUBLISHED = "published"  # live; progress counts toward it
+    PAUSED = "paused"  # hidden temporarily; progress frozen
+    COMPLETED = "completed"  # window elapsed / target met
+    ARCHIVED = "archived"  # old, hidden
+
+
+class ChallengeProgressStatus(str, Enum):
+    """Per-member state inside one challenge (#38)."""
+
+    ACTIVE = "active"  # running, not yet completed
+    COMPLETED = "completed"  # goal reached (fires once)
+
+
+class CampaignChannel(str, Enum):
+    """Outbound channel for a segmented campaign (#39)."""
+
+    IN_APP = "in_app"  # in-app notification only
+    EMAIL = "email"  # email only
+    BOTH = "both"  # in-app notification + email
+
+
+class CampaignStatus(str, Enum):
+    """Lifecycle of an org-defined campaign (#39)."""
+
+    DRAFT = "draft"  # composed, not yet sent
+    SCHEDULED = "scheduled"  # scheduled_at set, awaiting worker
+    SENDING = "sending"  # worker is fanning out (idempotent, resumable)
+    SENT = "sent"  # finished; delivery rows hold per-member outcome
+    CANCELLED = "cancelled"  # stopped before going out
+
+
+class CampaignDeliveryStatus(str, Enum):
+    """Per-member outcome of one campaign (#39)."""
+
+    PENDING = "pending"  # queued but not yet delivered
+    SENT = "sent"  # notification/email accepted
+    FAILED = "failed"  # delivery error (logged, campaign continues)
+    SUPPRESSED = "suppressed"  # skipped: no email opt-in / already delivered
 
 
 # SaaS tier -> member cap (None = unlimited). Mirrors Section 3.1.

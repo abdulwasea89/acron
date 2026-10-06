@@ -7,12 +7,14 @@ Importing this package imports every table module so that
 from app.models.attendance import Attendance
 from app.models.audit_log import AuditLog
 from app.models.cash import CashReconciliation
+from app.models.campaign import Campaign, CampaignDelivery
 from app.models.celebration import MemberCelebration
 from app.models.class_session import ClassBooking, ClassSession
 from app.models.company import Company
 from app.models.company_contract import CompanyContract
 from app.models.conversation import Conversation
 from app.models.conversation_message import ConversationMessage
+from app.models.gamification import GymChallenge, MemberChallengeProgress, MemberStreak
 from app.models.idempotency_key import IdempotencyKey
 from app.models.inactivity_ladder import InactivityLadderProgress, InactivityLadderRung
 from app.models.inbox import InboxConversation, InboxMessage
@@ -41,12 +43,15 @@ __all__ = [
     "Attendance",
     "AuthSession",
     "CashReconciliation",
+    "Campaign",
+    "CampaignDelivery",
     "ClassBooking",
     "ClassSession",
     "Company",
     "CompanyContract",
     "Conversation",
     "ConversationMessage",
+    "GymChallenge",
     "IdempotencyKey",
     "InactivityLadderProgress",
     "InactivityLadderRung",
@@ -54,6 +59,8 @@ __all__ = [
     "InboxMessage",
     "Invoice",
     "MemberTrainer",
+    "MemberChallengeProgress",
+    "MemberStreak",
     "MembershipPlan",
     "MemberCelebration",
     "Notification",

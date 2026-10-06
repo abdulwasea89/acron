@@ -181,6 +181,26 @@ def nps_surveys_task() -> dict:
     return _run(_for_each_org(_per_org))
 
 
+@celery_app.task(name="retention.gamification")
+def gamification_task() -> dict:
+    from app.workers.gamification import run_gamification_sweep
+
+    async def _per_org(session, org_id):
+        return await run_gamification_sweep(session, org_id=org_id)
+
+    return _run(_for_each_org(_per_org))
+
+
+@celery_app.task(name="marketing.campaigns")
+def campaigns_task() -> dict:
+    from app.workers.campaigns import run_due_campaigns
+
+    async def _per_org(session, org_id):
+        return await run_due_campaigns(session, org_id=org_id)
+
+    return _run(_for_each_org(_per_org))
+
+
 # ----------------------------------------------------------------- schedule
 celery_app.conf.beat_schedule = {
     "reconcile-stuck-payments": {
@@ -222,5 +242,13 @@ celery_app.conf.beat_schedule = {
     "nps-surveys": {
         "task": "retention.nps_surveys",
         "schedule": crontab(minute=0, hour=8),  # daily 08:00 UTC
+    },
+    "retention-gamification": {
+        "task": "retention.gamification",
+        "schedule": crontab(minute=10, hour=8),  # daily 08:10 UTC (after NPS)
+    },
+    "marketing-campaigns": {
+        "task": "marketing.campaigns",
+        "schedule": 300.0,  # every 5 minutes: fire due scheduled campaigns
     },
 }

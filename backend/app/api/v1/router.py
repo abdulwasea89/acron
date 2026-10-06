@@ -14,8 +14,10 @@ from app.api.v1.routes import (
     attendance,
     audit,
     auth,
+    campaigns,
     cash,
     celebrations,
+    challenges,
     classes,
     companies,
     front_desk,
@@ -69,6 +71,8 @@ api_router.include_router(ladder.router, prefix="/inactivity-ladder", tags=["ina
 api_router.include_router(celebrations.router, prefix="/celebrations", tags=["celebrations"])
 api_router.include_router(winback.router, prefix="/win-back", tags=["win-back"])
 api_router.include_router(nps.router, prefix="/nps", tags=["nps"])
+api_router.include_router(challenges.router, prefix="/challenges", tags=["challenges"])
+api_router.include_router(campaigns.router, prefix="/campaigns", tags=["campaigns"])
 api_router.include_router(assistant.router, prefix="/assistant", tags=["assistant"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
