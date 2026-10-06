@@ -1,0 +1,353 @@
+"""Integration tests for segmented campaigns by channel (#39)."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import timedelta
+
+import pytest
+from sqlalchemy import select
+
+from app.core.constants import CampaignDeliveryStatus, NotificationKind
+from app.core.security import now_utc
+from app.models.attendance import Attendance
+from app.models.campaign import Campaign, CampaignDelivery
+from app.models.membership import OrganizationMember
+from app.models.notification import Notification
+from app.models.user import User
+from app.workers.campaigns import run_due_campaigns
+from tests.helpers import OWNER_PROFILE, latest_code_for
+
+PASSWORD = "Sup3rStr0ng!Pass"
+MEMBER_PWD = "M3mberStr0ng!Pwd"
+
+
+async def _provision_gym(client, *, owner_email="owner@camp.com"):
+    await client.post(
+        "/api/v1/auth/register",
+        json={
+            "full_name": "Alex",
+            "email": owner_email,
+            "password": PASSWORD,
+            "confirm_password": PASSWORD,
+            **OWNER_PROFILE,
+        },
+    )
+    code = latest_code_for(owner_email)
+    await client.post("/api/v1/auth/verify-email", json={"email": owner_email, "code": code})
+    r = await client.post(
+        "/api/v1/organizations/register",
+        json={
+            "owner_email": owner_email,
+            "details": {"name": "Iron Pulse Boxing", "default_currency": "USD"},
+            "tier": "pro",
+        },
+    )
+    body = r.json()
+    org_id = body["organization"]["id"]
+    org_code = body["organization"]["org_code"]
+    headers = {"Authorization": f"Bearer {body['access_token']}", "X-Organization-Id": org_id}
+    await client.post("/api/v1/organizations/me/connect", headers=headers)
+    await client.post("/api/v1/organizations/me/connect/complete", headers=headers)
+    r = await client.post(
+        "/api/v1/plans",
+        headers=headers,
+        json={
+            "name": "Monthly",
+            "price": 149.0,
+            "billing_type": "recurring",
+            "cycle_unit": "month",
+            "cycle_length": 1,
+        },
+    )
+    plan_id = r.json()["id"]
+    await client.post(f"/api/v1/plans/{plan_id}/publish", headers=headers)
+    return headers, org_id, org_code, plan_id
+
+
+async def _signup_member(client, org_code, plan_id, email) -> str:
+    await client.post(
+        "/api/v1/memberships/signup/request-email", json={"org_code": org_code, "email": email}
+    )
+    code = latest_code_for(email)
+    await client.post(
+        "/api/v1/memberships/signup/verify-email",
+        json={"org_code": org_code, "email": email, "code": code},
+    )
+    r = await client.post(
+        "/api/v1/memberships/signup/set-password",
+        json={"org_code": org_code, "email": email, "password": MEMBER_PWD},
+    )
+    member_id = r.json()["member_id"]
+    await client.post(
+        "/api/v1/memberships/signup/pay",
+        headers={"Idempotency-Key": str(uuid.uuid4())},
+        json={"org_code": org_code, "email": email, "plan_id": plan_id},
+    )
+    return member_id
+
+
+async def _create_campaign(client, headers, **kw):
+    r = await client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={
+            "title": kw.get("title", "Summer Blast"),
+            "subject": kw.get("subject", "Limited offer for you"),
+            "body": kw.get("body", "Come back and save 20% this week."),
+            "channel": kw.get("channel", "in_app"),
+            "member_status": kw.get("member_status"),
+            "min_days_since_last_visit": kw.get("min_days_since_last_visit"),
+            "send_limit": kw.get("send_limit", 200),
+        },
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+# ------------------------------------------------------------------- send flows
+@pytest.mark.asyncio
+async def test_campaign_sends_to_active_segment_and_dedups(client, db):
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+    await _signup_member(client, org_code, plan_id, "alice@camp.com")
+    await _signup_member(client, org_code, plan_id, "bob@camp.com")
+
+    campaign = await _create_campaign(client, headers, channel="in_app")
+    assert campaign["status"] == "draft"
+
+    r = await client.post(f"/api/v1/campaigns/{campaign['id']}/send", headers=headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["targeted"] == 2
+    assert body["sent"] == 2
+    assert body["suppressed"] == 0
+    assert body["failed"] == 0
+
+    deliveries = (
+        (
+            await db.execute(
+                select(CampaignDelivery).where(CampaignDelivery.organization_id == org_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(deliveries) == 2
+    assert all(d.status == CampaignDeliveryStatus.SENT for d in deliveries)
+
+    # In-app notifications of kind CAMPAIGN were created.
+    notifs = (
+        (
+            await db.execute(
+                select(Notification).where(
+                    Notification.organization_id == org_id,
+                    Notification.category == NotificationKind.CAMPAIGN,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(notifs) == 2
+    assert notifs[0].title == "Limited offer for you"
+
+    # Re-sending a sent campaign is rejected — no double-delivery possible.
+    r = await client.post(f"/api/v1/campaigns/{campaign['id']}/send", headers=headers)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "Cannot send a 'sent' campaign."
+    all_deliveries = (await db.execute(select(CampaignDelivery))).scalars().all()
+    assert len(all_deliveries) == 2
+    # No duplicate notifications regardless.
+    notifs2 = (
+        (
+            await db.execute(
+                select(Notification).where(
+                    Notification.organization_id == org_id,
+                    Notification.category == NotificationKind.CAMPAIGN,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(notifs2) == 2
+
+    db_campaign = await db.get(Campaign, campaign["id"])
+    assert db_campaign.status.value == "sent"
+    assert db_campaign.sent_count == 2
+
+
+@pytest.mark.asyncio
+async def test_email_channel_suppresses_unverified_addresses(client, db):
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+    member_id = await _signup_member(client, org_code, plan_id, "anon@camp.com")
+
+    # Signup verified the address; flip it back to simulate an imported member
+    # whose email was never confirmed (Security Rule #6 — no email without it).
+    member = await db.get(OrganizationMember, member_id)
+    user = await db.get(User, member.user_id)
+    user.email_verified = False
+    await db.commit()
+
+    campaign = await _create_campaign(client, headers, channel="email")
+    r = await client.post(f"/api/v1/campaigns/{campaign['id']}/send", headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["targeted"] == 1
+    assert r.json()["sent"] == 0  # email not verified -> suppressed
+    assert r.json()["suppressed"] == 1
+
+    delivery = (
+        await db.execute(select(CampaignDelivery).where(CampaignDelivery.organization_id == org_id))
+    ).scalar_one()
+    assert delivery.status.value == "suppressed"
+    assert delivery.channel.value == "email"
+
+
+@pytest.mark.asyncio
+async def test_lapsed_segment_targets_only_inactive_members(client, db):
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+    m1 = await _signup_member(client, org_code, plan_id, "here@camp.com")
+    m2 = await _signup_member(client, org_code, plan_id, "gone@camp.com")
+
+    # Two visits ~40 days ago -> lapsed candidates; member m1 also visited yesterday.
+    for _id in (m1, m2):
+        db.add(
+            Attendance(
+                organization_id=org_id, member_id=_id, checked_in_at=now_utc() - timedelta(days=40)
+            )
+        )
+    db.add(
+        Attendance(
+            organization_id=org_id, member_id=m1, checked_in_at=now_utc() - timedelta(days=1)
+        )
+    )
+    await db.commit()
+
+    campaign = await _create_campaign(
+        client, headers, channel="in_app", min_days_since_last_visit=30
+    )
+    r = await client.post(f"/api/v1/campaigns/{campaign['id']}/send", headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["targeted"] == 1
+    assert r.json()["sent"] == 1
+
+    deliveries = (
+        (
+            await db.execute(
+                select(CampaignDelivery).where(CampaignDelivery.organization_id == org_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [d.member_id for d in deliveries] == [m2]
+
+
+@pytest.mark.asyncio
+async def test_scheduled_campaign_fires_when_due(client, db):
+    headers, org_id, org_code, plan_id = await _provision_gym(client)
+    await _signup_member(client, org_code, plan_id, "scheduled@camp.com")
+
+    campaign = await _create_campaign(client, headers, channel="in_app")
+    r = await client.post(
+        f"/api/v1/campaigns/{campaign['id']}/schedule",
+        headers=headers,
+        json={"scheduled_at": (now_utc() - timedelta(minutes=1)).isoformat()},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "scheduled"
+
+    out = await run_due_campaigns(db, org_id=org_id)
+    await db.commit()
+    assert out["fired"] == 1
+    assert out["sent"] == 1
+    assert (await db.get(Campaign, campaign["id"])).status.value == "sent"
+
+
+@pytest.mark.asyncio
+async def test_cancel_draft_and_invalid_transitions(client, db):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    campaign = await _create_campaign(client, headers)
+    r = await client.post(f"/api/v1/campaigns/{campaign['id']}/cancel", headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "cancelled"
+
+    # Sending a cancelled campaign is rejected.
+    r = await client.post(f"/api/v1/campaigns/{campaign['id']}/send", headers=headers)
+    assert r.status_code == 409
+    # Cancelling a sent campaign is rejected.
+    c2 = await _create_campaign(client, headers)
+    await client.post(f"/api/v1/campaigns/{c2['id']}/send", headers=headers)
+    r = await client.post(f"/api/v1/campaigns/{c2['id']}/cancel", headers=headers)
+    assert r.status_code == 409
+
+
+# ------------------------------------------------------------ previews / queries
+@pytest.mark.asyncio
+async def test_preview_reports_segment_size(client, db):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    await _signup_member(client, org_code, plan_id, "p1@camp.com")
+    await _signup_member(client, org_code, plan_id, "p2@camp.com")
+
+    campaign = await _create_campaign(client, headers)
+    r = await client.get(f"/api/v1/campaigns/preview/{campaign['id']}", headers=headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["count"] == 2
+    assert len(body["sample"]) == 2
+    assert body["sample"][0]["email"].endswith("@camp.com")
+
+
+@pytest.mark.asyncio
+async def test_admin_listing_and_detail(client, db):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    await _signup_member(client, org_code, plan_id, "list@camp.com")
+    campaign = await _create_campaign(client, headers)
+    await client.post(f"/api/v1/campaigns/{campaign['id']}/send", headers=headers)
+
+    r = await client.get("/api/v1/campaigns", headers=headers)
+    assert r.status_code == 200, r.text
+    listing = r.json()
+    assert listing[0]["id"] == campaign["id"]
+    assert listing[0]["deliveries"] == 1
+    assert listing[0]["sent_count"] == 1
+
+    r = await client.get(f"/api/v1/campaigns/{campaign['id']}", headers=headers)
+    assert r.status_code == 200, r.text
+    detail = r.json()
+    assert detail["title"] == "Summer Blast"
+    member = detail["deliveries"][0]
+    assert member["member_name"] == "list@camp.com"  # no display name set -> email
+
+
+@pytest.mark.asyncio
+async def test_capability_and_tenant_isolation(client, db):
+    headers, _org_id, org_code, plan_id = await _provision_gym(client)
+    await _signup_member(client, org_code, plan_id, "iso@camp.com")
+
+    r = await client.post(
+        "/api/v1/staff/invites",
+        headers=headers,
+        json={"role": "front_desk", "email": "desk@camp.com"},
+    )
+    invite = r.json()["code"]
+    r = await client.post(
+        "/api/v1/staff/invites/redeem",
+        json={"code": invite, "full_name": "Dana", "password": PASSWORD},
+    )
+    desk = {
+        "Authorization": f"Bearer {r.json()['access_token']}",
+        "X-Organization-Id": r.json()["organization_id"],
+    }
+
+    body = {"title": "Nope", "subject": "no", "body": "not allowed", "channel": "in_app"}
+    assert (await client.post("/api/v1/campaigns", headers=desk, json=body)).status_code == 403
+    assert (await client.get("/api/v1/campaigns", headers=desk)).status_code == 403
+
+    # Tenant isolation: another gym does not see our campaign.
+    _h2, _org2, _c2, _plan2 = await _provision_gym(client, owner_email="other@camp.com")
+    campaign = await _create_campaign(client, headers)
+    assert (await client.get(f"/api/v1/campaigns/{campaign['id']}", headers=_h2)).status_code == 404
+    r = await client.get("/api/v1/campaigns", headers=_h2)
+    assert r.status_code == 200, r.text
+    assert r.json() == []

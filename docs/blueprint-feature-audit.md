@@ -45,8 +45,8 @@
 | 35 | Retention | Inactivity ladder (5 / 10 / 14–21 days) | P0 | ❌ Not built | — |
 | 36 | Retention | Win-back campaigns; milestones; birthdays | P1 | ❌ Not built | — |
 | 37 | Retention | NPS at day 7/30/90; complaint clustering | P1 | ✅ Built | `NpsSurvey`, day-7/30/90 daily sweep, member + admin `/nps` API, keyword complaint clustering |
-| 38 | Retention | Challenges, streaks, leaderboards | P2 | ❌ Not built | — |
-| 39 | Marketing | Segmented campaigns by channel | P1 | ❌ Not built | — |
+| 38 | Retention | Challenges, streaks, leaderboards | P2 | ✅ Built | `GymChallenge` + `MemberChallengeProgress` + `MemberStreak`, daily `retention.gamification` sweep (start 08:10 UTC), member `/challenges/me` + `/leaderboard`, admin `/challenges` create/status/detail |
+| 39 | Marketing | Segmented campaigns by channel | P1 | ✅ Built | <API:POST /api/v1/campaigns> |
 | 40 | Marketing | Seasonal offers (New Year, Ramadan, Diwali…) | P1 | ❌ Not built | — |
 | 41 | Marketing | Referral programme; review requests | P1 | ❌ Not built | — |
 | 42 | Marketing | Lead-ad integrations (Meta, Google, TikTok) | P1 | ❌ Not built | — |
