@@ -20,6 +20,7 @@ from app.models.invoice import Invoice
 from app.models.member_trainer import MemberTrainer
 from app.models.membership import OrganizationMember
 from app.models.notification import Notification
+from app.models.nps import NpsSurvey
 from app.models.onboarding import OnboardingJourney, OnboardingMilestoneProgress
 from app.models.organization import Organization
 from app.models.payment import Payment
@@ -56,6 +57,7 @@ __all__ = [
     "MembershipPlan",
     "MemberCelebration",
     "Notification",
+    "NpsSurvey",
     "OnboardingJourney",
     "OnboardingMilestoneProgress",
     "Organization",

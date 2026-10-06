@@ -171,6 +171,16 @@ def win_back_task() -> dict:
     return _run(_for_each_org(_per_org))
 
 
+@celery_app.task(name="retention.nps_surveys")
+def nps_surveys_task() -> dict:
+    from app.workers.nps import run_nps_sweep
+
+    async def _per_org(session, org_id):
+        return await run_nps_sweep(session, org_id=org_id)
+
+    return _run(_for_each_org(_per_org))
+
+
 # ----------------------------------------------------------------- schedule
 celery_app.conf.beat_schedule = {
     "reconcile-stuck-payments": {
@@ -208,5 +218,9 @@ celery_app.conf.beat_schedule = {
     "win-back": {
         "task": "retention.win_back",
         "schedule": crontab(minute=0, hour=7, day_of_week=1),  # Mondays 07:00 UTC
+    },
+    "nps-surveys": {
+        "task": "retention.nps_surveys",
+        "schedule": crontab(minute=0, hour=8),  # daily 08:00 UTC
     },
 }

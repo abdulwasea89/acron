@@ -27,6 +27,7 @@ from app.api.v1.routes import (
     members,
     memberships,
     notifications,
+    nps,
     onboarding,
     organizations,
     payments,
@@ -67,6 +68,7 @@ api_router.include_router(retention.router, prefix="/retention", tags=["retentio
 api_router.include_router(ladder.router, prefix="/inactivity-ladder", tags=["inactivity-ladder"])
 api_router.include_router(celebrations.router, prefix="/celebrations", tags=["celebrations"])
 api_router.include_router(winback.router, prefix="/win-back", tags=["win-back"])
+api_router.include_router(nps.router, prefix="/nps", tags=["nps"])
 api_router.include_router(assistant.router, prefix="/assistant", tags=["assistant"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])

@@ -44,7 +44,7 @@
 | 34 | Retention | Churn-risk score with reasons | P0 | 🟡 Partial | `member_churn` specialist; no scored model |
 | 35 | Retention | Inactivity ladder (5 / 10 / 14–21 days) | P0 | ❌ Not built | — |
 | 36 | Retention | Win-back campaigns; milestones; birthdays | P1 | ❌ Not built | — |
-| 37 | Retention | NPS at day 7/30/90; complaint clustering | P1 | ❌ Not built | — |
+| 37 | Retention | NPS at day 7/30/90; complaint clustering | P1 | ✅ Built | `NpsSurvey`, day-7/30/90 daily sweep, member + admin `/nps` API, keyword complaint clustering |
 | 38 | Retention | Challenges, streaks, leaderboards | P2 | ❌ Not built | — |
 | 39 | Marketing | Segmented campaigns by channel | P1 | ❌ Not built | — |
 | 40 | Marketing | Seasonal offers (New Year, Ramadan, Diwali…) | P1 | ❌ Not built | — |

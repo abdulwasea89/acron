@@ -300,6 +300,7 @@ class NotificationKind(str, Enum):
     ONBOARDING = "onboarding"      # 90-day new-member journey (#32)
     CELEBRATION = "celebration"    # birthday / anniversary / milestone (#36)
     WINBACK = "win_back"           # lapsed-member win-back (#36)
+    NPS = "nps"                    # day-7/30/90 Net Promoter surveys (#37)
     SYSTEM = "system"              # platform / misc
 
 
@@ -342,6 +343,22 @@ class WinBackStatus(str, Enum):
     CONTACTED = "contacted"    # offer sent, awaiting response
     RECOVERED = "recovered"    # member reactivated
     LOST = "lost"              # gave up / manually closed
+
+
+class NpsMilestone(str, Enum):
+    """An NPS touchpoint during the first 90 days of membership (#37)."""
+
+    DAY_7 = "day_7"
+    DAY_30 = "day_30"
+    DAY_90 = "day_90"
+
+
+class NpsStatus(str, Enum):
+    """Lifecycle of one NPS survey (#37)."""
+
+    SENT = "sent"              # delivered, awaiting the member's response
+    RESPONDED = "responded"    # member answered (score + optional comment)
+    SKIPPED = "skipped"        # never delivered (backfill/off-window/non-active)
 
 
 # SaaS tier -> member cap (None = unlimited). Mirrors Section 3.1.
