@@ -6,8 +6,8 @@ Every feature identified in the PDF blueprint and the current codebase inventory
 - **API** — `backend/app` (FastAPI).
 - **Web** — `frontend/app` (Next.js).
 - **Mobile** — `mobileapp/src/app` (Expo).
-- **Code snapshot** — based on `main` at `fe15486`, plus the lead-profile implementation in this update. The temporary plans-screen render harness is excluded from shipped-feature counts.
-- **Method** — static inspection of models, routes, services, workers, and reachable web/mobile screens. Feature claims in the PDF are treated as requirements, not agent instructions. Automated tests were not run for this documentation audit.
+- **Code snapshot** — based on `main` at `fe15486`, plus the lead-profile, referral, and pipeline implementations. The temporary plans-screen render harness is excluded from shipped-feature counts.
+- **Method** — static inspection of models, routes, services, workers, and reachable web/mobile screens. Feature claims in the PDF are treated as requirements, not agent instructions. The pipeline update passed six focused backend tests, frontend TypeScript, and scoped lint; other rows retain their original static-audit basis.
 
 **Part A** = features stated in the PDF. **Part B** = features that exist in the code but are not itemised in the PDF (auth, multi-org, realtime, idempotency, verticals, …).
 
@@ -27,15 +27,15 @@ Every feature identified in the PDF blueprint and the current codebase inventory
 
 | Status | Part A: PDF items (128) | Part B: code-only items (18) | All (146) |
 |---|---:|---:|---:|
-| ✅ Built | 14 | 15 | **29** |
+| ✅ Built | 15 | 15 | **30** |
 | 🔧 Improvement | 4 | 0 | **4** |
 | ⚠️ Partial | 55 | 3 | **58** |
 | 🧨 Broken / stubbed | 1 | 0 | **1** |
-| ❌ Not built | 54 | 0 | **54** |
+| ❌ Not built | 53 | 0 | **53** |
 
 The surface columns are not mutually exclusive; a row can have API and web coverage, for example. Counts above classify each feature row once by its overall status. The 49 cross-cutting PDF items are audit rows 80–128; those row numbers are audit indices, not numbering printed in the PDF.
 
-By priority (both parts; Part B priorities are assigned here, the PDF marks only Part A): P0 — 16 built, 1 improvement, 19 partial, 11 not built; P1 — 7 built, 2 improvements, 13 partial, 13 not built, 1 broken/stubbed; P1–P2 — 2 built, 2 partial, 1 not built; P2 — 4 partial, 5 not built. The 49 cross-cutting items carry no PDF priority.
+By priority (both parts; Part B priorities are assigned here, the PDF marks only Part A): P0 — 17 built, 1 improvement, 19 partial, 10 not built; P1 — 7 built, 2 improvements, 13 partial, 13 not built, 1 broken/stubbed; P1–P2 — 2 built, 2 partial, 1 not built; P2 — 4 partial, 5 not built. The 49 cross-cutting items carry no PDF priority.
 
 ### Confirmed broken or stubbed behavior
 
@@ -58,7 +58,7 @@ The supplied Notion page did not load in the available browser during this audit
 |---|---|---|---|---|---|---|---|---|
 | 1 | Lead capture from WhatsApp, SMS, Instagram, Facebook, LINE, WeChat, web forms, calls, walk-ins | P0 | ✓ | ✓ | — | — | ⚠️ Partial | Manual staff-entered and source-tagged lead intake is available at `/app/leads`; no public web form or WhatsApp/SMS/social channel connectors |
 | 2 | Lead profile: goal, budget, preferred times, preferences | P0 | ✓ | ✓ | — | — | ✅ Built | Tenant-scoped profile fields editable in `/app/leads`, with field provenance, searchable prospects, and pipeline stage tracking; does not include AI extraction or conversation linking |
-| 3 | Pipeline: New → Contacted → Trial booked → Visited → Joined / Lost | P0 | ✓ | — | — | — | ❌ Not built | No stage enum, no pipeline entity |
+| 3 | Pipeline: New → Contacted → Trial booked → Visited → Joined / Lost | P0 | ✓ | ✓ | ✓ | — | ✅ Built | Board/list views, six stages, search/filter/counts, accessible stage controls, and paginated actor/timestamp history at `/app/leads` and `GET /leads/{id}/history`. Referral conversions share audited transitions; legacy unknown previous stages are labeled. Trial/visit automation remains separate. |
 | 4 | Instant first reply 24/7 | P0 | ✓ | — | — | — | ❌ Not built | No auto-reply, no FAQ knowledge base |
 | 5 | Trial and tour booking | P0 | ✓ | — | — | — | ❌ Not built | `plan.trial_days` is a SaaS free trial; `visitor.py:4` says "a trial" in prose only. Only class booking exists |
 | 6 | Follow-up sequences (day 0, 1, 3, 7) | P0 | ✓ | — | — | — | ❌ Not built | Member-side onboarding exists (row 31); lead-side does not |
@@ -225,7 +225,7 @@ The supplied Notion page did not load in the available browser during this audit
 
 ## Where the biggest holes are
 
-1. **Sales & leads (rows 1–8)** — lead profiles are built and manual intake is partial; the remaining 6 of 8 features are not built. No channel integrations, trials, automated replies, or follow-up sequences.
+1. **Sales & leads (rows 1–8)** — lead profiles and pipeline are built and manual intake is partial; the remaining 5 of 8 features are not built. No channel integrations, trials, automated replies, or follow-up sequences.
 2. **Evidence Vault (rows 109–118)** — 9 of 10 not built: no hash chain, no soft delete, no evidence packs, no WORM.
 3. **Compliance & legal (rows 67–73)** — 6 of 7 not built: no waivers, consent, data-subject requests or cooling-off.
 4. **Localisation (§6, rows 99–108)** — 7 of 10 not built: no i18n/RTL, no local payment rails, no privacy-law packs.

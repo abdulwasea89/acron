@@ -4,17 +4,30 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session, require_capability, require_writable_org
 from app.core.permissions import Capability
 from app.core.tenancy import TenantContext
 from app.models.organization import Organization
-from app.schemas.leads import LeadCreate, LeadOut, LeadUpdate
+from app.schemas.leads import LeadCreate, LeadHistoryOut, LeadOut, LeadUpdate
 from app.services import idempotency_service, leads_service
 
 router = APIRouter()
+
+
+@router.get("/{lead_id}/history", response_model=LeadHistoryOut)
+async def lead_history(
+    lead_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    ctx: TenantContext = Depends(require_capability(Capability.MANAGE_MEMBERS)),
+    session: AsyncSession = Depends(get_session),
+):
+    return await leads_service.stage_history(
+        session, org_id=ctx.org_id, lead_id=lead_id, page=page, page_size=page_size,
+    )
 
 
 @router.get("", response_model=list[LeadOut])

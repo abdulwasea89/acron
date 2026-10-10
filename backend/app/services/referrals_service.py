@@ -17,6 +17,7 @@ from app.models.referral import Referral, ReferralCode, ReferralProgram, Referra
 from app.models.user import User
 from app.schemas.referrals import ReferralProgramUpdate
 from app.services.audit_service import record_audit
+from app.services.leads_service import change_stage
 
 
 async def program_for_org(session: AsyncSession, *, org_id: str) -> ReferralProgram | None:
@@ -121,7 +122,8 @@ async def qualify_referral_for_member(
                 Lead.email == user.email.lower(),
             ).order_by(Lead.created_at.desc())
         )).scalars().first()
-        if lead is None:
+        created = lead is None
+        if created:
             lead = Lead(
                 organization_id=org_id,
                 name=user.full_name or user.email.split("@", 1)[0],
@@ -134,13 +136,14 @@ async def qualify_referral_for_member(
                 referred_by_member_id=referral.referrer_member_id,
             )
         else:
-            lead.stage = "joined"
             if lead.source == "staff_entered":
                 lead.source = "referral"
             lead.converted_member_id = member_id
             lead.referred_by_member_id = referral.referrer_member_id
             lead.updated_at = now_utc()
         session.add(lead)
+        await change_stage(session, lead=lead, stage="joined", actor_id=user.id,
+                           origin="referral", created=created)
 
     await record_audit(session, action="referral.qualified", organization_id=org_id,
                        actor_user_id=user.id if user else None,

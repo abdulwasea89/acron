@@ -45,3 +45,21 @@ class LeadOut(BaseModel):
     profile_sources: dict[str, str]
     created_at: datetime
     updated_at: datetime
+
+
+class LeadHistoryItem(BaseModel):
+    id: str
+    previous_stage: str | None
+    stage: str
+    actor_name: str | None
+    actor_user_id: str | None
+    created_at: datetime
+    origin: str
+    created: bool
+
+
+class LeadHistoryOut(BaseModel):
+    items: list[LeadHistoryItem]
+    total: int
+    page: int
+    page_size: int
