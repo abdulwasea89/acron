@@ -2,15 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { ListToolbar } from "@/components/ListToolbar";
 import {
   Alert,
   Avatar,
   Badge,
   Button,
-  Card,
-  CategoryTabs,
   EmptyState,
-  Input,
   Spinner,
 } from "@/components/ui";
 import { LiveIndicator, useRealtimeEvent } from "@/components/Realtime";
@@ -216,7 +214,7 @@ export default function InboxPage() {
 
   return (
     <>
-      <PageHeader title="Inbox" subtitle="Every member conversation, one shared queue" action={<LiveIndicator />} />
+      <PageHeader title="Inbox" subtitle="Every member conversation, one shared queue" action={<LiveIndicator className="text-xs" />} />
 
       {error && (
         <div className="mb-3">
@@ -224,22 +222,23 @@ export default function InboxPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+      <ListToolbar
+        tabs={tabs}
+        value={filter}
+        onChange={setFilter}
+        search={query}
+        onSearch={setQuery}
+        searchPlaceholder="Search conversations…"
+      />
+
+      <div className="mt-3 grid min-h-[520px] border-t border-border lg:h-[calc(100vh-15rem)] lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         {/* Queue */}
-        <Card className="flex flex-col overflow-hidden" >
-          <div className="border-b border-foreground/10 p-3">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, handle…"
-              aria-label="Search conversations"
-              size="sm"
-            />
-            <div className="mt-2">
-              <CategoryTabs variant="underline" tabs={tabs} value={filter} onChange={setFilter} />
-            </div>
+        <section aria-label="Conversation queue" className="flex min-w-0 flex-col border-b border-border lg:border-b-0 lg:border-r">
+          <div className="flex items-center justify-between px-4 py-3">
+            <h2 className="text-sm font-semibold text-foreground">Conversations</h2>
+            {conversations && <span className="text-xs tabular-nums text-muted-foreground">{visible.length}</span>}
           </div>
-          <div className="min-h-[50vh] flex-1 overflow-y-auto lg:h-[calc(100vh-19rem)]">
+          <div className="min-h-[280px] flex-1 overflow-y-auto lg:min-h-0">
             {conversations === null ? (
               <div className="p-5"><Spinner label="Loading conversations…" /></div>
             ) : visible.length === 0 ? (
@@ -248,26 +247,26 @@ export default function InboxPage() {
                 hint={query.trim() ? `No conversations match “${query.trim()}”.` : "No conversations in this view."}
               />
             ) : (
-              <ul className="divide-y divide-foreground/[0.06]">
+              <ul className="divide-y divide-border/70">
                 {visible.map((c) => (
                   <li key={c.id}>
                     <button
                       type="button"
                       onClick={() => openThread(c.id)}
-                      className={`flex w-full cursor-pointer items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-foreground/[0.03] ${
-                        c.id === activeId ? "bg-foreground/[0.05]" : ""
+                      className={`flex w-full cursor-pointer items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.04] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand ${
+                        c.id === activeId ? "bg-foreground/[0.06]" : ""
                       }`}
                     >
                       <Avatar name={who(c)} size="sm" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-[13px] font-medium text-foreground">{who(c)}</span>
-                          <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                          <span className="truncate text-sm font-medium text-foreground">{who(c)}</span>
+                          <span className="ml-auto shrink-0 text-[11px] tabular-nums text-muted-foreground">
                             {relTime(c.last_message_at)}
                           </span>
                         </div>
-                        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <ChannelIcon channel={c.channel} className="h-3 w-3 shrink-0" />
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <ChannelIcon channel={c.channel} className="h-3.5 w-3.5 shrink-0" />
                           <span className="truncate">
                             {c.preview_direction === "outbound" ? "You: " : ""}
                             {c.preview ?? "—"}
@@ -276,7 +275,7 @@ export default function InboxPage() {
                         <div className="mt-1 flex items-center gap-1.5">
                           {c.unread_count > 0 && <Badge tone="info" size="sm">{c.unread_count} new</Badge>}
                           {c.assigned_name ? (
-                            <span className="text-[10px] text-muted-foreground">· {c.assigned_name}</span>
+                            <span className="text-[11px] text-muted-foreground">· {c.assigned_name}</span>
                           ) : (
                             <Badge tone="warning" size="sm">Unassigned</Badge>
                           )}
@@ -288,21 +287,23 @@ export default function InboxPage() {
               </ul>
             )}
           </div>
-        </Card>
+        </section>
 
         {/* Thread */}
-        <Card className="flex flex-col overflow-hidden">
+        <section aria-label="Conversation" className="flex min-w-0 flex-col">
           {!thread ? (
-            <EmptyState
-              title="Select a conversation"
-              hint="Pick a thread on the left to read and reply."
-            />
+            <div className="flex min-h-[280px] flex-1 items-center justify-center">
+              <EmptyState
+                title="Select a conversation"
+                hint="Pick a thread on the left to read and reply."
+              />
+            </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/10 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-[14px] font-semibold text-foreground">{who(thread)}</span>
+                    <span className="truncate text-base font-semibold text-foreground">{who(thread)}</span>
                     <Badge tone="neutral" size="sm">
                       <span className="inline-flex items-center gap-1">
                         <ChannelIcon channel={thread.channel} className="h-3 w-3" />
@@ -311,7 +312,7 @@ export default function InboxPage() {
                     </Badge>
                     <Badge tone={STATUS_TONE[thread.status] ?? "neutral"} size="sm">{titleCase(thread.status)}</Badge>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{thread.contact_handle}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{thread.contact_handle}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {thread.assigned_to === myId ? (
@@ -327,7 +328,7 @@ export default function InboxPage() {
                     aria-label="Conversation status"
                     value={thread.status}
                     onChange={(e) => act(thread.id, "status", { status: e.target.value })}
-                    className="h-8 cursor-pointer rounded-md border border-foreground/20 bg-card px-2 text-[12px] text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    className="h-9 cursor-pointer rounded-md border border-foreground/20 bg-card px-2 text-xs text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                   >
                     {["open", "pending", "snoozed", "resolved"].map((s) => (
                       <option key={s} value={s}>{titleCase(s)}</option>
@@ -336,20 +337,20 @@ export default function InboxPage() {
                 </div>
               </div>
 
-              <div ref={scrollRef} className="min-h-[40vh] flex-1 space-y-3 overflow-y-auto px-4 py-4 lg:h-[calc(100vh-26rem)]">
+              <div ref={scrollRef} className="min-h-[280px] flex-1 space-y-4 overflow-y-auto px-5 py-5 lg:min-h-0">
                 {thread.messages.map((m) => {
                   const out = m.direction === "outbound";
                   return (
                     <div key={m.id} className={`flex ${out ? "justify-end" : "justify-start"}`}>
                       <div
-                        className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed ${
+                        className={`max-w-[78%] rounded-lg px-3.5 py-2.5 text-sm leading-relaxed ${
                           out
                             ? "rounded-br-sm bg-brand text-brand-foreground"
                             : "rounded-bl-sm bg-surface text-foreground"
                         }`}
                       >
                         <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                        <p className={`mt-1 text-right text-[10px] ${out ? "text-brand-foreground/70" : "text-muted-foreground"}`}>
+                        <p className={`mt-1 text-right text-[11px] ${out ? "text-brand-foreground/80" : "text-muted-foreground"}`}>
                           {clockTime(m.created_at)}
                         </p>
                       </div>
@@ -358,7 +359,7 @@ export default function InboxPage() {
                 })}
               </div>
 
-              <div className="border-t border-foreground/10 p-3">
+              <div className="border-t border-border px-5 py-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Button variant="ghost" disabled={busy === thread.id} onClick={draft}>
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -366,7 +367,7 @@ export default function InboxPage() {
                     </svg>
                     AI draft
                   </Button>
-                  <span className="text-[11px] text-muted-foreground">Drafts a reply you can edit before sending.</span>
+                  <span className="text-xs text-muted-foreground">Drafts a reply you can edit before sending.</span>
                 </div>
                 <div className="flex items-end gap-2">
                   <textarea
@@ -380,7 +381,7 @@ export default function InboxPage() {
                     }}
                     rows={2}
                     placeholder="Write a reply… (Enter to send, Shift+Enter for a new line)"
-                    className="max-h-40 min-h-[44px] w-full resize-none rounded-md border border-foreground/20 bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    className="max-h-40 min-h-[44px] w-full resize-none rounded-md border border-foreground/20 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                   />
                   <Button
                     disabled={!reply.trim() || busy === thread.id}
@@ -393,7 +394,7 @@ export default function InboxPage() {
               </div>
             </>
           )}
-        </Card>
+        </section>
       </div>
     </>
   );
