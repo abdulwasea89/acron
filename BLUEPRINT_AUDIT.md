@@ -27,15 +27,15 @@ Every feature identified in the PDF blueprint and the current codebase inventory
 
 | Status | Part A: PDF items (128) | Part B: code-only items (18) | All (146) |
 |---|---:|---:|---:|
-| ✅ Built | 13 | 15 | **28** |
+| ✅ Built | 14 | 15 | **29** |
 | 🔧 Improvement | 4 | 0 | **4** |
-| ⚠️ Partial | 56 | 3 | **59** |
+| ⚠️ Partial | 55 | 3 | **58** |
 | 🧨 Broken / stubbed | 1 | 0 | **1** |
 | ❌ Not built | 54 | 0 | **54** |
 
 The surface columns are not mutually exclusive; a row can have API and web coverage, for example. Counts above classify each feature row once by its overall status. The 49 cross-cutting PDF items are audit rows 80–128; those row numbers are audit indices, not numbering printed in the PDF.
 
-By priority (both parts; Part B priorities are assigned here, the PDF marks only Part A): P0 — 16 built, 1 improvement, 19 partial, 11 not built; P1 — 7 built, 2 improvements, 13 partial, 13 not built, 1 broken/stubbed; P1–P2 — 1 built, 3 partial, 1 not built; P2 — 4 partial, 5 not built. The 49 cross-cutting items carry no PDF priority.
+By priority (both parts; Part B priorities are assigned here, the PDF marks only Part A): P0 — 16 built, 1 improvement, 19 partial, 11 not built; P1 — 7 built, 2 improvements, 13 partial, 13 not built, 1 broken/stubbed; P1–P2 — 2 built, 2 partial, 1 not built; P2 — 4 partial, 5 not built. The 49 cross-cutting items carry no PDF priority.
 
 ### Confirmed broken or stubbed behavior
 
@@ -64,7 +64,7 @@ The supplied Notion page did not load in the available browser during this audit
 | 6 | Follow-up sequences (day 0, 1, 3, 7) | P0 | ✓ | — | — | — | ❌ Not built | Member-side onboarding exists (row 31); lead-side does not |
 | 7 | Lost-reason tracking and lead scoring | P1 | ✓ | — | — | — | ❌ Not built | — |
 | 8 | Speed-to-lead reporting; missed-call text-back | P1 | ✓ | — | — | — | ❌ Not built | — |
-| 9 | Corporate and group memberships; referral tracking | P1–P2 | ✓ | ✓ | ✓ | — | ⚠️ Partial | Corporate fully built: `models/company.py`, `company_contract.py`, `invoices_service.py`, `routes/companies.py`. Referral: `membership.py:56 referred_by_member_id` + 12-month commission attribution (`workers/payroll_runner.py:93`). Missing: referral programme, rewards, lead-side attribution |
+| 9 | Corporate and group memberships; referral tracking | P1–P2 | ✓ | ✓ | ✓ | ✓ | ✅ Built | Corporate contracts/invoices and team seat management exist (`models/company.py`, `company_contract.py`, `invoices_service.py`, `/app/companies`). Referral program supports member codes, signup attribution, qualification after successful payment, dual rewards, admin tracking/manual fulfillment, mobile share/status, and joined Lead attribution (`services/referrals_service.py`, `/app/referrals`, mobile dashboard). Rewards are recorded and manually delivered; no automatic wallet credit/discount. Not available for office B2B tenants or invite-only enrollment. |
 | 10 | Member profile: photo, ID (where legal), contact, emergency contact, goals, health notes | P0 | ✓ | ✓ | ✓ | — | ⚠️ Partial | `membership.py:40 photo_url`, `:41 emergency_contact`, `user.py:35 emergency_contact`. Missing: ID, goals, health notes, auto-generated summary |
 | 11 | Plans: daily to yearly, family, student, off-peak, class packs, credits | P0 | ✓ | ✓ | ✓ | ✓ | ⚠️ Partial | `PlanBillingType` = recurring / one_time_pack / drop_in; duration + price free-form so most variants expressible. Missing: credits, family linkage |
 | 12 | Joining fees, discounts, promo codes | P0 | ✓ | — | — | — | ❌ Not built | 0 matches for `discount\|coupon\|promo\|joining_fee` in `backend/app`. No promotion engine at all |

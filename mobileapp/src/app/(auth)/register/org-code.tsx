@@ -16,8 +16,9 @@ import { JOIN_FLOW, flowPosition } from "@/lib/flow";
 import type { SignupStartOut } from "@/types/api";
 
 export default function OrgCodeScreen() {
-  const { setOrg } = useJoinStore();
+  const { setOrg, setReferralCode } = useJoinStore();
   const [orgCode, setOrgCode] = useState("");
+  const [referralCodeLocal, setReferralCodeLocal] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState("");
@@ -38,6 +39,7 @@ export default function OrgCodeScreen() {
     try {
       const res = await api.post<SignupStartOut>("/memberships/signup/start", {
         org_code: orgCode,
+        referral_code: referralCodeLocal.trim() || undefined,
       });
 
       if (!res.accepting_signups) {
@@ -46,6 +48,7 @@ export default function OrgCodeScreen() {
       }
 
       setOrg(orgCode, res.organization_name, res.organization_id);
+      setReferralCode(referralCodeLocal.trim().toUpperCase());
       router.push("/(auth)/join/verify-email");
     } catch (e) {
       if (e instanceof ApiError) {
@@ -104,6 +107,14 @@ export default function OrgCodeScreen() {
           returnKeyType="go"
           onSubmitEditing={handleSubmit}
           error={fieldError}
+        />
+        <Field
+          label="Referral code (optional)"
+          placeholder="ACR12AB34CD"
+          value={referralCodeLocal}
+          onChangeText={setReferralCodeLocal}
+          autoCapitalize="characters"
+          autoCorrect={false}
         />
       </FieldGroup>
     </AuthScreen>

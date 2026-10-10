@@ -196,6 +196,9 @@ async def _activate_via_receipt(
     if member.joined_at is None:
         member.joined_at = now_utc()
     session.add(member)
+    from app.services.referrals_service import qualify_referral_for_member
+
+    await qualify_referral_for_member(session, org_id=org.id, member_id=member.id)
     receipt.payment_id = payment.id
     session.add(receipt)
 

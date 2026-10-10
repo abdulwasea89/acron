@@ -12,6 +12,7 @@ interface JoinState {
   verifiedAt: string | null;
   memberId: string | null;
   selectedPlanId: string | null;
+  referralCode: string;
 }
 
 interface JoinActions {
@@ -20,6 +21,7 @@ interface JoinActions {
   setVerified: () => void;
   setMemberId: (id: string) => void;
   setSelectedPlan: (planId: string) => void;
+  setReferralCode: (code: string) => void;
   reset: () => void;
 }
 
@@ -33,12 +35,14 @@ export const useJoinStore = create<JoinState & JoinActions>()(
       verifiedAt: null,
       memberId: null,
       selectedPlanId: null,
+      referralCode: "",
 
       setOrg: (orgCode, orgName, orgId) => set({ orgCode, orgName, orgId }),
       setEmail: (email) => set({ email }),
       setVerified: () => set({ verifiedAt: new Date().toISOString() }),
       setMemberId: (memberId) => set({ memberId }),
       setSelectedPlan: (selectedPlanId) => set({ selectedPlanId }),
+      setReferralCode: (referralCode) => set({ referralCode }),
       reset: () =>
         set({
           orgCode: "",
@@ -48,6 +52,7 @@ export const useJoinStore = create<JoinState & JoinActions>()(
           verifiedAt: null,
           memberId: null,
           selectedPlanId: null,
+          referralCode: "",
         }),
     }),
     {
@@ -61,6 +66,7 @@ export const useJoinStore = create<JoinState & JoinActions>()(
         verifiedAt: state.verifiedAt,
         memberId: state.memberId,
         selectedPlanId: state.selectedPlanId,
+        referralCode: state.referralCode,
       }),
     },
   ),

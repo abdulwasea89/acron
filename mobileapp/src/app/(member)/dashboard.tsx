@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, Share, View } from "react-native";
 import { Text } from "heroui-native";
 import { router } from "expo-router";
 
@@ -25,6 +25,15 @@ import type {
 } from "@/types/api";
 
 type MemberStatus = string;
+
+type MemberReferralOverview = {
+  enabled: boolean;
+  code: string | null;
+  organization_code: string;
+  reward_description: string;
+  referrals: { id: string; referred_name: string | null; status: string }[];
+  earned_rewards: { id: string; description: string; status: string }[];
+};
 
 const STATUS_BANNER: Partial<
   Record<MemberStatus, { tone: "accent" | "success" | "warning" | "danger" | "neutral"; title: string; message: string }>
@@ -70,6 +79,7 @@ export default function Screen_dashboard() {
   // schedule entirely.
   const classes = useGet<ClassSessionOut[]>(isOffice ? null : "/classes", ["class.changed"]);
   const bills = useGet<InvoiceOut[]>(isOffice ? "/invoices/my-company" : null, ["payment.recorded", "invoice.sent"]);
+  const referrals = useGet<MemberReferralOverview>("/referrals/me");
 
   const loading = me.loading || profile.loading || org.loading || classes.loading || bills.loading;
   const error = me.error ?? profile.error ?? org.error ?? classes.error ?? bills.error;
@@ -190,6 +200,26 @@ export default function Screen_dashboard() {
                 </View>
               )}
             </SectionCard>
+
+            {referrals.data?.enabled && referrals.data.code ? (
+              <SectionCard title="Invite a friend">
+                <View className="gap-3 rounded-2xl bg-surface p-4">
+                  <Text type="body-sm" color="muted">
+                    Share both codes. When your friend joins and pays, you both earn {referrals.data.reward_description}.
+                  </Text>
+                  <View className="rounded-xl bg-surface-secondary p-3">
+                    <Text type="body-xs" color="muted">Your referral code</Text>
+                    <Text type="h3" weight="semibold" className="mt-1 text-foreground">{referrals.data.code}</Text>
+                  </View>
+                  <Button onPress={() => void Share.share({
+                    message: `Join ${orgName || "my gym"}! Organization code: ${referrals.data?.organization_code}. Referral code: ${referrals.data?.code}.`,
+                  })}>Share invite</Button>
+                  <Text type="body-xs" color="muted">
+                    {referrals.data.referrals.filter((item) => item.status === "qualified").length} friend{referrals.data.referrals.filter((item) => item.status === "qualified").length === 1 ? "" : "s"} joined · {referrals.data.earned_rewards.filter((reward) => reward.status === "fulfilled").length} reward{referrals.data.earned_rewards.filter((reward) => reward.status === "fulfilled").length === 1 ? "" : "s"} delivered
+                  </Text>
+                </View>
+              </SectionCard>
+            ) : null}
 
             <SectionCard title="Quick actions">
               <View className="gap-3">

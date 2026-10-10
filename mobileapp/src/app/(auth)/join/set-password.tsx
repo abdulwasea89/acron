@@ -14,7 +14,7 @@ import { JOIN_FLOW, flowPosition } from "@/lib/flow";
 import type { SignupSetPasswordOut } from "@/types/api";
 
 export default function SetPassword() {
-  const { orgCode, email, setMemberId } = useJoinStore();
+  const { orgCode, email, referralCode, setMemberId } = useJoinStore();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,6 +53,7 @@ export default function SetPassword() {
         org_code: orgCode,
         email,
         password: parse.data.password,
+        referral_code: referralCode || undefined,
       });
       setMemberId(res.member_id);
       router.push("/(auth)/join/pick-plan");

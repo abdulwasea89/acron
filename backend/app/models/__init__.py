@@ -30,6 +30,7 @@ from app.models.payment import Payment
 from app.models.payroll import PayAdvance, PayrollEntry, PayrollRun
 from app.models.plan import MembershipPlan
 from app.models.receipt import ReceiptUpload
+from app.models.referral import Referral, ReferralCode, ReferralProgram, ReferralReward
 from app.models.session import AuthSession
 from app.models.signup_attempt import SignupAttempt
 from app.models.staff import Shift, StaffInvite, Task
@@ -76,6 +77,10 @@ __all__ = [
     "PayrollEntry",
     "PayrollRun",
     "ReceiptUpload",
+    "Referral",
+    "ReferralCode",
+    "ReferralProgram",
+    "ReferralReward",
     "Shift",
     "SignupAttempt",
     "StaffInvite",

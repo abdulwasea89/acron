@@ -160,11 +160,16 @@ async def _enforce_signup_rate_limits(
 
 # ------------------------------------------------------------- step 1: code
 async def start_signup(
-    session: AsyncSession, *, org_code: str, captcha_token: str | None, ip: str | None
+    session: AsyncSession, *, org_code: str, captcha_token: str | None, ip: str | None,
+    referral_code: str | None = None,
 ) -> Organization:
     org = await _org_by_code(session, org_code)
     _verify_captcha(captcha_token)
     _reject_office_self_signup(org)
+    if referral_code:
+        from app.services.referrals_service import validate_code
+
+        await validate_code(session, org_id=org.id, code=referral_code)
 
     if org.enrollment_mode == EnrollmentMode.INVITE_ONLY:
         raise HTTPException(status_code=403, detail="This gym is invite-only.")
@@ -217,12 +222,18 @@ async def verify_signup_email(
 
 # ------------------------------------------------------- step 4: password
 async def set_password(
-    session: AsyncSession, *, org_code: str, email: str, password: str
+    session: AsyncSession, *, org_code: str, email: str, password: str,
+    referral_code: str | None = None,
 ) -> OrganizationMember:
     """Create (or reuse) the user and a pending_payment / pending_approval member."""
 
     org = await _org_by_code(session, org_code)
     await auth_service.validate_password_or_raise(password)
+    referred_by = None
+    if referral_code:
+        from app.services.referrals_service import validate_code
+
+        referred_by = await validate_code(session, org_id=org.id, code=referral_code)
 
     # The email must have a consumed verification for this org.
     user = (
@@ -264,6 +275,10 @@ async def set_password(
         # request's pending work and report the conflict like the guard would.
         await session.rollback()
         raise HTTPException(status_code=409, detail="Already a member of this gym.") from exc
+    if referred_by is not None:
+        from app.services.referrals_service import attach_referral
+
+        await attach_referral(session, org_id=org.id, member_id=member.id, referral_code=referred_by)
     await record_audit(session, action="member.signup_account_created", organization_id=org.id,
                        actor_user_id=user.id, entity_type="member", entity_id=member.id)
     if initial_status == MemberStatus.PENDING_APPROVAL:
@@ -504,6 +519,9 @@ async def pay_and_activate(
         raise HTTPException(status_code=402, detail="Payment failed. Please retry.")
 
     await _activate_membership(session, org=org, member=member, plan=plan, payment=payment)
+    from app.services.referrals_service import qualify_referral_for_member
+
+    await qualify_referral_for_member(session, org_id=org.id, member_id=member.id)
     await record_audit(session, action="member.activated", organization_id=org.id,
                        actor_user_id=user.id, entity_type="member", entity_id=member.id,
                        metadata={"plan_id": plan.id, "amount": amount})

@@ -39,7 +39,8 @@ async def signup_start(
     data: SignupStart, request: Request, session: AsyncSession = Depends(get_session)
 ):
     org = await members.start_signup(
-        session, org_code=data.org_code, captcha_token=data.captcha_token, ip=get_client_ip(request)
+        session, org_code=data.org_code, captcha_token=data.captcha_token,
+        ip=get_client_ip(request), referral_code=data.referral_code,
     )
     return SignupStartOut(
         organization_id=org.id,
@@ -73,7 +74,8 @@ async def signup_set_password(
     data: SignupSetPassword, session: AsyncSession = Depends(get_session)
 ):
     member = await members.set_password(
-        session, org_code=data.org_code, email=data.email, password=data.password
+        session, org_code=data.org_code, email=data.email, password=data.password,
+        referral_code=data.referral_code,
     )
     return SignupSetPasswordOut(
         member_id=member.id,

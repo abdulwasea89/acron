@@ -109,6 +109,10 @@ async def log_cash_payment(
         member.joined_at = now_utc()
     session.add(member)
 
+    from app.services.referrals_service import qualify_referral_for_member
+
+    await qualify_referral_for_member(session, org_id=org_id, member_id=member.id)
+
     # Start the 90-day onboarding journey (#32). Idempotent per member.
     from app.services import onboarding_service, winback_service
 

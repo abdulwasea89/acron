@@ -22,4 +22,6 @@ class Lead(UUIDModel, TimestampModel, table=True):
     source: str = Field(default="staff_entered", index=True)
     stage: str = Field(default="new", index=True)
     created_by: str | None = Field(default=None, foreign_key="users.id")
+    converted_member_id: str | None = Field(default=None, foreign_key="organization_members.id")
+    referred_by_member_id: str | None = Field(default=None, foreign_key="organization_members.id")
     profile_sources: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))

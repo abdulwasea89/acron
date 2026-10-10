@@ -181,6 +181,11 @@ async def _connect_payment_succeeded(session: AsyncSession, obj: dict, account_i
             if member.joined_at is None:
                 member.joined_at = now_utc()
             session.add(member)
+            from app.services.referrals_service import qualify_referral_for_member
+
+            await qualify_referral_for_member(
+                session, org_id=payment.organization_id, member_id=member.id
+            )
 
     await record_audit(session, action="payment.webhook_succeeded", organization_id=payment.organization_id,
                        entity_type="payment", entity_id=payment.id)

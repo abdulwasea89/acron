@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
   { href: "/app/analytics", label: "Analytics", icon: "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" },
   { href: "/app/plans", label: "Plans", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
   { href: "/app/leads", label: "Leads", icon: "M12 6.75a3 3 0 1 1 0 6 3 3 0 0 1 0-6ZM4.5 20.25a7.5 7.5 0 0 1 15 0" },
+  { href: "/app/referrals", label: "Referrals", icon: "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0M18 8.25l2.25 2.25m0 0L18 12.75m2.25-2.25h-3" },
   // Office vertical routes. Gated by the registry modules companies/invoices/
   // space, which gym + academy don't enable — so they never appear for them.
   { href: "/app/companies", label: "Companies", icon: "M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" },
@@ -72,6 +73,7 @@ const NAV_GROUP_BY_HREF: Record<string, NavGroup> = {
   "/app/analytics": "Overview",
   "/app/members": "Operations",
   "/app/leads": "Operations",
+  "/app/referrals": "Operations",
   "/app/plans": "Operations",
   "/app/classes": "Operations",
   "/app/attendance": "Operations",
@@ -118,6 +120,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
   const chats = useAssistantChats();
   const [collapsed, setCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [closedGroups, setClosedGroups] = useState<NavGroup[]>([]);
 
   // ⌘K / Ctrl+K from anywhere in the shell. The 52px rail has no room for the
   // morphed field, so opening search there expands the sidebar first.
@@ -209,7 +212,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
           // the open menu. Sits under the assistant bar (z-40) and the
           // settings modal (z-[70]); page popovers (z-50) still win.
           "hidden lg:sticky lg:top-0 lg:z-30 lg:flex lg:h-screen lg:shrink-0 lg:flex-col border-r border-foreground/10 bg-surface transition-[width] duration-150",
-          collapsed ? "lg:w-[52px]" : "lg:w-64",
+          collapsed ? "lg:w-[52px]" : "lg:w-[240px]",
         )}
       >
         {/* Expanded: one header row — workspace switcher + collapse. Collapsed:
@@ -282,7 +285,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
             group during a tab view transition (same curve in globals.css). */}
         <div
           ref={quickRowRef}
-          className={cx("relative flex items-center gap-0.5 px-2 pt-1", collapsed && "flex-col")}
+          className="relative flex flex-col gap-0.5 px-2 pt-1"
         >
           <span
             ref={pillRef}
@@ -306,14 +309,13 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
                 // content crossfade in the app layout.
                 transitionTypes={["tab"]}
                 className={cx(
-                  "relative flex h-8 items-center rounded-md text-sm transition-colors",
-                  active
-                    ? cx("gap-2 font-medium text-foreground", collapsed ? "w-8 justify-center px-0" : "px-2.5")
-                    : "w-8 justify-center text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+                  "relative flex h-8 items-center rounded text-sm transition-colors",
+                  collapsed ? "w-8 justify-center" : "w-full gap-2.5 px-2.5",
+                  active ? "font-medium text-foreground" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
                 )}
               >
-                <Icon d={item.icon} className={cx("h-[18px] w-[18px] shrink-0", active && "text-foreground/80")} />
-                {active && !collapsed && <span className="animate-fade-in">{item.label}</span>}
+                <Icon d={item.icon} className="h-4 w-4 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
               </Link>
             );
           })}
@@ -327,11 +329,11 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
             return (
               <div key={group} className="mb-3">
                 {!collapsed && (
-                  <p className="px-2.5 pb-1 text-[10px] font-semibold text-muted-foreground/80">
-                    {group}
-                  </p>
+                  <button type="button" aria-expanded={!closedGroups.includes(group)} aria-controls={`nav-${group}`} onClick={() => setClosedGroups((groups) => groups.includes(group) ? groups.filter((g) => g !== group) : [...groups, group])} className="mb-1 flex h-7 w-full items-center gap-1 rounded px-2.5 text-left text-xs font-medium text-muted-foreground hover:bg-foreground/5">
+                    <span aria-hidden="true" className="w-3">{closedGroups.includes(group) ? "›" : "⌄"}</span>{group}
+                  </button>
                 )}
-                <div className="space-y-0.5">
+                <div id={`nav-${group}`} hidden={!collapsed && closedGroups.includes(group)} className="space-y-0.5">
                   {groupItems.map((item) => {
                     const active = isActive(item);
                     const rowClass = cx(
@@ -384,11 +386,11 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
           {/* Chats sit in the scrolling column with the nav sections, not down
               in the fixed footer: it is a list of variable length, so it has to
               scroll with the rest rather than hold space it may not need. */}
-          <SidebarChats collapsed={collapsed} />
+          {pathname.startsWith("/app/assistant") && <SidebarChats collapsed={collapsed} />}
         </nav>
 
         {/* New chat + account */}
-        <div className="shrink-0 p-2">
+        <div className="shrink-0 border-t border-[var(--border)] p-2">
           <div className={cx("flex items-center gap-1.5", collapsed && "flex-col")}>
             <Link
               href="/app/assistant"
@@ -398,7 +400,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
               // route you are on, so it would otherwise reopen the same one.
               onClick={() => chats?.setActiveId(null)}
               className={cx(
-                "flex h-9 items-center rounded-full border border-foreground/15 bg-secondary text-sm text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground",
+                "flex h-8 items-center rounded text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground",
                 collapsed ? "w-9 justify-center" : "flex-1 gap-2 px-3",
               )}
             >
@@ -408,18 +410,7 @@ export function Sidebar({ orgName, orgCode, orgId, industry, tier }: SidebarProp
               />
               {!collapsed && "New chat"}
             </Link>
-            {!collapsed && (
-              <Link
-                href="/app/assistant"
-                aria-label="New chat"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-foreground/15 bg-secondary text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground"
-              >
-                <Icon
-                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM16.862 4.487L19.5 7.125"
-                  className="h-[18px] w-[18px] shrink-0"
-                />
-              </Link>
-            )}
+            {!collapsed && <ThemeToggle />}
           </div>
           <button
             onClick={logout}
@@ -480,20 +471,20 @@ function MobileNavigation({
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-foreground/10 bg-background/80 backdrop-blur lg:hidden">
+    <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-background lg:hidden">
       <div className="flex h-14 items-center gap-3 px-4">
         <Link href="/app" className="flex shrink-0 items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
-          <span className="font-display text-lg leading-none tracking-tight text-foreground">Acron</span>
+          <span className="text-sm font-semibold text-foreground">Acron</span>
         </Link>
-        <p className="min-w-0 flex-1 truncate text-right font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        <p className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground">
           {orgName} · {orgCode}
         </p>
         <ThemeToggle />
         <button
           type="button"
           onClick={logout}
-          className="shrink-0 cursor-pointer list-none font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]/50 rounded px-1 py-0.5"
+          className="min-h-11 shrink-0 cursor-pointer rounded px-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           Sign out
         </button>
@@ -507,9 +498,9 @@ function MobileNavigation({
         {items.map((item) => {
           const active = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
           const chipClass = cx(
-            "flex h-8 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[12px] transition-colors duration-150",
+            "flex h-9 shrink-0 items-center whitespace-nowrap rounded px-3 text-sm transition-colors duration-150",
             active
-              ? "bg-brand font-medium text-brand-foreground"
+              ? "bg-secondary font-medium text-foreground"
               : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
           );
           if (item.href === "/app/settings") {

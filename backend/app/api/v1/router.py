@@ -37,6 +37,7 @@ from app.api.v1.routes import (
     payroll,
     plans,
     receipts,
+    referrals,
     retention,
     saas_billing,
     space,
@@ -83,4 +84,5 @@ api_router.include_router(ws.router, tags=["realtime"])
 api_router.include_router(companies.router, prefix="/companies", tags=["companies"])
 api_router.include_router(invoices.router, prefix="/invoices", tags=["invoices"])
 api_router.include_router(leads.router, prefix="/leads", tags=["leads"])
+api_router.include_router(referrals.router, prefix="/referrals", tags=["referrals"])
 api_router.include_router(space.router, prefix="/space", tags=["space"])

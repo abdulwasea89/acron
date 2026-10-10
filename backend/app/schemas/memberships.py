@@ -10,6 +10,7 @@ class SignupStart(BaseModel):
 
     org_code: str
     captcha_token: str | None = None
+    referral_code: str | None = Field(default=None, max_length=32)
 
 
 class SignupStartOut(BaseModel):
@@ -39,6 +40,7 @@ class SignupSetPassword(BaseModel):
     org_code: str
     email: EmailStr
     password: str
+    referral_code: str | None = Field(default=None, max_length=32)
 
 
 class SignupSetPasswordOut(BaseModel):
